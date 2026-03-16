@@ -32,7 +32,7 @@ async function ensureProductBelongsToStore(productId: string, storeId: string) {
 
   const { data, error } = await supabase
     .from('products')
-    .select('id, store_id')
+    .select('id, store_id, slug')
     .eq('id', productId)
     .eq('store_id', storeId)
     .maybeSingle();
@@ -69,6 +69,66 @@ async function ensureCategoryBelongsToStore(categoryId: string, storeId: string)
   return data;
 }
 
+function slugifyProductName(value: string) {
+  const slug = value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  return slug || 'producto';
+}
+
+async function generateUniqueProductSlug(
+  name: string,
+  storeId: string,
+  excludeProductId?: string
+) {
+  const supabase = await createClient();
+  const baseSlug = slugifyProductName(name);
+
+  for (let attempt = 0; attempt < 200; attempt++) {
+    const candidate = attempt === 0 ? baseSlug : `${baseSlug}-${attempt + 1}`;
+
+    let query = supabase
+      .from('products')
+      .select('id')
+      .eq('store_id', storeId)
+      .eq('slug', candidate)
+      .limit(1);
+
+    if (excludeProductId) {
+      query = query.neq('id', excludeProductId);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    if (!data || data.length === 0) {
+      return candidate;
+    }
+  }
+
+  throw new Error('No se pudo generar un slug único para el producto');
+}
+
+function revalidateProductPaths(storeSlug: string, productSlug?: string | null) {
+  revalidatePath('/admin/productos');
+  revalidatePath('/admin/categorias');
+  revalidatePath(`/${storeSlug}`);
+
+  if (productSlug) {
+    revalidatePath(`/${storeSlug}/producto/${productSlug}`);
+  }
+}
+
 export async function createProduct(formData: FormData) {
   const { store } = await getAuthorizedStore();
   const supabase = await createClient();
@@ -99,24 +159,28 @@ export async function createProduct(formData: FormData) {
     }
   }
 
+  const slug = await generateUniqueProductSlug(name, store.id);
+
   const { data: insertedProducts, error } = await supabase
     .from('products')
     .insert({
       store_id: store.id,
       name,
+      slug,
       description: description || null,
       price,
       is_active: true,
       image_url: null,
       category_id: categoryId,
     })
-    .select('id');
+    .select('id, slug');
 
   if (error || !insertedProducts || insertedProducts.length === 0) {
     throw new Error(error?.message || 'No se pudo crear el producto');
   }
 
   const productId = insertedProducts[0].id;
+  const productSlug = insertedProducts[0].slug;
   const uploadedUrls: string[] = [];
 
   for (let i = 0; i < 5; i++) {
@@ -161,9 +225,7 @@ export async function createProduct(formData: FormData) {
     }
   }
 
-  revalidatePath('/admin/productos');
-  revalidatePath('/admin/categorias');
-  revalidatePath(`/${store.slug}`);
+  revalidateProductPaths(store.slug, productSlug);
   redirect('/admin/productos?success=created');
 }
 
@@ -185,7 +247,8 @@ export async function updateProduct(formData: FormData) {
     throw new Error('Falta el producto');
   }
 
-  await ensureProductBelongsToStore(productId, store.id);
+  const existingProduct = await ensureProductBelongsToStore(productId, store.id);
+  const previousSlug = existingProduct.slug;
 
   if (!name) {
     throw new Error('El nombre es obligatorio');
@@ -203,10 +266,13 @@ export async function updateProduct(formData: FormData) {
     }
   }
 
+  const newSlug = await generateUniqueProductSlug(name, store.id, productId);
+
   const { error } = await supabase
     .from('products')
     .update({
       name,
+      slug: newSlug,
       description: description || null,
       price,
       category_id: categoryId,
@@ -282,9 +348,11 @@ export async function updateProduct(formData: FormData) {
       throw new Error(clearProductImageError.message);
     }
 
-    revalidatePath('/admin/productos');
-    revalidatePath('/admin/categorias');
-    revalidatePath(`/${store.slug}`);
+    revalidateProductPaths(store.slug, previousSlug);
+    if (previousSlug !== newSlug) {
+      revalidateProductPaths(store.slug, newSlug);
+    }
+
     redirect('/admin/productos?success=updated');
   }
 
@@ -322,9 +390,11 @@ export async function updateProduct(formData: FormData) {
     throw new Error(updateProductCoverError.message);
   }
 
-  revalidatePath('/admin/productos');
-  revalidatePath('/admin/categorias');
-  revalidatePath(`/${store.slug}`);
+  revalidateProductPaths(store.slug, previousSlug);
+  if (previousSlug !== newSlug) {
+    revalidateProductPaths(store.slug, newSlug);
+  }
+
   redirect('/admin/productos?success=updated');
 }
 
@@ -339,7 +409,7 @@ export async function deleteProductImage(formData: FormData) {
     throw new Error('Faltan datos');
   }
 
-  await ensureProductBelongsToStore(productId, store.id);
+  const product = await ensureProductBelongsToStore(productId, store.id);
 
   const { data: imageToDelete, error: imageToDeleteError } = await supabase
     .from('product_images')
@@ -389,9 +459,7 @@ export async function deleteProductImage(formData: FormData) {
       throw new Error(clearProductImageError.message);
     }
 
-    revalidatePath('/admin/productos');
-    revalidatePath('/admin/categorias');
-    revalidatePath(`/${store.slug}`);
+    revalidateProductPaths(store.slug, product.slug);
     redirect('/admin/productos?success=image-deleted');
   }
 
@@ -430,9 +498,7 @@ export async function deleteProductImage(formData: FormData) {
     throw new Error(updateProductError.message);
   }
 
-  revalidatePath('/admin/productos');
-  revalidatePath('/admin/categorias');
-  revalidatePath(`/${store.slug}`);
+  revalidateProductPaths(store.slug, product.slug);
   redirect('/admin/productos?success=image-deleted');
 }
 
@@ -447,7 +513,7 @@ export async function toggleProductActive(formData: FormData) {
     throw new Error('Falta el producto');
   }
 
-  await ensureProductBelongsToStore(productId, store.id);
+  const product = await ensureProductBelongsToStore(productId, store.id);
 
   const { error } = await supabase
     .from('products')
@@ -461,8 +527,6 @@ export async function toggleProductActive(formData: FormData) {
     throw new Error(error.message);
   }
 
-  revalidatePath('/admin/productos');
-  revalidatePath('/admin/categorias');
-  revalidatePath(`/${store.slug}`);
+  revalidateProductPaths(store.slug, product.slug);
   redirect('/admin/productos?success=status-updated');
 }

@@ -20,6 +20,7 @@ type Category = {
 type Product = {
   id: string;
   name: string;
+  slug: string;
   description: string | null;
   price: number;
   image_url: string | null;
@@ -97,7 +98,7 @@ export default async function PublicStorePage({ params }: PageProps) {
   ] = await Promise.all([
     supabase
       .from('products')
-      .select('id, name, description, price, image_url, is_active, category_id')
+      .select('id, name, slug, description, price, image_url, is_active, category_id')
       .eq('store_id', store.id)
       .eq('is_active', true)
       .order('created_at', { ascending: false }),
@@ -228,7 +229,7 @@ export default async function PublicStorePage({ params }: PageProps) {
         </section>
       )}
 
-      <section className="mx-auto max-w-6xl px-6 py-10 space-y-12">
+      <section className="mx-auto max-w-6xl space-y-12 px-6 py-10">
         {!hasAnyProducts ? (
           <div className="rounded-2xl border border-dashed p-10 text-center">
             <h2 className="text-xl font-semibold">Todavía no hay productos publicados</h2>
@@ -249,9 +250,7 @@ export default async function PublicStorePage({ params }: PageProps) {
                     <div>
                       <h2 className="text-2xl font-semibold text-gray-900">{category.name}</h2>
                       {category.description && (
-                        <p className="mt-1 text-sm text-gray-600">
-                          {category.description}
-                        </p>
+                        <p className="mt-1 text-sm text-gray-600">{category.description}</p>
                       )}
                     </div>
 
@@ -264,7 +263,7 @@ export default async function PublicStorePage({ params }: PageProps) {
                     {items.map((product) => (
                       <a
                         key={product.id}
-                        href={`/${store.slug}/producto/${product.id}`}
+                        href={`/${store.slug}/producto/${product.slug}`}
                         className="block"
                       >
                         <ProductCard product={product} />
@@ -295,7 +294,7 @@ export default async function PublicStorePage({ params }: PageProps) {
                   {uncategorizedProducts.map((product) => (
                     <a
                       key={product.id}
-                      href={`/${store.slug}/producto/${product.id}`}
+                      href={`/${store.slug}/producto/${product.slug}`}
                       className="block"
                     >
                       <ProductCard product={product} />

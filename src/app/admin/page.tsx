@@ -51,7 +51,10 @@ export default async function AdminPage() {
       <div className="rounded-2xl border p-4 space-y-4">
         <h2 className="text-xl font-semibold">Configuración de la tienda</h2>
 
-        <form action={updateStoreSettings} className="grid gap-4 max-w-2xl">
+        <form
+          action={updateStoreSettings}
+          className="grid gap-4 max-w-2xl"
+        >
           <label className="block space-y-2">
             <span className="text-sm font-medium">Nombre de la tienda</span>
             <input
@@ -103,6 +106,27 @@ export default async function AdminPage() {
             />
           </label>
 
+          {store.logo_url && (
+            <div className="space-y-2">
+              <span className="text-sm font-medium">Vista previa del logo</span>
+              <img
+                src={store.logo_url}
+                alt={`Logo de ${store.name}`}
+                className="h-20 w-20 rounded-2xl border object-cover"
+              />
+            </div>
+          )}
+
+          <label className="block space-y-2">
+            <span className="text-sm font-medium">Subir logo</span>
+            <input
+              type="file"
+              name="logo_file"
+              accept="image/*"
+              className="w-full rounded-xl border px-4 py-3"
+            />
+          </label>
+
           <label className="block space-y-2">
             <span className="text-sm font-medium">URL de portada</span>
             <input
@@ -114,8 +138,29 @@ export default async function AdminPage() {
             />
           </label>
 
+          {store.cover_url && (
+            <div className="space-y-2">
+              <span className="text-sm font-medium">Vista previa de la portada</span>
+              <img
+                src={store.cover_url}
+                alt={`Portada de ${store.name}`}
+                className="h-32 w-full rounded-2xl border object-cover"
+              />
+            </div>
+          )}
+
+          <label className="block space-y-2">
+            <span className="text-sm font-medium">Subir portada</span>
+            <input
+              type="file"
+              name="cover_file"
+              accept="image/*"
+              className="w-full rounded-xl border px-4 py-3"
+            />
+          </label>
+
           <p className="text-sm text-gray-600">
-            Por ahora podés pegar URLs de imágenes. Después lo conectamos con subida directa.
+            Podés pegar una URL o subir una imagen directamente.
           </p>
 
           <button
@@ -127,17 +172,20 @@ export default async function AdminPage() {
         </form>
       </div>
 
-      <div className="rounded-2xl border p-4 space-y-3">
-        <h2 className="text-xl font-semibold">Gestión</h2>
-        <div className="flex gap-3">
-          <a href="/admin/productos" className="rounded-xl bg-black px-4 py-2 text-white">
-            Ir a productos
-          </a>
-          <a href={`/${store.slug}`} className="rounded-xl border px-4 py-2">
-            Ver tienda pública
-          </a>
-        </div>
-      </div>
+ <div className="rounded-2xl border p-4 space-y-3">
+  <h2 className="text-xl font-semibold">Gestión</h2>
+  <div className="flex gap-3 flex-wrap">
+    <a href="/admin/productos" className="rounded-xl bg-black px-4 py-2 text-white">
+      Ir a productos
+    </a>
+    <a href="/admin/categorias" className="rounded-xl border px-4 py-2">
+      Ir a categorías
+    </a>
+    <a href={`/${store.slug}`} className="rounded-xl border px-4 py-2">
+      Ver tienda pública
+    </a>
+  </div>
+</div>
     </main>
   );
 }

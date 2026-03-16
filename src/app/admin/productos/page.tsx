@@ -2,10 +2,39 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getCurrentUserStore } from '@/lib/stores';
 import { hasFeature } from '@/lib/plans';
-import { createProduct } from './actions';
 import LogoutButton from '@/components/admin/LogoutButton';
+import ProductEditForm from '@/components/admin/ProductEditForm';
+import ProductCreateForm from '@/components/admin/ProductCreateForm';
 
-export default async function ProductosPage() {
+type CategoryOption = {
+  id: string;
+  name: string;
+  is_active: boolean;
+  sort_order: number;
+};
+
+type ProductosPageProps = {
+  searchParams?: Promise<{
+    success?: string;
+  }>;
+};
+
+function getSuccessMessage(success?: string) {
+  switch (success) {
+    case 'created':
+      return 'Producto creado correctamente.';
+    case 'updated':
+      return 'Producto actualizado correctamente.';
+    case 'image-deleted':
+      return 'Imagen eliminada correctamente.';
+    case 'status-updated':
+      return 'Estado del producto actualizado.';
+    default:
+      return null;
+  }
+}
+
+export default async function ProductosPage({ searchParams }: ProductosPageProps) {
   const membership = await getCurrentUserStore();
 
   if (!membership || !membership.stores) {
@@ -13,6 +42,8 @@ export default async function ProductosPage() {
   }
 
   const store = membership.stores;
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const successMessage = getSuccessMessage(resolvedSearchParams?.success);
 
   if (!hasFeature(store.plan, 'products')) {
     return (
@@ -28,11 +59,53 @@ export default async function ProductosPage() {
 
   const supabase = await createClient();
 
-  const { data: products, error } = await supabase
-    .from('products')
-    .select('*')
-    .eq('store_id', store.id)
-    .order('created_at', { ascending: false });
+  const [
+    { data: products, error: productsError },
+    { data: categories, error: categoriesError },
+  ] = await Promise.all([
+    supabase
+      .from('products')
+      .select(`
+        id,
+        name,
+        description,
+        price,
+        image_url,
+        is_active,
+        category_id,
+        created_at,
+        product_images (
+          id,
+          image_url,
+          is_cover,
+          sort_order
+        )
+      `)
+      .eq('store_id', store.id)
+      .order('created_at', { ascending: false }),
+
+    supabase
+      .from('categories')
+      .select(`
+        id,
+        name,
+        is_active,
+        sort_order,
+        created_at
+      `)
+      .eq('store_id', store.id)
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true }),
+  ]);
+
+  const categoryOptions: CategoryOption[] = (categories || []).map((category) => ({
+    id: category.id,
+    name: category.name,
+    is_active: category.is_active,
+    sort_order: category.sort_order,
+  }));
+
+  const activeCategoryOptions = categoryOptions.filter((category) => category.is_active);
 
   return (
     <main className="p-8 space-y-8">
@@ -41,6 +114,7 @@ export default async function ProductosPage() {
           <h1 className="text-3xl font-bold">Productos</h1>
           <p className="text-gray-600">Tienda: {store.name}</p>
         </div>
+
         <div className="flex gap-3">
           <a href="/admin" className="rounded-xl border px-4 py-2">
             Volver
@@ -49,75 +123,51 @@ export default async function ProductosPage() {
         </div>
       </div>
 
+      {successMessage && (
+        <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-green-800">
+          {successMessage}
+        </div>
+      )}
+
       <section className="rounded-2xl border p-6 space-y-4">
         <h2 className="text-xl font-semibold">Crear producto</h2>
 
-        <form action={createProduct} className="grid gap-4 md:grid-cols-2">
-          <input
-            name="name"
-            placeholder="Nombre del producto"
-            className="rounded-xl border px-4 py-3"
-            required
-          />
-
-          <input
-            name="price"
-            type="number"
-            step="0.01"
-            min="0"
-            placeholder="Precio"
-            className="rounded-xl border px-4 py-3"
-            required
-          />
-
-          <input
-            name="image_url"
-            placeholder="URL de imagen"
-            className="rounded-xl border px-4 py-3 md:col-span-2"
-          />
-
-          <textarea
-            name="description"
-            placeholder="Descripción"
-            className="rounded-xl border px-4 py-3 md:col-span-2 min-h-28"
-          />
-
-          <div className="md:col-span-2">
-            <button
-              type="submit"
-              className="rounded-xl bg-black px-5 py-3 text-white"
-            >
-              Guardar producto
-            </button>
-          </div>
-        </form>
+        {categoriesError ? (
+          <pre className="overflow-auto rounded-xl bg-red-50 p-4 text-red-700">
+            {JSON.stringify(categoriesError, null, 2)}
+          </pre>
+        ) : (
+          <ProductCreateForm categories={activeCategoryOptions} />
+        )}
       </section>
 
       <section className="rounded-2xl border p-6 space-y-4">
         <h2 className="text-xl font-semibold">Listado</h2>
 
-        {error ? (
-          <pre className="bg-red-50 text-red-700 p-4 rounded-xl overflow-auto">
-            {JSON.stringify(error, null, 2)}
+        {productsError ? (
+          <pre className="overflow-auto rounded-xl bg-red-50 p-4 text-red-700">
+            {JSON.stringify(productsError, null, 2)}
           </pre>
         ) : !products || products.length === 0 ? (
           <p>No hay productos cargados todavía.</p>
         ) : (
           <div className="grid gap-4">
-            {products.map((product) => (
-              <article key={product.id} className="rounded-2xl border p-4 space-y-2">
-                <h3 className="text-lg font-semibold">{product.name}</h3>
-                <p className="text-gray-600">
-                  ${Number(product.price).toLocaleString('es-AR')}
-                </p>
-                {product.description && (
-                  <p className="text-sm text-gray-700">{product.description}</p>
-                )}
-                <p className="text-sm">
-                  Estado: {product.is_active ? 'Activo' : 'Inactivo'}
-                </p>
-              </article>
-            ))}
+            {products.map((product) => {
+              const sortedImages = [...(product.product_images || [])].sort(
+                (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)
+              );
+
+              return (
+                <ProductEditForm
+                  key={product.id}
+                  product={{
+                    ...product,
+                    product_images: sortedImages,
+                  }}
+                  categories={activeCategoryOptions}
+                />
+              );
+            })}
           </div>
         )}
       </section>

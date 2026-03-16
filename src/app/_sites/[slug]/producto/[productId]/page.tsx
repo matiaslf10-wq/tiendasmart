@@ -14,6 +14,13 @@ type ProductImage = {
   sort_order: number | null;
 };
 
+type RelatedProduct = {
+  id: string;
+  name: string;
+  price: number;
+  image_url: string | null;
+};
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug, productId } = await params;
   const supabase = await createClient();
@@ -122,15 +129,17 @@ export default async function PublicProductPage({ params }: PageProps) {
   ]);
 
   const typedImages: ProductImage[] = images || [];
+  const typedRelatedProducts: RelatedProduct[] = relatedProducts || [];
+
   const mainImage =
     typedImages.find((img) => img.is_cover)?.image_url ||
     typedImages[0]?.image_url ||
     product.image_url ||
     null;
 
-  const productUrl = `/${store.slug}/producto/${product.id}`;
+  const productPath = `/${store.slug}/producto/${product.id}`;
   const whatsappText = encodeURIComponent(
-    `Hola! Quiero consultar por este producto: ${product.name} (${store.name}) ${productUrl}`
+    `Hola! Quiero consultar por este producto: ${product.name} (${store.name}). Link: ${productPath}`
   );
 
   return (
@@ -262,13 +271,13 @@ export default async function PublicProductPage({ params }: PageProps) {
         </div>
       </section>
 
-      {relatedProducts && relatedProducts.length > 0 && (
+      {typedRelatedProducts.length > 0 && (
         <section className="mx-auto max-w-6xl px-6 pb-12">
           <div className="space-y-5 border-t pt-8">
             <h2 className="text-2xl font-semibold">También te puede interesar</h2>
 
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              {relatedProducts.map((item) => (
+              {typedRelatedProducts.map((item) => (
                 <a
                   key={item.id}
                   href={`/${store.slug}/producto/${item.id}`}

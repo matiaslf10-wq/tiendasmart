@@ -262,9 +262,13 @@ export default async function PublicStorePage({ params }: PageProps) {
 
                   <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                     {items.map((product) => (
-                      <a key={product.id} href={`/${store.slug}/producto/${product.id}`} className="block">
-  <ProductCard product={product} />
-</a>
+                      <a
+                        key={product.id}
+                        href={`/${store.slug}/producto/${product.id}`}
+                        className="block"
+                      >
+                        <ProductCard product={product} />
+                      </a>
                     ))}
                   </div>
                 </section>
@@ -289,7 +293,13 @@ export default async function PublicStorePage({ params }: PageProps) {
 
                 <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                   {uncategorizedProducts.map((product) => (
-                    <ProductCard key={product.id} product={product} />
+                    <a
+                      key={product.id}
+                      href={`/${store.slug}/producto/${product.id}`}
+                      className="block"
+                    >
+                      <ProductCard product={product} />
+                    </a>
                   ))}
                 </div>
               </section>

@@ -117,6 +117,7 @@ export default async function PublicProductPage({ params }: PageProps) {
       .eq('store_id', store.id)
       .eq('is_active', true)
       .neq('id', product.id)
+      .order('created_at', { ascending: false })
       .limit(4),
   ]);
 
@@ -127,8 +128,9 @@ export default async function PublicProductPage({ params }: PageProps) {
     product.image_url ||
     null;
 
+  const productUrl = `/${store.slug}/producto/${product.id}`;
   const whatsappText = encodeURIComponent(
-    `Hola! Quiero consultar por este producto: ${product.name} (${store.name}) - ${typeof window === 'undefined' ? '' : window.location.href}`
+    `Hola! Quiero consultar por este producto: ${product.name} (${store.name}) ${productUrl}`
   );
 
   return (

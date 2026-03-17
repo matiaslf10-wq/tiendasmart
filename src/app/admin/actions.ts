@@ -47,6 +47,96 @@ async function ensureProductBelongsToStore(productId: string, storeId: string) {
   return data;
 }
 
+export async function updateStoreSettings(formData: FormData) {
+  const membership = await getCurrentUserStore();
+
+  if (!membership || !membership.stores) {
+    throw new Error('No autorizado');
+  }
+
+  const store = membership.stores;
+
+  if (membership.role !== 'owner' && membership.role !== 'admin') {
+    throw new Error('No tenés permisos para gestionar la tienda');
+  }
+
+  const supabase = await createClient();
+
+  const name = String(formData.get('name') || '').trim();
+  const slugInput = String(formData.get('slug') || '').trim().toLowerCase();
+  const whatsappNumber = String(formData.get('whatsapp_number') || '').trim();
+  const logoUrlInput = String(formData.get('logo_url') || '').trim();
+  const coverUrlInput = String(formData.get('cover_url') || '').trim();
+
+  if (!name) {
+    throw new Error('El nombre es obligatorio');
+  }
+
+  if (!slugInput) {
+    throw new Error('El slug es obligatorio');
+  }
+
+  const normalizedSlug = slugInput
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+
+  if (!normalizedSlug) {
+    throw new Error('El slug no es válido');
+  }
+
+  const { data: slugInUse, error: slugCheckError } = await supabase
+    .from('stores')
+    .select('id')
+    .eq('slug', normalizedSlug)
+    .neq('id', store.id)
+    .maybeSingle();
+
+  if (slugCheckError) {
+    throw new Error(slugCheckError.message);
+  }
+
+  if (slugInUse) {
+    throw new Error('Ese slug ya está en uso');
+  }
+
+  let finalLogoUrl: string | null = logoUrlInput || null;
+  let finalCoverUrl: string | null = coverUrlInput || null;
+
+  const logoFile = formData.get('logo_file') as File | null;
+  if (logoFile && logoFile.size > 0) {
+    finalLogoUrl = await uploadProductImage(logoFile);
+  }
+
+  const coverFile = formData.get('cover_file') as File | null;
+  if (coverFile && coverFile.size > 0) {
+    finalCoverUrl = await uploadProductImage(coverFile);
+  }
+
+  const { error: updateError } = await supabase
+    .from('stores')
+    .update({
+      name,
+      slug: normalizedSlug,
+      whatsapp_number: whatsappNumber || null,
+      logo_url: finalLogoUrl,
+      cover_url: finalCoverUrl,
+    })
+    .eq('id', store.id);
+
+  if (updateError) {
+    throw new Error(updateError.message);
+  }
+
+  revalidatePath('/admin');
+  revalidatePath('/admin/productos');
+  revalidatePath('/admin/categorias');
+  revalidatePath(`/${store.slug}`);
+  revalidatePath(`/${normalizedSlug}`);
+}
+
 export async function createProduct(formData: FormData) {
   const { store } = await getAuthorizedStore();
   const supabase = await createClient();
@@ -391,7 +481,8 @@ export async function toggleProductActive(formData: FormData) {
   const supabase = await createClient();
 
   const productId = String(formData.get('product_id') || '').trim();
-  const currentValue = String(formData.get('current_value') || '').trim() === 'true';
+  const currentValue =
+    String(formData.get('current_value') || '').trim() === 'true';
 
   if (!productId) {
     throw new Error('Falta el producto');

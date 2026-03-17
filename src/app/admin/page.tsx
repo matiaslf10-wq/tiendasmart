@@ -29,21 +29,38 @@ export default async function AdminPage() {
       </div>
 
       <div className="rounded-2xl border p-4 space-y-2">
-        <p><strong>Slug:</strong> {store.slug}</p>
-        <p><strong>Plan:</strong> {store.plan}</p>
-        <p><strong>Rol:</strong> {membership.role}</p>
-        <p><strong>Activa:</strong> {store.is_active ? 'Sí' : 'No'}</p>
-        <p><strong>Tienda pública:</strong> /{store.slug}</p>
+        <p>
+          <strong>Slug:</strong> {store.slug}
+        </p>
+        <p>
+          <strong>Plan:</strong> {store.plan}
+        </p>
+        <p>
+          <strong>Rol:</strong> {membership.role}
+        </p>
+        <p>
+          <strong>Activa:</strong> {store.is_active ? 'Sí' : 'No'}
+        </p>
+        <p>
+          <strong>Tienda pública:</strong> /{store.slug}
+        </p>
       </div>
 
       <div className="rounded-2xl border p-4 space-y-2">
         <h2 className="text-xl font-semibold">Features disponibles</h2>
         <ul className="list-disc pl-6">
           <li>Productos: {hasFeature(store.plan, 'products') ? 'Sí' : 'No'}</li>
-          <li>Categorías: {hasFeature(store.plan, 'categories') ? 'Sí' : 'No'}</li>
-          <li>Pedidos básicos: {hasFeature(store.plan, 'basic_orders') ? 'Sí' : 'No'}</li>
+          <li>
+            Categorías: {hasFeature(store.plan, 'categories') ? 'Sí' : 'No'}
+          </li>
+          <li>
+            Pedidos básicos: {hasFeature(store.plan, 'basic_orders') ? 'Sí' : 'No'}
+          </li>
           <li>Cupones: {hasFeature(store.plan, 'coupons') ? 'Sí' : 'No'}</li>
-          <li>Analytics avanzados: {hasFeature(store.plan, 'advanced_analytics') ? 'Sí' : 'No'}</li>
+          <li>
+            Analytics avanzados:{' '}
+            {hasFeature(store.plan, 'advanced_analytics') ? 'Sí' : 'No'}
+          </li>
           <li>IA: {hasFeature(store.plan, 'ai_descriptions') ? 'Sí' : 'No'}</li>
         </ul>
       </div>
@@ -51,10 +68,7 @@ export default async function AdminPage() {
       <div className="rounded-2xl border p-4 space-y-4">
         <h2 className="text-xl font-semibold">Configuración de la tienda</h2>
 
-        <form
-          action={updateStoreSettings}
-          className="grid gap-4 max-w-2xl"
-        >
+        <form action={updateStoreSettings} className="grid max-w-2xl gap-4">
           <label className="block space-y-2">
             <span className="text-sm font-medium">Nombre de la tienda</span>
             <input
@@ -172,20 +186,20 @@ export default async function AdminPage() {
         </form>
       </div>
 
- <div className="rounded-2xl border p-4 space-y-3">
-  <h2 className="text-xl font-semibold">Gestión</h2>
-  <div className="flex gap-3 flex-wrap">
-    <a href="/admin/productos" className="rounded-xl bg-black px-4 py-2 text-white">
-      Ir a productos
-    </a>
-    <a href="/admin/categorias" className="rounded-xl border px-4 py-2">
-      Ir a categorías
-    </a>
-    <a href={`/${store.slug}`} className="rounded-xl border px-4 py-2">
-      Ver tienda pública
-    </a>
-  </div>
-</div>
+      <div className="rounded-2xl border p-4 space-y-3">
+        <h2 className="text-xl font-semibold">Gestión</h2>
+        <div className="flex flex-wrap gap-3">
+          <a href="/admin/productos" className="rounded-xl bg-black px-4 py-2 text-white">
+            Ir a productos
+          </a>
+          <a href="/admin/categorias" className="rounded-xl border px-4 py-2">
+            Ir a categorías
+          </a>
+          <a href={`/${store.slug}`} className="rounded-xl border px-4 py-2">
+            Ver tienda pública
+          </a>
+        </div>
+      </div>
     </main>
   );
 }

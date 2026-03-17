@@ -85,6 +85,24 @@ export default async function CategoriasPage({
         </div>
       </div>
 
+      <div className="rounded-2xl border p-4 space-y-3">
+        <h2 className="text-xl font-semibold">Gestión</h2>
+        <div className="flex flex-wrap gap-3">
+          <a href="/admin" className="rounded-xl border px-4 py-2">
+            Ir al panel
+          </a>
+          <a href="/admin/categorias" className="rounded-xl bg-black px-4 py-2 text-white">
+            Crear / editar categorías
+          </a>
+          <a href="/admin/productos" className="rounded-xl border px-4 py-2">
+            Crear / editar productos
+          </a>
+          <a href={`/${store.slug}`} className="rounded-xl border px-4 py-2">
+            Ver tienda
+          </a>
+        </div>
+      </div>
+
       {successMessage && (
         <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-green-800">
           {successMessage}

@@ -7,9 +7,11 @@ import {
   decreaseCartItem,
   formatPrice,
   getCart,
+  getCustomerData,
   getWhatsAppUrl,
   increaseCartItem,
   removeCartItem,
+  saveCustomerData,
   type CartItem,
 } from '@/lib/cart';
 
@@ -37,6 +39,11 @@ export default function WhatsAppCart({
   useEffect(() => {
     loadCart();
 
+    const saved = getCustomerData(storeSlug);
+    setCustomerName(saved.name);
+    setCustomerAddress(saved.address);
+    setCustomerNotes(saved.notes);
+
     function onUpdate() {
       loadCart();
     }
@@ -47,6 +54,14 @@ export default function WhatsAppCart({
       window.removeEventListener('cart-updated', onUpdate as EventListener);
     };
   }, [storeSlug]);
+
+  useEffect(() => {
+    saveCustomerData(storeSlug, {
+      name: customerName,
+      address: customerAddress,
+      notes: customerNotes,
+    });
+  }, [customerName, customerAddress, customerNotes, storeSlug]);
 
   const totalItems = useMemo(
     () => items.reduce((acc, item) => acc + item.quantity, 0),
@@ -117,7 +132,7 @@ export default function WhatsAppCart({
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+            <div className="flex-1 overflow-y-auto space-y-5 px-5 py-4">
               {items.length === 0 ? (
                 <p className="text-sm text-gray-600">
                   Todavía no agregaste productos.
@@ -184,7 +199,7 @@ export default function WhatsAppCart({
                 </div>
               )}
 
-              <section className="rounded-2xl border border-gray-200 p-4 space-y-4">
+              <section className="space-y-4 rounded-2xl border border-gray-200 p-4">
                 <h3 className="font-semibold text-gray-900">Tus datos</h3>
 
                 <label className="block space-y-2">
@@ -231,7 +246,7 @@ export default function WhatsAppCart({
               </section>
             </div>
 
-            <div className="border-t px-5 py-4 space-y-3">
+            <div className="space-y-3 border-t px-5 py-4">
               <div className="flex items-center justify-between text-sm">
                 <span>Total</span>
                 <strong>{formatPrice(totalPrice)}</strong>

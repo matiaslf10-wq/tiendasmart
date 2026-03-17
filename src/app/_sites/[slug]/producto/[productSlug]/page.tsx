@@ -314,7 +314,12 @@ export default async function PublicProductPage({ params }: PageProps) {
         </section>
       )}
 
-      {store.whatsapp_number && <WhatsAppCart phone={store.whatsapp_number} />}
-    </main>
+      {store.whatsapp_number && (
+  <WhatsAppCart
+    storeSlug={store.slug}
+    storeName={store.name}
+    whatsappNumber={store.whatsapp_number}
+  />
+)}    </main>
   );
 }

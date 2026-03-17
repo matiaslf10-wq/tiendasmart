@@ -26,6 +26,9 @@ export default function WhatsAppCart({
 }: WhatsAppCartProps) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<CartItem[]>([]);
+  const [customerName, setCustomerName] = useState('');
+  const [customerAddress, setCustomerAddress] = useState('');
+  const [customerNotes, setCustomerNotes] = useState('');
 
   function loadCart() {
     setItems(getCart(storeSlug));
@@ -56,14 +59,35 @@ export default function WhatsAppCart({
   );
 
   const whatsappUrl = useMemo(() => {
-    const message = buildWhatsAppMessage({
+    const baseMessage = buildWhatsAppMessage({
       storeName,
       storeSlug,
       items,
     });
 
-    return getWhatsAppUrl(whatsappNumber, message);
-  }, [items, storeName, storeSlug, whatsappNumber]);
+    const extraLines = [
+      '',
+      '*Datos del cliente:*',
+      `- Nombre: ${customerName.trim() || 'No informado'}`,
+      `- Dirección: ${customerAddress.trim() || 'No informada'}`,
+      `- Observaciones: ${customerNotes.trim() || 'Sin observaciones'}`,
+    ];
+
+    return getWhatsAppUrl(
+      whatsappNumber,
+      `${baseMessage}\n${extraLines.join('\n')}`
+    );
+  }, [
+    items,
+    storeName,
+    storeSlug,
+    whatsappNumber,
+    customerName,
+    customerAddress,
+    customerNotes,
+  ]);
+
+  const canSend = items.length > 0 && customerName.trim().length > 0;
 
   return (
     <>
@@ -93,7 +117,7 @@ export default function WhatsAppCart({
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-5 py-4">
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
               {items.length === 0 ? (
                 <p className="text-sm text-gray-600">
                   Todavía no agregaste productos.
@@ -159,6 +183,52 @@ export default function WhatsAppCart({
                   ))}
                 </div>
               )}
+
+              <section className="rounded-2xl border border-gray-200 p-4 space-y-4">
+                <h3 className="font-semibold text-gray-900">Tus datos</h3>
+
+                <label className="block space-y-2">
+                  <span className="text-sm font-medium text-gray-700">
+                    Nombre *
+                  </span>
+                  <input
+                    type="text"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    placeholder="Ej: María"
+                    className="w-full rounded-xl border px-4 py-3 text-sm"
+                  />
+                </label>
+
+                <label className="block space-y-2">
+                  <span className="text-sm font-medium text-gray-700">
+                    Dirección
+                  </span>
+                  <input
+                    type="text"
+                    value={customerAddress}
+                    onChange={(e) => setCustomerAddress(e.target.value)}
+                    placeholder="Ej: Av. Siempreviva 123"
+                    className="w-full rounded-xl border px-4 py-3 text-sm"
+                  />
+                </label>
+
+                <label className="block space-y-2">
+                  <span className="text-sm font-medium text-gray-700">
+                    Observaciones
+                  </span>
+                  <textarea
+                    value={customerNotes}
+                    onChange={(e) => setCustomerNotes(e.target.value)}
+                    placeholder="Ej: sin cebolla, tocar timbre, pagar en efectivo"
+                    className="min-h-24 w-full rounded-xl border px-4 py-3 text-sm"
+                  />
+                </label>
+
+                <p className="text-xs text-gray-500">
+                  Para enviar el pedido, completá al menos tu nombre.
+                </p>
+              </section>
             </div>
 
             <div className="border-t px-5 py-4 space-y-3">
@@ -181,11 +251,11 @@ export default function WhatsAppCart({
                 </button>
 
                 <a
-                  href={items.length > 0 ? whatsappUrl : '#'}
+                  href={canSend ? whatsappUrl : '#'}
                   target="_blank"
                   rel="noreferrer"
                   className={`flex-1 rounded-xl px-4 py-3 text-center text-sm font-semibold ${
-                    items.length > 0
+                    canSend
                       ? 'bg-green-600 text-white'
                       : 'pointer-events-none bg-gray-200 text-gray-500'
                   }`}

@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { createClient } from '@/lib/supabase/server';
-import WhatsAppCart from '@/components/WhatsAppCart';
+import WhatsAppCart from '@/components/store/WhatsAppCart';
 import ProductCard from '@/components/ProductCard';
 
 type PageProps = {
@@ -151,6 +151,7 @@ export default async function PublicStorePage({ params }: PageProps) {
 
   return (
     <main className="min-h-screen bg-white">
+      {/* HEADER */}
       <section className="relative border-b bg-gray-50">
         {store.cover_url && (
           <div className="absolute inset-0">
@@ -202,6 +203,7 @@ export default async function PublicStorePage({ params }: PageProps) {
         </div>
       </section>
 
+      {/* NAV CATEGORÍAS */}
       {hasAnyProducts && (visibleCategories.length > 0 || uncategorizedProducts.length > 0) && (
         <section className="sticky top-0 z-20 border-b bg-white/90 backdrop-blur">
           <div className="mx-auto max-w-6xl px-6 py-3">
@@ -210,7 +212,7 @@ export default async function PublicStorePage({ params }: PageProps) {
                 <a
                   key={category.id}
                   href={`#${sectionIdFromCategory(category)}`}
-                  className="whitespace-nowrap rounded-full border px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-50"
+                  className="whitespace-nowrap rounded-full border px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                 >
                   {category.name}
                 </a>
@@ -219,7 +221,7 @@ export default async function PublicStorePage({ params }: PageProps) {
               {uncategorizedProducts.length > 0 && (
                 <a
                   href="#otros-productos"
-                  className="whitespace-nowrap rounded-full border px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-50"
+                  className="whitespace-nowrap rounded-full border px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                 >
                   Otros productos
                 </a>
@@ -229,6 +231,7 @@ export default async function PublicStorePage({ params }: PageProps) {
         </section>
       )}
 
+      {/* PRODUCTOS */}
       <section className="mx-auto max-w-6xl space-y-12 px-6 py-10">
         {!hasAnyProducts ? (
           <div className="rounded-2xl border border-dashed p-10 text-center">
@@ -246,28 +249,17 @@ export default async function PublicStorePage({ params }: PageProps) {
                   id={sectionIdFromCategory(category)}
                   className="scroll-mt-24 space-y-5"
                 >
-                  <div className="flex flex-col gap-2 border-b pb-3 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
-                      <h2 className="text-2xl font-semibold text-gray-900">{category.name}</h2>
-                      {category.description && (
-                        <p className="mt-1 text-sm text-gray-600">{category.description}</p>
-                      )}
-                    </div>
-
-                    <span className="text-sm text-gray-500">
-                      {items.length} {items.length === 1 ? 'producto' : 'productos'}
-                    </span>
+                  <div className="border-b pb-3">
+                    <h2 className="text-2xl font-semibold text-gray-900">
+                      {category.name}
+                    </h2>
                   </div>
 
                   <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                     {items.map((product) => (
-                      <a
-                        key={product.id}
-                        href={`/${store.slug}/producto/${product.slug}`}
-                        className="block"
-                      >
+                      <div key={product.id}>
                         <ProductCard product={product} />
-                      </a>
+                      </div>
                     ))}
                   </div>
                 </section>
@@ -275,30 +267,16 @@ export default async function PublicStorePage({ params }: PageProps) {
             })}
 
             {uncategorizedProducts.length > 0 && (
-              <section id="otros-productos" className="scroll-mt-24 space-y-5">
-                <div className="flex flex-col gap-2 border-b pb-3 sm:flex-row sm:items-end sm:justify-between">
-                  <div>
-                    <h2 className="text-2xl font-semibold text-gray-900">Otros productos</h2>
-                    <p className="mt-1 text-sm text-gray-600">
-                      Productos publicados sin una categoría asignada.
-                    </p>
-                  </div>
-
-                  <span className="text-sm text-gray-500">
-                    {uncategorizedProducts.length}{' '}
-                    {uncategorizedProducts.length === 1 ? 'producto' : 'productos'}
-                  </span>
-                </div>
+              <section id="otros-productos" className="space-y-5">
+                <h2 className="text-2xl font-semibold text-gray-900">
+                  Otros productos
+                </h2>
 
                 <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                   {uncategorizedProducts.map((product) => (
-                    <a
-                      key={product.id}
-                      href={`/${store.slug}/producto/${product.slug}`}
-                      className="block"
-                    >
+                    <div key={product.id}>
                       <ProductCard product={product} />
-                    </a>
+                    </div>
                   ))}
                 </div>
               </section>
@@ -307,7 +285,14 @@ export default async function PublicStorePage({ params }: PageProps) {
         )}
       </section>
 
-      {store.whatsapp_number && <WhatsAppCart phone={store.whatsapp_number} />}
+      {/* 🟢 CARRITO */}
+      {store.whatsapp_number && (
+        <WhatsAppCart
+          storeSlug={store.slug}
+          storeName={store.name}
+          whatsappNumber={store.whatsapp_number}
+        />
+      )}
     </main>
   );
 }

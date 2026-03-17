@@ -29,18 +29,22 @@ type Product = {
   price: number;
   image_url?: string | null;
   is_active?: boolean | null;
+  category_id?: string | null;
   track_stock?: boolean | null;
   stock_quantity?: number | null;
   allow_backorder?: boolean | null;
+  product_images?: ProductImage[];
+};
+
+type ProductEditFormProps = {
+  product: Product;
+  categories: CategoryOption[];
 };
 
 export default function ProductEditForm({
   product,
   categories,
-}: {
-  product: Product;
-  categories: CategoryOption[];
-}) {
+}: ProductEditFormProps) {
   const [open, setOpen] = useState(false);
 
   const existingImages = product.product_images || [];

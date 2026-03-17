@@ -14,6 +14,33 @@ type CategoryOption = {
   sort_order: number;
 };
 
+type ProductImage = {
+  id: string;
+  image_url: string;
+  is_cover: boolean;
+  sort_order: number | null;
+};
+
+type Product = {
+  id: string;
+  name: string;
+  description: string | null;
+  price: number;
+  image_url: string | null;
+  is_active: boolean;
+  category_id: string | null;
+  created_at: string;
+  product_images?: ProductImage[];
+};
+
+type Category = {
+  id: string;
+  name: string;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+};
+
 type ProductosPageProps = {
   searchParams?: Promise<{
     success?: string;
@@ -96,8 +123,8 @@ export default async function ProductosPage({ searchParams }: ProductosPageProps
       .order('created_at', { ascending: true }),
   ]);
 
-  const safeProducts = products || [];
-  const safeCategories = categories || [];
+  const safeProducts: Product[] = (products ?? []) as Product[];
+  const safeCategories: Category[] = (categories ?? []) as Category[];
 
   const totalProducts = safeProducts.length;
   const activeProducts = safeProducts.filter((product) => product.is_active).length;
@@ -177,7 +204,7 @@ export default async function ProductosPage({ searchParams }: ProductosPageProps
           <pre className="overflow-auto rounded-xl bg-red-50 p-4 text-red-700">
             {JSON.stringify(productsError, null, 2)}
           </pre>
-        ) : !safeProducts || safeProducts.length === 0 ? (
+        ) : safeProducts.length === 0 ? (
           <p>No hay productos cargados todavía.</p>
         ) : (
           <div className="grid gap-4">

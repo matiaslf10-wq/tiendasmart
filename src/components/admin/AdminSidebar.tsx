@@ -8,8 +8,8 @@ type AdminSidebarProps = {
 
 function itemClass(active: boolean) {
   return active
-    ? 'flex items-center gap-3 rounded-2xl bg-black px-4 py-3 text-white shadow-sm'
-    : 'flex items-center gap-3 rounded-2xl px-4 py-3 text-gray-700 transition hover:bg-gray-100';
+    ? 'flex items-center gap-3 rounded-2xl bg-black px-4 py-3 text-white shadow-md scale-[1.02]'
+    : 'flex items-center gap-3 rounded-2xl px-4 py-3 text-gray-700 transition hover:bg-gray-100 hover:scale-[1.01]';
 }
 
 export default function AdminSidebar({
@@ -18,7 +18,7 @@ export default function AdminSidebar({
   current,
 }: AdminSidebarProps) {
   return (
-    <aside className="w-full rounded-3xl border border-gray-200 bg-white p-4 shadow-sm lg:sticky lg:top-6">
+    <aside className="w-full rounded-3xl border border-gray-200 bg-white/90 backdrop-blur p-5 shadow-md lg:sticky lg:top-6">
       <div className="mb-6 border-b border-gray-100 pb-4">
         <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
           TiendaSmart

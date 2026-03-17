@@ -105,13 +105,16 @@ export default async function ProductosPage({ searchParams }: ProductosPageProps
   const activeCategoryOptions = categoryOptions.filter((category) => category.is_active);
 
   return (
-    <AdminShell
-      title="Productos"
-      subtitle={`Tienda: ${store.name}`}
-      storeName={store.name}
-      storeSlug={store.slug}
-      current="productos"
-    >
+ <AdminShell
+  title="Productos"
+  subtitle={`Tienda: ${store.name}`}
+  storeName={store.name}
+  storeSlug={store.slug}
+  current="productos"
+>
+  <p className="text-xs text-gray-500 -mt-2">
+    Gestioná los productos que se muestran en tu tienda
+  </p>
       {successMessage && (
         <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-green-800">
           {successMessage}

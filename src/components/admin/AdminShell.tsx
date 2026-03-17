@@ -29,7 +29,7 @@ export default function AdminShell({
           />
 
           <section className="min-w-0 space-y-6">
-            <header className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+            <header className="rounded-3xl border border-gray-200 bg-gradient-to-r from-white to-gray-50 p-6 shadow-sm">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <h1 className="text-3xl font-bold text-gray-900">{title}</h1>

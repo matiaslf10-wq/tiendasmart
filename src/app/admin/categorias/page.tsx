@@ -5,6 +5,7 @@ import { hasFeature } from '@/lib/plans';
 import CategoryCreateForm from '@/components/admin/CategoryCreateForm';
 import CategoryEditForm from '@/components/admin/CategoryEditForm';
 import AdminShell from '@/components/admin/AdminShell';
+import AdminStatCard from '@/components/admin/AdminStatCard';
 
 type CategoriasPageProps = {
   searchParams?: Promise<{
@@ -66,6 +67,12 @@ export default async function CategoriasPage({
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: true });
 
+  const safeCategories = categories || [];
+
+  const total = safeCategories.length;
+  const active = safeCategories.filter((c) => c.is_active).length;
+  const inactive = total - active;
+
   return (
     <AdminShell
       title="Categorías"
@@ -74,6 +81,28 @@ export default async function CategoriasPage({
       storeSlug={store.slug}
       current="categorias"
     >
+      <p className="text-sm text-gray-500 -mt-2">
+        Organizá cómo se agrupan los productos en tu tienda.
+      </p>
+
+      {/* 🔥 MÉTRICAS */}
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <AdminStatCard
+          label="Categorías totales"
+          value={total}
+        />
+        <AdminStatCard
+          label="Activas"
+          value={active}
+          tone="success"
+        />
+        <AdminStatCard
+          label="Inactivas"
+          value={inactive}
+          tone="warning"
+        />
+      </section>
+
       {successMessage && (
         <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-green-800">
           {successMessage}
@@ -92,11 +121,11 @@ export default async function CategoriasPage({
           <pre className="overflow-auto rounded-xl bg-red-50 p-4 text-red-700">
             {JSON.stringify(error, null, 2)}
           </pre>
-        ) : !categories || categories.length === 0 ? (
+        ) : safeCategories.length === 0 ? (
           <p>No hay categorías cargadas todavía.</p>
         ) : (
           <div className="grid gap-4">
-            {categories.map((category) => (
+            {safeCategories.map((category) => (
               <CategoryEditForm key={category.id} category={category} />
             ))}
           </div>

@@ -1,6 +1,8 @@
 import { getCurrentUserStore } from '@/lib/stores';
 import { hasFeature } from '@/lib/plans';
 import AdminShell from '@/components/admin/AdminShell';
+import AdminStatCard from '@/components/admin/AdminStatCard';
+import { createClient } from '@/lib/supabase/server';
 import { updateStoreSettings } from './actions';
 
 export default async function AdminPage() {
@@ -17,6 +19,23 @@ export default async function AdminPage() {
 
   const store = membership.stores;
 
+  const supabase = await createClient();
+
+  const [
+    { count: productsCount },
+    { count: categoriesCount },
+  ] = await Promise.all([
+    supabase
+      .from('products')
+      .select('*', { count: 'exact', head: true })
+      .eq('store_id', store.id),
+
+    supabase
+      .from('categories')
+      .select('*', { count: 'exact', head: true })
+      .eq('store_id', store.id),
+  ]);
+
   return (
     <AdminShell
       title={`Panel de ${store.name}`}
@@ -25,24 +44,41 @@ export default async function AdminPage() {
       storeSlug={store.slug}
       current="panel"
     >
+      {/* 🔥 MÉTRICAS */}
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <AdminStatCard
+          label="Productos"
+          value={productsCount ?? 0}
+        />
+        <AdminStatCard
+          label="Categorías"
+          value={categoriesCount ?? 0}
+        />
+        <AdminStatCard
+          label="Plan"
+          value={store.plan}
+        />
+        <AdminStatCard
+          label="Estado"
+          value={store.is_active ? 'Activa' : 'Inactiva'}
+          tone={store.is_active ? 'success' : 'warning'}
+        />
+      </section>
+
+      {/* INFO BÁSICA */}
       <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm space-y-2">
         <p>
           <strong>Slug:</strong> {store.slug}
         </p>
         <p>
-          <strong>Plan:</strong> {store.plan}
-        </p>
-        <p>
           <strong>Rol:</strong> {membership.role}
-        </p>
-        <p>
-          <strong>Activa:</strong> {store.is_active ? 'Sí' : 'No'}
         </p>
         <p>
           <strong>Tienda pública:</strong> /{store.slug}
         </p>
       </div>
 
+      {/* FEATURES */}
       <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm space-y-2">
         <h2 className="text-xl font-semibold">Features disponibles</h2>
         <ul className="list-disc pl-6">
@@ -62,6 +98,7 @@ export default async function AdminPage() {
         </ul>
       </div>
 
+      {/* CONFIG */}
       <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
         <h2 className="text-xl font-semibold">Configuración de la tienda</h2>
 
@@ -72,7 +109,6 @@ export default async function AdminPage() {
               type="text"
               name="name"
               defaultValue={store.name}
-              placeholder="Ej: Dulce Amor"
               className="w-full rounded-xl border px-4 py-3"
               required
             />
@@ -84,95 +120,71 @@ export default async function AdminPage() {
               type="text"
               name="slug"
               defaultValue={store.slug}
-              placeholder="Ej: dulce-amor"
               className="w-full rounded-xl border px-4 py-3"
               required
             />
           </label>
 
           <p className="text-sm text-gray-600">
-            Este valor define la URL pública. Ejemplo: /{store.slug}
+            URL pública: /{store.slug}
           </p>
 
           <label className="block space-y-2">
-            <span className="text-sm font-medium">WhatsApp de la tienda</span>
+            <span className="text-sm font-medium">WhatsApp</span>
             <input
               type="text"
               name="whatsapp_number"
               defaultValue={store.whatsapp_number ?? ''}
-              placeholder="Ej: 5491134567890"
               className="w-full rounded-xl border px-4 py-3"
               required
             />
           </label>
 
           <label className="block space-y-2">
-            <span className="text-sm font-medium">URL del logo</span>
+            <span className="text-sm font-medium">Logo URL</span>
             <input
               type="text"
               name="logo_url"
               defaultValue={store.logo_url ?? ''}
-              placeholder="https://..."
               className="w-full rounded-xl border px-4 py-3"
             />
           </label>
 
           {store.logo_url && (
-            <div className="space-y-2">
-              <span className="text-sm font-medium">Vista previa del logo</span>
-              <img
-                src={store.logo_url}
-                alt={`Logo de ${store.name}`}
-                className="h-20 w-20 rounded-2xl border object-cover"
-              />
-            </div>
+            <img
+              src={store.logo_url}
+              alt="logo"
+              className="h-20 w-20 rounded-xl border object-cover"
+            />
           )}
 
           <label className="block space-y-2">
             <span className="text-sm font-medium">Subir logo</span>
-            <input
-              type="file"
-              name="logo_file"
-              accept="image/*"
-              className="w-full rounded-xl border px-4 py-3"
-            />
+            <input type="file" name="logo_file" accept="image/*" />
           </label>
 
           <label className="block space-y-2">
-            <span className="text-sm font-medium">URL de portada</span>
+            <span className="text-sm font-medium">Portada URL</span>
             <input
               type="text"
               name="cover_url"
               defaultValue={store.cover_url ?? ''}
-              placeholder="https://..."
               className="w-full rounded-xl border px-4 py-3"
             />
           </label>
 
           {store.cover_url && (
-            <div className="space-y-2">
-              <span className="text-sm font-medium">Vista previa de la portada</span>
-              <img
-                src={store.cover_url}
-                alt={`Portada de ${store.name}`}
-                className="h-32 w-full rounded-2xl border object-cover"
-              />
-            </div>
+            <img
+              src={store.cover_url}
+              alt="cover"
+              className="h-32 w-full rounded-xl border object-cover"
+            />
           )}
 
           <label className="block space-y-2">
             <span className="text-sm font-medium">Subir portada</span>
-            <input
-              type="file"
-              name="cover_file"
-              accept="image/*"
-              className="w-full rounded-xl border px-4 py-3"
-            />
+            <input type="file" name="cover_file" accept="image/*" />
           </label>
-
-          <p className="text-sm text-gray-600">
-            Podés pegar una URL o subir una imagen directamente.
-          </p>
 
           <button
             type="submit"

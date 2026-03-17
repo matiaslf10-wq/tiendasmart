@@ -7,8 +7,8 @@ type AdminNavProps = {
 
 function getItemClass(isActive: boolean) {
   return isActive
-    ? 'rounded-2xl border border-black bg-black px-4 py-3 text-sm font-semibold text-white shadow-sm transition'
-    : 'rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-800 shadow-sm transition hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-md';
+    ? 'rounded-2xl border border-black bg-black px-4 py-4 text-sm font-semibold text-white shadow-md transition'
+    : 'rounded-2xl border border-gray-200 bg-white px-4 py-4 text-sm font-semibold text-gray-800 shadow-sm transition hover:-translate-y-1 hover:shadow-lg hover:border-gray-300';
 }
 
 export default function AdminNav({
@@ -16,8 +16,7 @@ export default function AdminNav({
   current,
 }: AdminNavProps) {
   return (
-    <section className="rounded-3xl border border-gray-200 bg-gray-50/80 p-4 shadow-sm">
-      <div className="mb-3">
+    <section className="rounded-3xl border border-gray-200 bg-gradient-to-br from-gray-50 to-white p-6 shadow-sm">      <div className="mb-3">
         <h2 className="text-lg font-semibold text-gray-900">Gestión</h2>
         <p className="text-sm text-gray-600">
           Accesos rápidos del panel administrativo

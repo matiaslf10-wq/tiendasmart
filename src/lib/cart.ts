@@ -125,3 +125,42 @@ export function getWhatsAppUrl(phone: string, message: string) {
   const normalizedPhone = phone.replace(/\D/g, '');
   return `https://wa.me/${normalizedPhone}?text=${encodeURIComponent(message)}`;
 }
+
+const CUSTOMER_KEY_PREFIX = 'tiendasmart_customer_';
+
+function getCustomerKey(storeSlug: string) {
+  return `${CUSTOMER_KEY_PREFIX}${storeSlug}`;
+}
+
+export type CustomerData = {
+  name: string;
+  address: string;
+  notes: string;
+};
+
+export function getCustomerData(storeSlug: string): CustomerData {
+  if (typeof window === 'undefined') {
+    return { name: '', address: '', notes: '' };
+  }
+
+  try {
+    const raw = localStorage.getItem(getCustomerKey(storeSlug));
+    if (!raw) return { name: '', address: '', notes: '' };
+
+    const parsed = JSON.parse(raw) as Partial<CustomerData>;
+
+    return {
+      name: parsed.name ?? '',
+      address: parsed.address ?? '',
+      notes: parsed.notes ?? '',
+    };
+  } catch {
+    return { name: '', address: '', notes: '' };
+  }
+}
+
+export function saveCustomerData(storeSlug: string, data: CustomerData) {
+  if (typeof window === 'undefined') return;
+
+  localStorage.setItem(getCustomerKey(storeSlug), JSON.stringify(data));
+}

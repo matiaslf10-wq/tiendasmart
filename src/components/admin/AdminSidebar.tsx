@@ -1,0 +1,78 @@
+import Link from 'next/link';
+
+type AdminSidebarProps = {
+  storeName: string;
+  storeSlug: string;
+  current?: 'panel' | 'productos' | 'categorias';
+};
+
+function itemClass(active: boolean) {
+  return active
+    ? 'flex items-center gap-3 rounded-2xl bg-black px-4 py-3 text-white shadow-sm'
+    : 'flex items-center gap-3 rounded-2xl px-4 py-3 text-gray-700 transition hover:bg-gray-100';
+}
+
+export default function AdminSidebar({
+  storeName,
+  storeSlug,
+  current,
+}: AdminSidebarProps) {
+  return (
+    <aside className="w-full rounded-3xl border border-gray-200 bg-white p-4 shadow-sm lg:sticky lg:top-6">
+      <div className="mb-6 border-b border-gray-100 pb-4">
+        <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+          TiendaSmart
+        </p>
+        <h2 className="mt-2 text-xl font-bold text-gray-900">{storeName}</h2>
+        <p className="mt-1 text-sm text-gray-500">Panel administrativo</p>
+      </div>
+
+      <nav className="space-y-2">
+        <Link href="/admin" className={itemClass(current === 'panel')}>
+          <span className="text-lg">🏠</span>
+          <div>
+            <div className="text-sm font-semibold">Panel</div>
+            <div className="text-xs opacity-80">Configuración general</div>
+          </div>
+        </Link>
+
+        <Link
+          href="/admin/productos"
+          className={itemClass(current === 'productos')}
+        >
+          <span className="text-lg">📦</span>
+          <div>
+            <div className="text-sm font-semibold">Productos</div>
+            <div className="text-xs opacity-80">Crear y editar productos</div>
+          </div>
+        </Link>
+
+        <Link
+          href="/admin/categorias"
+          className={itemClass(current === 'categorias')}
+        >
+          <span className="text-lg">🗂️</span>
+          <div>
+            <div className="text-sm font-semibold">Categorías</div>
+            <div className="text-xs opacity-80">Crear y editar categorías</div>
+          </div>
+        </Link>
+      </nav>
+
+      <div className="mt-6 border-t border-gray-100 pt-4">
+        <Link
+          href={`/${storeSlug}`}
+          className="flex items-center gap-3 rounded-2xl bg-emerald-50 px-4 py-3 text-emerald-900 transition hover:bg-emerald-100"
+        >
+          <span className="text-lg">👁️</span>
+          <div>
+            <div className="text-sm font-semibold">Ver tienda</div>
+            <div className="text-xs text-emerald-800/80">
+              Abrir la tienda pública
+            </div>
+          </div>
+        </Link>
+      </div>
+    </aside>
+  );
+}

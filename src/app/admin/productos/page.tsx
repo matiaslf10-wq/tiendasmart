@@ -2,10 +2,9 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getCurrentUserStore } from '@/lib/stores';
 import { hasFeature } from '@/lib/plans';
-import LogoutButton from '@/components/admin/LogoutButton';
 import ProductEditForm from '@/components/admin/ProductEditForm';
 import ProductCreateForm from '@/components/admin/ProductCreateForm';
-import AdminNav from '@/components/admin/AdminNav';
+import AdminShell from '@/components/admin/AdminShell';
 
 type CategoryOption = {
   id: string;
@@ -49,10 +48,7 @@ export default async function ProductosPage({ searchParams }: ProductosPageProps
   if (!hasFeature(store.plan, 'products')) {
     return (
       <main className="space-y-4 p-8">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Productos</h1>
-          <LogoutButton />
-        </div>
+        <h1 className="text-3xl font-bold">Productos</h1>
         <p>Tu plan no incluye gestión de productos.</p>
       </main>
     );
@@ -109,30 +105,20 @@ export default async function ProductosPage({ searchParams }: ProductosPageProps
   const activeCategoryOptions = categoryOptions.filter((category) => category.is_active);
 
   return (
-    <main className="space-y-8 p-8">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Productos</h1>
-          <p className="text-gray-600">Tienda: {store.name}</p>
-        </div>
-
-        <div className="flex gap-3">
-          <a href="/admin" className="rounded-xl border px-4 py-2">
-            Volver
-          </a>
-          <LogoutButton />
-        </div>
-      </div>
-
-      <AdminNav storeSlug={store.slug} current="productos" />
-
+    <AdminShell
+      title="Productos"
+      subtitle={`Tienda: ${store.name}`}
+      storeName={store.name}
+      storeSlug={store.slug}
+      current="productos"
+    >
       {successMessage && (
         <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-green-800">
           {successMessage}
         </div>
       )}
 
-      <section className="space-y-4 rounded-2xl border p-6 bg-white">
+      <section className="space-y-4 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
         <h2 className="text-xl font-semibold">Crear producto</h2>
 
         {categoriesError ? (
@@ -144,7 +130,7 @@ export default async function ProductosPage({ searchParams }: ProductosPageProps
         )}
       </section>
 
-      <section className="space-y-4 rounded-2xl border p-6 bg-white">
+      <section className="space-y-4 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
         <h2 className="text-xl font-semibold">Listado</h2>
 
         {productsError ? (
@@ -174,6 +160,6 @@ export default async function ProductosPage({ searchParams }: ProductosPageProps
           </div>
         )}
       </section>
-    </main>
+    </AdminShell>
   );
 }

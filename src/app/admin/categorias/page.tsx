@@ -2,10 +2,9 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getCurrentUserStore } from '@/lib/stores';
 import { hasFeature } from '@/lib/plans';
-import LogoutButton from '@/components/admin/LogoutButton';
 import CategoryCreateForm from '@/components/admin/CategoryCreateForm';
 import CategoryEditForm from '@/components/admin/CategoryEditForm';
-import AdminNav from '@/components/admin/AdminNav';
+import AdminShell from '@/components/admin/AdminShell';
 
 type CategoriasPageProps = {
   searchParams?: Promise<{
@@ -44,10 +43,7 @@ export default async function CategoriasPage({
   if (!hasFeature(store.plan, 'categories')) {
     return (
       <main className="p-8 space-y-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Categorías</h1>
-          <LogoutButton />
-        </div>
+        <h1 className="text-3xl font-bold">Categorías</h1>
         <p>Tu plan no incluye gestión de categorías.</p>
       </main>
     );
@@ -71,35 +67,25 @@ export default async function CategoriasPage({
     .order('created_at', { ascending: true });
 
   return (
-    <main className="p-8 space-y-8">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Categorías</h1>
-          <p className="text-gray-600">Tienda: {store.name}</p>
-        </div>
-
-        <div className="flex gap-3">
-          <a href="/admin" className="rounded-xl border px-4 py-2">
-            Volver
-          </a>
-          <LogoutButton />
-        </div>
-      </div>
-
-      <AdminNav storeSlug={store.slug} current="categorias" />
-
+    <AdminShell
+      title="Categorías"
+      subtitle={`Tienda: ${store.name}`}
+      storeName={store.name}
+      storeSlug={store.slug}
+      current="categorias"
+    >
       {successMessage && (
         <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-green-800">
           {successMessage}
         </div>
       )}
 
-      <section className="rounded-2xl border p-6 space-y-4 bg-white">
+      <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
         <h2 className="text-xl font-semibold">Crear categoría</h2>
         <CategoryCreateForm />
       </section>
 
-      <section className="rounded-2xl border p-6 space-y-4 bg-white">
+      <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
         <h2 className="text-xl font-semibold">Listado</h2>
 
         {error ? (
@@ -116,6 +102,6 @@ export default async function CategoriasPage({
           </div>
         )}
       </section>
-    </main>
+    </AdminShell>
   );
 }

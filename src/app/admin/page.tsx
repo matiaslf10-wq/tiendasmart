@@ -1,7 +1,6 @@
 import { getCurrentUserStore } from '@/lib/stores';
 import { hasFeature } from '@/lib/plans';
-import LogoutButton from '@/components/admin/LogoutButton';
-import AdminNav from '@/components/admin/AdminNav';
+import AdminShell from '@/components/admin/AdminShell';
 import { updateStoreSettings } from './actions';
 
 export default async function AdminPage() {
@@ -10,11 +9,7 @@ export default async function AdminPage() {
   if (!membership || !membership.stores) {
     return (
       <main className="p-8 space-y-4">
-        <div className="flex items-center justify-between gap-4">
-          <h1 className="text-3xl font-bold">Panel admin</h1>
-          <LogoutButton />
-        </div>
-
+        <h1 className="text-3xl font-bold">Panel admin</h1>
         <p>No tenés una tienda asignada todavía.</p>
       </main>
     );
@@ -23,18 +18,14 @@ export default async function AdminPage() {
   const store = membership.stores;
 
   return (
-    <main className="p-8 space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Panel de {store.name}</h1>
-          <p className="text-gray-600">Administración general de la tienda</p>
-        </div>
-        <LogoutButton />
-      </div>
-
-      <AdminNav storeSlug={store.slug} current="panel" />
-
-      <div className="rounded-2xl border p-4 space-y-2 bg-white">
+    <AdminShell
+      title={`Panel de ${store.name}`}
+      subtitle="Administración general de la tienda"
+      storeName={store.name}
+      storeSlug={store.slug}
+      current="panel"
+    >
+      <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm space-y-2">
         <p>
           <strong>Slug:</strong> {store.slug}
         </p>
@@ -52,7 +43,7 @@ export default async function AdminPage() {
         </p>
       </div>
 
-      <div className="rounded-2xl border p-4 space-y-2 bg-white">
+      <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm space-y-2">
         <h2 className="text-xl font-semibold">Features disponibles</h2>
         <ul className="list-disc pl-6">
           <li>Productos: {hasFeature(store.plan, 'products') ? 'Sí' : 'No'}</li>
@@ -71,7 +62,7 @@ export default async function AdminPage() {
         </ul>
       </div>
 
-      <div className="rounded-2xl border p-4 space-y-4 bg-white">
+      <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
         <h2 className="text-xl font-semibold">Configuración de la tienda</h2>
 
         <form action={updateStoreSettings} className="grid max-w-2xl gap-4">
@@ -191,6 +182,6 @@ export default async function AdminPage() {
           </button>
         </form>
       </div>
-    </main>
+    </AdminShell>
   );
 }

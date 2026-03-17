@@ -5,6 +5,7 @@ import { hasFeature } from '@/lib/plans';
 import ProductEditForm from '@/components/admin/ProductEditForm';
 import ProductCreateForm from '@/components/admin/ProductCreateForm';
 import AdminShell from '@/components/admin/AdminShell';
+import AdminStatCard from '@/components/admin/AdminStatCard';
 
 type CategoryOption = {
   id: string;
@@ -95,7 +96,15 @@ export default async function ProductosPage({ searchParams }: ProductosPageProps
       .order('created_at', { ascending: true }),
   ]);
 
-  const categoryOptions: CategoryOption[] = (categories || []).map((category) => ({
+  const safeProducts = products || [];
+  const safeCategories = categories || [];
+
+  const totalProducts = safeProducts.length;
+  const activeProducts = safeProducts.filter((product) => product.is_active).length;
+  const inactiveProducts = totalProducts - activeProducts;
+  const activeCategoriesCount = safeCategories.filter((category) => category.is_active).length;
+
+  const categoryOptions: CategoryOption[] = safeCategories.map((category) => ({
     id: category.id,
     name: category.name,
     is_active: category.is_active,
@@ -105,16 +114,44 @@ export default async function ProductosPage({ searchParams }: ProductosPageProps
   const activeCategoryOptions = categoryOptions.filter((category) => category.is_active);
 
   return (
- <AdminShell
-  title="Productos"
-  subtitle={`Tienda: ${store.name}`}
-  storeName={store.name}
-  storeSlug={store.slug}
-  current="productos"
->
-  <p className="text-xs text-gray-500 -mt-2">
-    Gestioná los productos que se muestran en tu tienda
-  </p>
+    <AdminShell
+      title="Productos"
+      subtitle={`Tienda: ${store.name}`}
+      storeName={store.name}
+      storeSlug={store.slug}
+      current="productos"
+    >
+      <div className="-mt-1">
+        <p className="text-sm text-gray-500">
+          Gestioná los productos que se muestran en tu tienda.
+        </p>
+      </div>
+
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <AdminStatCard
+          label="Productos totales"
+          value={totalProducts}
+          helper="Cantidad total cargada"
+        />
+        <AdminStatCard
+          label="Activos"
+          value={activeProducts}
+          helper="Visibles para la tienda"
+          tone="success"
+        />
+        <AdminStatCard
+          label="Inactivos"
+          value={inactiveProducts}
+          helper="Ocultos temporalmente"
+          tone="warning"
+        />
+        <AdminStatCard
+          label="Categorías activas"
+          value={activeCategoriesCount}
+          helper="Disponibles para asignar"
+        />
+      </section>
+
       {successMessage && (
         <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-green-800">
           {successMessage}
@@ -140,11 +177,11 @@ export default async function ProductosPage({ searchParams }: ProductosPageProps
           <pre className="overflow-auto rounded-xl bg-red-50 p-4 text-red-700">
             {JSON.stringify(productsError, null, 2)}
           </pre>
-        ) : !products || products.length === 0 ? (
+        ) : !safeProducts || safeProducts.length === 0 ? (
           <p>No hay productos cargados todavía.</p>
         ) : (
           <div className="grid gap-4">
-            {products.map((product) => {
+            {safeProducts.map((product) => {
               const sortedImages = [...(product.product_images || [])].sort(
                 (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)
               );

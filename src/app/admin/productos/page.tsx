@@ -47,7 +47,7 @@ export default async function ProductosPage({ searchParams }: ProductosPageProps
 
   if (!hasFeature(store.plan, 'products')) {
     return (
-      <main className="p-8 space-y-4">
+      <main className="space-y-4 p-8">
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold">Productos</h1>
           <LogoutButton />
@@ -108,7 +108,7 @@ export default async function ProductosPage({ searchParams }: ProductosPageProps
   const activeCategoryOptions = categoryOptions.filter((category) => category.is_active);
 
   return (
-    <main className="p-8 space-y-8">
+    <main className="space-y-8 p-8">
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold">Productos</h1>
@@ -129,7 +129,7 @@ export default async function ProductosPage({ searchParams }: ProductosPageProps
         </div>
       )}
 
-      <section className="rounded-2xl border p-6 space-y-4">
+      <section className="space-y-4 rounded-2xl border p-6">
         <h2 className="text-xl font-semibold">Crear producto</h2>
 
         {categoriesError ? (
@@ -141,7 +141,7 @@ export default async function ProductosPage({ searchParams }: ProductosPageProps
         )}
       </section>
 
-      <section className="rounded-2xl border p-6 space-y-4">
+      <section className="space-y-4 rounded-2xl border p-6">
         <h2 className="text-xl font-semibold">Listado</h2>
 
         {productsError ? (

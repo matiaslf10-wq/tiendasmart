@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   updateProduct,
   toggleProductActive,
   deleteProductImage,
 } from '@/app/admin/productos/actions';
+import FileUploadButton from '@/components/FileUploadButton';
 
 type ProductImage = {
   id: string;
@@ -44,7 +45,6 @@ export default function ProductEditForm({
   const existingImages = product.product_images || [];
   const remainingSlots = Math.max(0, 5 - existingImages.length);
 
-  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [newFiles, setNewFiles] = useState<(File | null)[]>(
     Array.from({ length: remainingSlots }, () => null)
   );
@@ -59,9 +59,9 @@ export default function ProductEditForm({
     );
   }, [product.id, existingImages]);
 
-  function openPicker(index: number) {
-    inputRefs.current[index]?.click();
-  }
+  useEffect(() => {
+    setNewFiles(Array.from({ length: remainingSlots }, () => null));
+  }, [remainingSlots, product.id]);
 
   function handleNewFileChange(index: number, fileList: FileList | null) {
     const file = fileList && fileList[0] ? fileList[0] : null;
@@ -91,7 +91,7 @@ export default function ProductEditForm({
   }, [newPreviews]);
 
   return (
-    <article className="rounded-2xl border p-4 space-y-3">
+    <article className="space-y-3 rounded-2xl border p-4">
       <div className="flex items-start gap-4">
         {product.image_url ? (
           <img
@@ -276,15 +276,11 @@ export default function ProductEditForm({
                     const preview = newPreviews[index];
 
                     return (
-                      <div key={index} className="rounded-2xl border p-3 space-y-3">
-                        <input
-                          ref={(el) => {
-                            inputRefs.current[index] = el;
-                          }}
-                          type="file"
+                      <div key={index} className="space-y-3 rounded-2xl border p-3">
+                        <FileUploadButton
+                          id={`new_image_file_${index}_${product.id}`}
                           name={`new_image_file_${index}`}
-                          accept="image/*"
-                          className="hidden"
+                          label="Subir imagen"
                           onChange={(e) => handleNewFileChange(index, e.target.files)}
                         />
 
@@ -301,14 +297,6 @@ export default function ProductEditForm({
                             </div>
                           )}
                         </div>
-
-                        <button
-                          type="button"
-                          onClick={() => openPicker(index)}
-                          className="rounded-xl border px-4 py-2"
-                        >
-                          Subir foto
-                        </button>
 
                         <p className="text-sm text-gray-600">
                           {preview?.fileName || 'Ningún archivo seleccionado'}

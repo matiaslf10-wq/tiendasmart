@@ -1,1 +1,0 @@
-export { generateMetadata, default } from '../../../_sites/[slug]/producto/[productId]/page';

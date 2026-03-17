@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { createProduct } from '@/app/admin/productos/actions';
+import FileUploadButton from '@/components/FileUploadButton';
 
 type CategoryOption = {
   id: string;
@@ -109,13 +110,12 @@ export default function ProductCreateForm({
 
         <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
           {previews.map((preview, index) => (
-            <div key={index} className="rounded-2xl border p-3 space-y-3">
-              <input
-                type="file"
+            <div key={index} className="space-y-3 rounded-2xl border p-3">
+              <FileUploadButton
+                id={`image_file_${index}`}
                 name={`image_file_${index}`}
-                accept="image/*"
+                label="Subir imagen"
                 onChange={(e) => handleFileChange(index, e.target.files)}
-                className="w-full text-sm"
               />
 
               <div className="h-40 overflow-hidden rounded-xl border bg-gray-50">

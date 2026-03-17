@@ -1,194 +1,196 @@
-import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
 import { getCurrentUserStore } from '@/lib/stores';
 import { hasFeature } from '@/lib/plans';
 import LogoutButton from '@/components/admin/LogoutButton';
-import ProductEditForm from '@/components/admin/ProductEditForm';
-import ProductCreateForm from '@/components/admin/ProductCreateForm';
+import AdminNav from '@/components/admin/AdminNav';
+import { updateStoreSettings } from './actions';
 
-type CategoryOption = {
-  id: string;
-  name: string;
-  is_active: boolean;
-  sort_order: number;
-};
-
-type ProductosPageProps = {
-  searchParams?: Promise<{
-    success?: string;
-  }>;
-};
-
-function getSuccessMessage(success?: string) {
-  switch (success) {
-    case 'created':
-      return 'Producto creado correctamente.';
-    case 'updated':
-      return 'Producto actualizado correctamente.';
-    case 'image-deleted':
-      return 'Imagen eliminada correctamente.';
-    case 'status-updated':
-      return 'Estado del producto actualizado.';
-    default:
-      return null;
-  }
-}
-
-export default async function ProductosPage({ searchParams }: ProductosPageProps) {
+export default async function AdminPage() {
   const membership = await getCurrentUserStore();
 
   if (!membership || !membership.stores) {
-    redirect('/login');
-  }
-
-  const store = membership.stores;
-  const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const successMessage = getSuccessMessage(resolvedSearchParams?.success);
-
-  if (!hasFeature(store.plan, 'products')) {
     return (
-      <main className="space-y-4 p-8">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Productos</h1>
+      <main className="p-8 space-y-4">
+        <div className="flex items-center justify-between gap-4">
+          <h1 className="text-3xl font-bold">Panel admin</h1>
           <LogoutButton />
         </div>
-        <p>Tu plan no incluye gestión de productos.</p>
+
+        <p>No tenés una tienda asignada todavía.</p>
       </main>
     );
   }
 
-  const supabase = await createClient();
-
-  const [
-    { data: products, error: productsError },
-    { data: categories, error: categoriesError },
-  ] = await Promise.all([
-    supabase
-      .from('products')
-      .select(`
-        id,
-        name,
-        description,
-        price,
-        image_url,
-        is_active,
-        category_id,
-        created_at,
-        product_images (
-          id,
-          image_url,
-          is_cover,
-          sort_order
-        )
-      `)
-      .eq('store_id', store.id)
-      .order('created_at', { ascending: false }),
-
-    supabase
-      .from('categories')
-      .select(`
-        id,
-        name,
-        is_active,
-        sort_order,
-        created_at
-      `)
-      .eq('store_id', store.id)
-      .order('sort_order', { ascending: true })
-      .order('created_at', { ascending: true }),
-  ]);
-
-  const categoryOptions: CategoryOption[] = (categories || []).map((category) => ({
-    id: category.id,
-    name: category.name,
-    is_active: category.is_active,
-    sort_order: category.sort_order,
-  }));
-
-  const activeCategoryOptions = categoryOptions.filter((category) => category.is_active);
+  const store = membership.stores;
 
   return (
-    <main className="space-y-8 p-8">
+    <main className="p-8 space-y-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Productos</h1>
-          <p className="text-gray-600">Tienda: {store.name}</p>
+          <h1 className="text-3xl font-bold">Panel de {store.name}</h1>
+          <p className="text-gray-600">Administración general de la tienda</p>
         </div>
-
-        <div className="flex gap-3">
-          <a href="/admin" className="rounded-xl border px-4 py-2">
-            Volver
-          </a>
-          <LogoutButton />
-        </div>
+        <LogoutButton />
       </div>
 
-      <div className="rounded-2xl border p-4 space-y-3">
-        <h2 className="text-xl font-semibold">Gestión</h2>
-        <div className="flex flex-wrap gap-3">
-          <a href="/admin" className="rounded-xl border px-4 py-2">
-            Ir al panel
-          </a>
-          <a href="/admin/productos" className="rounded-xl bg-black px-4 py-2 text-white">
-            Crear / editar productos
-          </a>
-          <a href="/admin/categorias" className="rounded-xl border px-4 py-2">
-            Crear / editar categorías
-          </a>
-          <a href={`/${store.slug}`} className="rounded-xl border px-4 py-2">
-            Ver tienda
-          </a>
-        </div>
+      <AdminNav storeSlug={store.slug} current="panel" />
+
+      <div className="rounded-2xl border p-4 space-y-2 bg-white">
+        <p>
+          <strong>Slug:</strong> {store.slug}
+        </p>
+        <p>
+          <strong>Plan:</strong> {store.plan}
+        </p>
+        <p>
+          <strong>Rol:</strong> {membership.role}
+        </p>
+        <p>
+          <strong>Activa:</strong> {store.is_active ? 'Sí' : 'No'}
+        </p>
+        <p>
+          <strong>Tienda pública:</strong> /{store.slug}
+        </p>
       </div>
 
-      {successMessage && (
-        <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-green-800">
-          {successMessage}
-        </div>
-      )}
+      <div className="rounded-2xl border p-4 space-y-2 bg-white">
+        <h2 className="text-xl font-semibold">Features disponibles</h2>
+        <ul className="list-disc pl-6">
+          <li>Productos: {hasFeature(store.plan, 'products') ? 'Sí' : 'No'}</li>
+          <li>
+            Categorías: {hasFeature(store.plan, 'categories') ? 'Sí' : 'No'}
+          </li>
+          <li>
+            Pedidos básicos: {hasFeature(store.plan, 'basic_orders') ? 'Sí' : 'No'}
+          </li>
+          <li>Cupones: {hasFeature(store.plan, 'coupons') ? 'Sí' : 'No'}</li>
+          <li>
+            Analytics avanzados:{' '}
+            {hasFeature(store.plan, 'advanced_analytics') ? 'Sí' : 'No'}
+          </li>
+          <li>IA: {hasFeature(store.plan, 'ai_descriptions') ? 'Sí' : 'No'}</li>
+        </ul>
+      </div>
 
-      <section className="space-y-4 rounded-2xl border p-6">
-        <h2 className="text-xl font-semibold">Crear producto</h2>
+      <div className="rounded-2xl border p-4 space-y-4 bg-white">
+        <h2 className="text-xl font-semibold">Configuración de la tienda</h2>
 
-        {categoriesError ? (
-          <pre className="overflow-auto rounded-xl bg-red-50 p-4 text-red-700">
-            {JSON.stringify(categoriesError, null, 2)}
-          </pre>
-        ) : (
-          <ProductCreateForm categories={activeCategoryOptions} />
-        )}
-      </section>
+        <form action={updateStoreSettings} className="grid max-w-2xl gap-4">
+          <label className="block space-y-2">
+            <span className="text-sm font-medium">Nombre de la tienda</span>
+            <input
+              type="text"
+              name="name"
+              defaultValue={store.name}
+              placeholder="Ej: Dulce Amor"
+              className="w-full rounded-xl border px-4 py-3"
+              required
+            />
+          </label>
 
-      <section className="space-y-4 rounded-2xl border p-6">
-        <h2 className="text-xl font-semibold">Listado</h2>
+          <label className="block space-y-2">
+            <span className="text-sm font-medium">Slug / subdominio</span>
+            <input
+              type="text"
+              name="slug"
+              defaultValue={store.slug}
+              placeholder="Ej: dulce-amor"
+              className="w-full rounded-xl border px-4 py-3"
+              required
+            />
+          </label>
 
-        {productsError ? (
-          <pre className="overflow-auto rounded-xl bg-red-50 p-4 text-red-700">
-            {JSON.stringify(productsError, null, 2)}
-          </pre>
-        ) : !products || products.length === 0 ? (
-          <p>No hay productos cargados todavía.</p>
-        ) : (
-          <div className="grid gap-4">
-            {products.map((product) => {
-              const sortedImages = [...(product.product_images || [])].sort(
-                (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)
-              );
+          <p className="text-sm text-gray-600">
+            Este valor define la URL pública. Ejemplo: /{store.slug}
+          </p>
 
-              return (
-                <ProductEditForm
-                  key={product.id}
-                  product={{
-                    ...product,
-                    product_images: sortedImages,
-                  }}
-                  categories={activeCategoryOptions}
-                />
-              );
-            })}
-          </div>
-        )}
-      </section>
+          <label className="block space-y-2">
+            <span className="text-sm font-medium">WhatsApp de la tienda</span>
+            <input
+              type="text"
+              name="whatsapp_number"
+              defaultValue={store.whatsapp_number ?? ''}
+              placeholder="Ej: 5491134567890"
+              className="w-full rounded-xl border px-4 py-3"
+              required
+            />
+          </label>
+
+          <label className="block space-y-2">
+            <span className="text-sm font-medium">URL del logo</span>
+            <input
+              type="text"
+              name="logo_url"
+              defaultValue={store.logo_url ?? ''}
+              placeholder="https://..."
+              className="w-full rounded-xl border px-4 py-3"
+            />
+          </label>
+
+          {store.logo_url && (
+            <div className="space-y-2">
+              <span className="text-sm font-medium">Vista previa del logo</span>
+              <img
+                src={store.logo_url}
+                alt={`Logo de ${store.name}`}
+                className="h-20 w-20 rounded-2xl border object-cover"
+              />
+            </div>
+          )}
+
+          <label className="block space-y-2">
+            <span className="text-sm font-medium">Subir logo</span>
+            <input
+              type="file"
+              name="logo_file"
+              accept="image/*"
+              className="w-full rounded-xl border px-4 py-3"
+            />
+          </label>
+
+          <label className="block space-y-2">
+            <span className="text-sm font-medium">URL de portada</span>
+            <input
+              type="text"
+              name="cover_url"
+              defaultValue={store.cover_url ?? ''}
+              placeholder="https://..."
+              className="w-full rounded-xl border px-4 py-3"
+            />
+          </label>
+
+          {store.cover_url && (
+            <div className="space-y-2">
+              <span className="text-sm font-medium">Vista previa de la portada</span>
+              <img
+                src={store.cover_url}
+                alt={`Portada de ${store.name}`}
+                className="h-32 w-full rounded-2xl border object-cover"
+              />
+            </div>
+          )}
+
+          <label className="block space-y-2">
+            <span className="text-sm font-medium">Subir portada</span>
+            <input
+              type="file"
+              name="cover_file"
+              accept="image/*"
+              className="w-full rounded-xl border px-4 py-3"
+            />
+          </label>
+
+          <p className="text-sm text-gray-600">
+            Podés pegar una URL o subir una imagen directamente.
+          </p>
+
+          <button
+            type="submit"
+            className="w-fit rounded-xl bg-black px-5 py-3 text-white"
+          >
+            Guardar cambios
+          </button>
+        </form>
+      </div>
     </main>
   );
 }

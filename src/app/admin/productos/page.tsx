@@ -5,6 +5,7 @@ import { hasFeature } from '@/lib/plans';
 import LogoutButton from '@/components/admin/LogoutButton';
 import ProductEditForm from '@/components/admin/ProductEditForm';
 import ProductCreateForm from '@/components/admin/ProductCreateForm';
+import AdminNav from '@/components/admin/AdminNav';
 
 type CategoryOption = {
   id: string;
@@ -123,13 +124,15 @@ export default async function ProductosPage({ searchParams }: ProductosPageProps
         </div>
       </div>
 
+      <AdminNav storeSlug={store.slug} current="productos" />
+
       {successMessage && (
         <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-green-800">
           {successMessage}
         </div>
       )}
 
-      <section className="space-y-4 rounded-2xl border p-6">
+      <section className="space-y-4 rounded-2xl border p-6 bg-white">
         <h2 className="text-xl font-semibold">Crear producto</h2>
 
         {categoriesError ? (
@@ -141,7 +144,7 @@ export default async function ProductosPage({ searchParams }: ProductosPageProps
         )}
       </section>
 
-      <section className="space-y-4 rounded-2xl border p-6">
+      <section className="space-y-4 rounded-2xl border p-6 bg-white">
         <h2 className="text-xl font-semibold">Listado</h2>
 
         {productsError ? (

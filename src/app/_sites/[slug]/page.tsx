@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { createClient } from '@/lib/supabase/server';
 import WhatsAppCart from '@/components/store/WhatsAppCart';
 import ProductCard from '@/components/ProductCard';
+import CartBadge from '@/components/store/CartBadge';
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -151,7 +152,6 @@ export default async function PublicStorePage({ params }: PageProps) {
 
   return (
     <main className="min-h-screen bg-white">
-      {/* HEADER */}
       <section className="relative border-b bg-gray-50">
         {store.cover_url && (
           <div className="absolute inset-0">
@@ -165,45 +165,50 @@ export default async function PublicStorePage({ params }: PageProps) {
         )}
 
         <div className="relative mx-auto max-w-6xl px-6 py-12 md:py-16">
-          <div className="flex flex-col gap-5 md:flex-row md:items-center">
-            {store.logo_url && (
-              <img
-                src={store.logo_url}
-                alt={`Logo de ${store.name}`}
-                className="h-20 w-20 rounded-3xl border bg-white object-cover shadow-sm"
-              />
-            )}
+          <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-col gap-5 md:flex-row md:items-center">
+              {store.logo_url && (
+                <img
+                  src={store.logo_url}
+                  alt={`Logo de ${store.name}`}
+                  className="h-20 w-20 rounded-3xl border bg-white object-cover shadow-sm"
+                />
+              )}
 
-            <div className="max-w-3xl">
-              <p
-                className={`text-sm uppercase tracking-[0.2em] ${
-                  store.cover_url ? 'text-white/80' : 'text-gray-500'
-                }`}
-              >
-                Tienda online
-              </p>
+              <div className="max-w-3xl">
+                <p
+                  className={`text-sm uppercase tracking-[0.2em] ${
+                    store.cover_url ? 'text-white/80' : 'text-gray-500'
+                  }`}
+                >
+                  Tienda online
+                </p>
 
-              <h1
-                className={`mt-2 text-4xl font-bold md:text-5xl ${
-                  store.cover_url ? 'text-white' : 'text-gray-900'
-                }`}
-              >
-                {store.name}
-              </h1>
+                <h1
+                  className={`mt-2 text-4xl font-bold md:text-5xl ${
+                    store.cover_url ? 'text-white' : 'text-gray-900'
+                  }`}
+                >
+                  {store.name}
+                </h1>
 
-              <p
-                className={`mt-3 max-w-2xl text-base md:text-lg ${
-                  store.cover_url ? 'text-white/90' : 'text-gray-600'
-                }`}
-              >
-                Explorá nuestros productos disponibles y elegí lo que necesitás.
-              </p>
+                <p
+                  className={`mt-3 max-w-2xl text-base md:text-lg ${
+                    store.cover_url ? 'text-white/90' : 'text-gray-600'
+                  }`}
+                >
+                  Explorá nuestros productos disponibles y elegí lo que necesitás.
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <CartBadge storeSlug={store.slug} />
             </div>
           </div>
         </div>
       </section>
 
-      {/* NAV CATEGORÍAS */}
       {hasAnyProducts && (visibleCategories.length > 0 || uncategorizedProducts.length > 0) && (
         <section className="sticky top-0 z-20 border-b bg-white/90 backdrop-blur">
           <div className="mx-auto max-w-6xl px-6 py-3">
@@ -231,7 +236,6 @@ export default async function PublicStorePage({ params }: PageProps) {
         </section>
       )}
 
-      {/* PRODUCTOS */}
       <section className="mx-auto max-w-6xl space-y-12 px-6 py-10">
         {!hasAnyProducts ? (
           <div className="rounded-2xl border border-dashed p-10 text-center">
@@ -285,7 +289,6 @@ export default async function PublicStorePage({ params }: PageProps) {
         )}
       </section>
 
-      {/* 🟢 CARRITO */}
       {store.whatsapp_number && (
         <WhatsAppCart
           storeSlug={store.slug}

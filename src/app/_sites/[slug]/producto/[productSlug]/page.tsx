@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { createClient } from '@/lib/supabase/server';
-import WhatsAppCart from '@/components/WhatsAppCart';
+import WhatsAppCart from '@/components/store/WhatsAppCart';
 
 type PageProps = {
   params: Promise<{ slug: string; productSlug: string }>;

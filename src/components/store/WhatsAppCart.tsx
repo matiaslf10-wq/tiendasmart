@@ -48,10 +48,16 @@ export default function WhatsAppCart({
       loadCart();
     }
 
+    function onOpenCart() {
+      setOpen(true);
+    }
+
     window.addEventListener('cart-updated', onUpdate as EventListener);
+    window.addEventListener('open-cart', onOpenCart as EventListener);
 
     return () => {
       window.removeEventListener('cart-updated', onUpdate as EventListener);
+      window.removeEventListener('open-cart', onOpenCart as EventListener);
     };
   }, [storeSlug]);
 

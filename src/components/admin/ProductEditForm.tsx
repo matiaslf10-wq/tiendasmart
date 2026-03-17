@@ -27,10 +27,11 @@ type Product = {
   name: string;
   description: string | null;
   price: number;
-  image_url: string | null;
-  is_active: boolean;
-  category_id?: string | null;
-  product_images?: ProductImage[];
+  image_url?: string | null;
+  is_active?: boolean | null;
+  track_stock?: boolean | null;
+  stock_quantity?: number | null;
+  allow_backorder?: boolean | null;
 };
 
 export default function ProductEditForm({

@@ -1,9 +1,15 @@
+import { canPurchase, getMaxPurchasableQuantity } from '@/lib/stock';
+
 export type CartItem = {
   id: string;
   name: string;
   price: number;
   image_url?: string | null;
   quantity: number;
+  is_active?: boolean | null;
+  track_stock?: boolean | null;
+  stock_quantity?: number | null;
+  allow_backorder?: boolean | null;
 };
 
 const CART_KEY_PREFIX = 'tiendasmart_cart_';
@@ -12,14 +18,40 @@ function getCartKey(storeSlug: string) {
   return `${CART_KEY_PREFIX}${storeSlug}`;
 }
 
+function sanitizeCart(items: CartItem[]): CartItem[] {
+  return items
+    .filter((item) => !!item?.id)
+    .filter((item) => canPurchase(item))
+    .map((item) => {
+      const maxQty = getMaxPurchasableQuantity(item);
+      const normalizedQuantity = Math.max(
+        1,
+        Math.min(item.quantity ?? 1, maxQty)
+      );
+
+      return {
+        ...item,
+        quantity: normalizedQuantity,
+      };
+    })
+    .filter((item) => item.quantity > 0);
+}
+
 export function getCart(storeSlug: string): CartItem[] {
   if (typeof window === 'undefined') return [];
 
   try {
     const raw = localStorage.getItem(getCartKey(storeSlug));
     if (!raw) return [];
+
     const parsed = JSON.parse(raw) as CartItem[];
-    return Array.isArray(parsed) ? parsed : [];
+    const safeItems = Array.isArray(parsed) ? sanitizeCart(parsed) : [];
+
+    if (JSON.stringify(parsed) !== JSON.stringify(safeItems)) {
+      localStorage.setItem(getCartKey(storeSlug), JSON.stringify(safeItems));
+    }
+
+    return safeItems;
   } catch {
     return [];
   }
@@ -28,18 +60,31 @@ export function getCart(storeSlug: string): CartItem[] {
 export function saveCart(storeSlug: string, items: CartItem[]) {
   if (typeof window === 'undefined') return;
 
-  localStorage.setItem(getCartKey(storeSlug), JSON.stringify(items));
+  const safeItems = sanitizeCart(items);
+  localStorage.setItem(getCartKey(storeSlug), JSON.stringify(safeItems));
   window.dispatchEvent(new CustomEvent('cart-updated'));
 }
 
-export function addToCart(storeSlug: string, item: Omit<CartItem, 'quantity'>) {
+export function addToCart(
+  storeSlug: string,
+  item: Omit<CartItem, 'quantity'>,
+  quantity = 1
+) {
   const cart = getCart(storeSlug);
+
+  if (!canPurchase(item)) return;
+
   const existing = cart.find((p) => p.id === item.id);
+  const maxQty = getMaxPurchasableQuantity(item);
 
   if (existing) {
-    existing.quantity += 1;
+    existing.quantity = Math.min(existing.quantity + quantity, maxQty);
   } else {
-    cart.push({ ...item, quantity: 1 });
+    const initialQty = Math.min(Math.max(quantity, 1), maxQty);
+
+    if (initialQty <= 0) return;
+
+    cart.push({ ...item, quantity: initialQty });
   }
 
   saveCart(storeSlug, cart);
@@ -51,7 +96,9 @@ export function increaseCartItem(storeSlug: string, productId: string) {
 
   if (!item) return;
 
-  item.quantity += 1;
+  const maxQty = getMaxPurchasableQuantity(item);
+  item.quantity = Math.min(item.quantity + 1, maxQty);
+
   saveCart(storeSlug, cart);
 }
 

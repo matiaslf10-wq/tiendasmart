@@ -27,6 +27,9 @@ type Product = {
   image_url: string | null;
   is_active: boolean;
   category_id: string | null;
+  track_stock: boolean;
+  stock_quantity: number;
+  allow_backorder: boolean;
 };
 
 function sectionIdFromCategory(category: Pick<Category, 'id' | 'slug' | 'name'>) {
@@ -99,7 +102,19 @@ export default async function PublicStorePage({ params }: PageProps) {
   ] = await Promise.all([
     supabase
       .from('products')
-      .select('id, name, slug, description, price, image_url, is_active, category_id')
+      .select(`
+        id,
+        name,
+        slug,
+        description,
+        price,
+        image_url,
+        is_active,
+        category_id,
+        track_stock,
+        stock_quantity,
+        allow_backorder
+      `)
       .eq('store_id', store.id)
       .eq('is_active', true)
       .order('created_at', { ascending: false }),
@@ -126,8 +141,8 @@ export default async function PublicStorePage({ params }: PageProps) {
     );
   }
 
-  const typedProducts: Product[] = products || [];
-  const typedCategories: Category[] = categories || [];
+  const typedProducts: Product[] = (products ?? []) as Product[];
+  const typedCategories: Category[] = (categories ?? []) as Category[];
 
   const productsByCategory = new Map<string, Product[]>();
   for (const category of typedCategories) {

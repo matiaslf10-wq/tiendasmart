@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useCart } from '@/context/cart';
+import { addToCart } from '@/lib/cart';
 
 type Product = {
   id: string;
@@ -11,25 +11,33 @@ type Product = {
   image_url: string | null;
 };
 
-export default function ProductCard({ product }: { product: Product }) {
-  const { addItem } = useCart();
+type ProductCardProps = {
+  product: Product;
+  storeSlug?: string;
+};
+
+export default function ProductCard({
+  product,
+  storeSlug = '',
+}: ProductCardProps) {
   const [added, setAdded] = useState(false);
 
   function handleAdd() {
-    addItem({
+    if (!storeSlug) return;
+
+    addToCart(storeSlug, {
       id: product.id,
       name: product.name,
       price: Number(product.price),
-      quantity: 1,
+      image_url: product.image_url ?? null,
     });
 
     setAdded(true);
-    setTimeout(() => setAdded(false), 1200);
+    window.setTimeout(() => setAdded(false), 1200);
   }
 
   return (
     <article className="overflow-hidden rounded-3xl border bg-white shadow-sm transition hover:shadow-md">
-      {/* IMAGEN */}
       <div className="aspect-[4/3] bg-gray-100">
         {product.image_url ? (
           <img
@@ -38,15 +46,14 @@ export default function ProductCard({ product }: { product: Product }) {
             className="h-full w-full object-cover transition hover:scale-[1.02]"
           />
         ) : (
-          <div className="flex h-full items-center justify-center text-gray-400 text-sm">
+          <div className="flex h-full items-center justify-center text-sm text-gray-400">
             Sin imagen
           </div>
         )}
       </div>
 
-      {/* CONTENIDO */}
       <div className="space-y-3 p-5">
-        <h2 className="text-lg font-semibold text-gray-900 leading-tight">
+        <h2 className="text-lg font-semibold leading-tight text-gray-900">
           {product.name}
         </h2>
 
@@ -55,20 +62,20 @@ export default function ProductCard({ product }: { product: Product }) {
         </p>
 
         {product.description && (
-          <p className="text-sm leading-5 text-gray-600 line-clamp-3">
+          <p className="line-clamp-3 text-sm leading-5 text-gray-600">
             {product.description}
           </p>
         )}
 
-        {/* BOTÓN */}
         <button
           type="button"
           onClick={handleAdd}
+          disabled={!storeSlug}
           className={`w-full rounded-2xl px-4 py-3 text-sm font-semibold transition ${
             added
               ? 'bg-green-600 text-white'
               : 'bg-black text-white hover:opacity-90'
-          }`}
+          } ${!storeSlug ? 'cursor-not-allowed opacity-50' : ''}`}
         >
           {added ? 'Agregado ✓' : 'Agregar al carrito'}
         </button>

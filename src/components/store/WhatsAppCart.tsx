@@ -19,12 +19,18 @@ import {
   getMaxPurchasableQuantity,
   getStockLabel,
 } from '@/lib/stock';
+import StoreToast from '@/components/store/StoreToast';
 
 type WhatsAppCartProps = {
   storeSlug: string;
   storeName: string;
   whatsappNumber: string;
 };
+
+type ToastState = {
+  message: string;
+  tone: 'success' | 'error' | 'info';
+} | null;
 
 export default function WhatsAppCart({
   storeSlug,
@@ -36,6 +42,12 @@ export default function WhatsAppCart({
   const [customerName, setCustomerName] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
   const [customerNotes, setCustomerNotes] = useState('');
+  const [toast, setToast] = useState<ToastState>(null);
+
+  function showToast(message: string, tone: 'success' | 'error' | 'info') {
+    setToast({ message, tone });
+    window.setTimeout(() => setToast(null), 1800);
+  }
 
   function loadCart() {
     setItems(getCart(storeSlug));
@@ -189,6 +201,7 @@ export default function WhatsAppCart({
                             onClick={() => {
                               removeCartItem(storeSlug, item.id);
                               loadCart();
+                              showToast('Producto quitado del carrito.', 'info');
                             }}
                             className="text-sm text-red-600"
                           >
@@ -307,6 +320,7 @@ export default function WhatsAppCart({
                   onClick={() => {
                     clearCart(storeSlug);
                     loadCart();
+                    showToast('Carrito vaciado.', 'info');
                   }}
                   className="rounded-xl border px-4 py-3 text-sm"
                   disabled={items.length === 0}
@@ -331,6 +345,8 @@ export default function WhatsAppCart({
           </div>
         </div>
       )}
+
+      {toast && <StoreToast message={toast.message} tone={toast.tone} />}
     </>
   );
 }

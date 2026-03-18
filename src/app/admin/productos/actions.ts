@@ -5,7 +5,6 @@ import { redirect } from 'next/navigation';
 import { getCurrentUserStore } from '@/lib/stores';
 import { createClient } from '@/lib/supabase/server';
 import { hasFeature } from '@/lib/plans';
-import { uploadProductImage } from '@/lib/storage';
 
 async function getAuthorizedStore() {
   const membership = await getCurrentUserStore();
@@ -143,6 +142,20 @@ function parseNonNegativeInt(value: FormDataEntryValue | null) {
   return Math.floor(parsed);
 }
 
+function parseUploadedUrls(formData: FormData, prefix: string, maxCount: number) {
+  const urls: string[] = [];
+
+  for (let i = 0; i < maxCount; i++) {
+    const raw = String(formData.get(`${prefix}_${i}`) || '').trim();
+
+    if (raw) {
+      urls.push(raw);
+    }
+  }
+
+  return urls;
+}
+
 export async function createProduct(formData: FormData) {
   const { store } = await getAuthorizedStore();
   const supabase = await createClient();
@@ -204,16 +217,7 @@ export async function createProduct(formData: FormData) {
 
   const productId = insertedProducts[0].id;
   const productSlug = insertedProducts[0].slug;
-  const uploadedUrls: string[] = [];
-
-  for (let i = 0; i < 5; i++) {
-    const file = formData.get(`image_file_${i}`) as File | null;
-
-    if (file && file.size > 0) {
-      const url = await uploadProductImage(file);
-      uploadedUrls.push(url);
-    }
-  }
+  const uploadedUrls = parseUploadedUrls(formData, 'image_url', 5);
 
   if (uploadedUrls.length > 0) {
     const safeCoverIndex = Number.isNaN(coverIndex)
@@ -329,16 +333,8 @@ export async function updateProduct(formData: FormData) {
   const existingImages = existingImagesResponse.data || [];
   const currentCount = existingImages.length;
   const remainingSlots = Math.max(0, 5 - currentCount);
-  const newUrls: string[] = [];
 
-  for (let i = 0; i < remainingSlots; i++) {
-    const file = formData.get(`new_image_file_${i}`) as File | null;
-
-    if (file && file.size > 0) {
-      const url = await uploadProductImage(file);
-      newUrls.push(url);
-    }
-  }
+  const newUrls = parseUploadedUrls(formData, 'new_image_url', remainingSlots);
 
   if (newUrls.length > 0) {
     const rows = newUrls.map((url, index) => ({

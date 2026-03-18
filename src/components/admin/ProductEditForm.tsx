@@ -6,7 +6,7 @@ import {
   toggleProductActive,
   deleteProductImage,
 } from '@/app/admin/productos/actions';
-import FileUploadButton from '@/components/FileUploadButton';
+import { uploadProductImageFromClient } from '@/lib/storage-client';
 
 type ProductImage = {
   id: string;
@@ -41,17 +41,39 @@ type ProductEditFormProps = {
   categories: CategoryOption[];
 };
 
+type UploadSlot = {
+  fileName: string;
+  previewUrl: string | null;
+  uploadedUrl: string | null;
+  isUploading: boolean;
+  error: string | null;
+};
+
+const MAX_FILE_SIZE_MB = 3;
+const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+
+function createEmptySlot(): UploadSlot {
+  return {
+    fileName: '',
+    previewUrl: null,
+    uploadedUrl: null,
+    isUploading: false,
+    error: null,
+  };
+}
+
 export default function ProductEditForm({
   product,
   categories,
 }: ProductEditFormProps) {
   const [open, setOpen] = useState(false);
+  const [trackStock, setTrackStock] = useState(!!product.track_stock);
 
   const existingImages = product.product_images || [];
   const remainingSlots = Math.max(0, 5 - existingImages.length);
 
-  const [newFiles, setNewFiles] = useState<(File | null)[]>(
-    Array.from({ length: remainingSlots }, () => null)
+  const [newSlots, setNewSlots] = useState<UploadSlot[]>(
+    Array.from({ length: remainingSlots }, () => createEmptySlot())
   );
 
   const [selectedCoverId, setSelectedCoverId] = useState<string>(
@@ -65,35 +87,121 @@ export default function ProductEditForm({
   }, [product.id, existingImages]);
 
   useEffect(() => {
-    setNewFiles(Array.from({ length: remainingSlots }, () => null));
+    setTrackStock(!!product.track_stock);
+  }, [product.id, product.track_stock]);
+
+  useEffect(() => {
+    setNewSlots(Array.from({ length: remainingSlots }, () => createEmptySlot()));
   }, [remainingSlots, product.id]);
 
-  function handleNewFileChange(index: number, fileList: FileList | null) {
-    const file = fileList && fileList[0] ? fileList[0] : null;
+  const hasUploadingFiles = useMemo(
+    () => newSlots.some((slot) => slot.isUploading),
+    [newSlots]
+  );
 
-    setNewFiles((prev) => {
+  function setSlot(index: number, updater: (prev: UploadSlot) => UploadSlot) {
+    setNewSlots((prev) => {
       const next = [...prev];
-      next[index] = file;
+      next[index] = updater(prev[index]);
       return next;
     });
   }
 
-  const newPreviews = useMemo(() => {
-    return newFiles.map((file) => ({
-      fileName: file?.name || '',
-      previewUrl: file ? URL.createObjectURL(file) : null,
-    }));
-  }, [newFiles]);
+  function clearSlot(index: number) {
+    setNewSlots((prev) => {
+      const next = [...prev];
+      const current = next[index];
+
+      if (current.previewUrl?.startsWith('blob:')) {
+        URL.revokeObjectURL(current.previewUrl);
+      }
+
+      next[index] = createEmptySlot();
+      return next;
+    });
+  }
+
+  async function handleNewFileChange(index: number, fileList: FileList | null) {
+    const file = fileList?.[0] ?? null;
+
+    if (!file) {
+      clearSlot(index);
+      return;
+    }
+
+    if (!ACCEPTED_TYPES.includes(file.type)) {
+      setSlot(index, (prev) => {
+        if (prev.previewUrl?.startsWith('blob:')) {
+          URL.revokeObjectURL(prev.previewUrl);
+        }
+
+        return {
+          ...createEmptySlot(),
+          error: 'Formato no permitido. Usá JPG, PNG o WEBP.',
+        };
+      });
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+      setSlot(index, (prev) => {
+        if (prev.previewUrl?.startsWith('blob:')) {
+          URL.revokeObjectURL(prev.previewUrl);
+        }
+
+        return {
+          ...createEmptySlot(),
+          error: `La imagen supera los ${MAX_FILE_SIZE_MB} MB.`,
+        };
+      });
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+
+    setSlot(index, (prev) => {
+      if (prev.previewUrl?.startsWith('blob:')) {
+        URL.revokeObjectURL(prev.previewUrl);
+      }
+
+      return {
+        fileName: file.name,
+        previewUrl,
+        uploadedUrl: null,
+        isUploading: true,
+        error: null,
+      };
+    });
+
+    try {
+      const uploadedUrl = await uploadProductImageFromClient(file);
+
+      setSlot(index, (prev) => ({
+        ...prev,
+        uploadedUrl,
+        isUploading: false,
+        error: null,
+      }));
+    } catch (error) {
+      setSlot(index, (prev) => ({
+        ...prev,
+        uploadedUrl: null,
+        isUploading: false,
+        error:
+          error instanceof Error ? error.message : 'No se pudo subir la imagen.',
+      }));
+    }
+  }
 
   useEffect(() => {
     return () => {
-      newPreviews.forEach((preview) => {
-        if (preview.previewUrl) {
-          URL.revokeObjectURL(preview.previewUrl);
+      newSlots.forEach((slot) => {
+        if (slot.previewUrl?.startsWith('blob:')) {
+          URL.revokeObjectURL(slot.previewUrl);
         }
       });
     };
-  }, [newPreviews]);
+  }, [newSlots]);
 
   const stockLabel = !product.track_stock
     ? 'Sin control'
@@ -233,6 +341,15 @@ export default function ProductEditForm({
             <input type="hidden" name="product_id" value={product.id} />
             <input type="hidden" name="cover_image_id" value={selectedCoverId} />
 
+            {newSlots.map((slot, index) => (
+              <input
+                key={`new-image-url-${product.id}-${index}`}
+                type="hidden"
+                name={`new_image_url_${index}`}
+                value={slot.uploadedUrl ?? ''}
+              />
+            ))}
+
             <label className="block space-y-2">
               <span className="text-sm font-medium">Nombre</span>
               <input
@@ -290,7 +407,8 @@ export default function ProductEditForm({
                   type="checkbox"
                   name="track_stock"
                   value="true"
-                  defaultChecked={!!product.track_stock}
+                  checked={trackStock}
+                  onChange={(e) => setTrackStock(e.target.checked)}
                 />
                 <span className="text-sm">Controlar stock</span>
               </label>
@@ -303,6 +421,7 @@ export default function ProductEditForm({
                   defaultValue={String(product.stock_quantity ?? 0)}
                   min="0"
                   className="w-full rounded-xl border px-4 py-3"
+                  disabled={!trackStock}
                 />
               </label>
 
@@ -312,6 +431,7 @@ export default function ProductEditForm({
                   name="allow_backorder"
                   value="true"
                   defaultChecked={!!product.allow_backorder}
+                  disabled={!trackStock}
                 />
                 <span className="text-sm">Permitir vender sin stock</span>
               </label>
@@ -324,27 +444,40 @@ export default function ProductEditForm({
 
             {remainingSlots > 0 && (
               <div className="space-y-3">
-                <p className="text-sm font-medium">
-                  Agregar más fotos ({remainingSlots} disponibles)
-                </p>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-medium">
+                    Agregar más fotos ({remainingSlots} disponibles)
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Máximo {MAX_FILE_SIZE_MB} MB por imagen. JPG, PNG o WEBP.
+                  </p>
+                </div>
 
                 <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
                   {Array.from({ length: remainingSlots }).map((_, index) => {
-                    const preview = newPreviews[index];
+                    const slot = newSlots[index];
 
                     return (
                       <div key={index} className="space-y-3 rounded-2xl border p-3">
-                        <FileUploadButton
+                        <label
+                          htmlFor={`new_image_file_${index}_${product.id}`}
+                          className="inline-flex cursor-pointer rounded-xl border px-4 py-2 text-sm"
+                        >
+                          Subir imagen
+                        </label>
+
+                        <input
                           id={`new_image_file_${index}_${product.id}`}
-                          name={`new_image_file_${index}`}
-                          label="Subir imagen"
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp"
+                          className="hidden"
                           onChange={(e) => handleNewFileChange(index, e.target.files)}
                         />
 
                         <div className="h-40 overflow-hidden rounded-xl border bg-gray-50">
-                          {preview?.previewUrl ? (
+                          {slot?.previewUrl ? (
                             <img
-                              src={preview.previewUrl}
+                              src={slot.previewUrl}
                               alt={`Nueva imagen ${index + 1}`}
                               className="h-full w-full object-cover"
                             />
@@ -355,9 +488,35 @@ export default function ProductEditForm({
                           )}
                         </div>
 
-                        <p className="text-sm text-gray-600">
-                          {preview?.fileName || 'Ningún archivo seleccionado'}
-                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {(slot?.previewUrl || slot?.uploadedUrl || slot?.error) && (
+                            <button
+                              type="button"
+                              onClick={() => clearSlot(index)}
+                              className="rounded-xl border px-4 py-2 text-sm"
+                            >
+                              Quitar
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="space-y-1 text-sm">
+                          <p className="text-gray-600">
+                            {slot?.fileName || 'Ningún archivo seleccionado'}
+                          </p>
+
+                          {slot?.isUploading && (
+                            <p className="text-amber-700">Subiendo imagen...</p>
+                          )}
+
+                          {!slot?.isUploading && slot?.uploadedUrl && (
+                            <p className="text-green-700">
+                              Imagen subida correctamente.
+                            </p>
+                          )}
+
+                          {slot?.error && <p className="text-red-700">{slot.error}</p>}
+                        </div>
                       </div>
                     );
                   })}
@@ -367,9 +526,12 @@ export default function ProductEditForm({
 
             <button
               type="submit"
-              className="w-fit rounded-xl bg-black px-5 py-3 text-white"
+              disabled={hasUploadingFiles}
+              className="w-fit rounded-xl bg-black px-5 py-3 text-white disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Guardar cambios
+              {hasUploadingFiles
+                ? 'Esperá a que terminen de subir las imágenes'
+                : 'Guardar cambios'}
             </button>
           </form>
         </div>

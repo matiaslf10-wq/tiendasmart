@@ -58,7 +58,7 @@ export default function UpdateOrderStatus({
       const result = await updateOrderStatus(orderId, status);
 
       if (!result.success) {
-        setMessage(result.error);
+        setMessage(result.error ?? 'No se pudo actualizar el estado.');
         return;
       }
 

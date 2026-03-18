@@ -1,66 +1,270 @@
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import UpdateOrderStatus from './UpdateOrderStatus';
 
-export default async function PedidosPage() {
+type PageProps = {
+  params: Promise<{ id: string }>;
+};
+
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat('es-AR', {
+    style: 'currency',
+    currency: 'ARS',
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat('es-AR', {
+    dateStyle: 'full',
+    timeStyle: 'short',
+  }).format(new Date(value));
+}
+
+function getStatusLabel(status: string) {
+  switch (status) {
+    case 'pending':
+      return 'Pendiente';
+    case 'confirmed':
+      return 'Confirmado';
+    case 'in_preparation':
+      return 'En preparación';
+    case 'ready':
+      return 'Listo';
+    case 'delivered':
+      return 'Entregado';
+    case 'cancelled':
+      return 'Cancelado';
+    default:
+      return status;
+  }
+}
+
+function getStatusClasses(status: string) {
+  switch (status) {
+    case 'pending':
+      return 'bg-yellow-100 text-yellow-800';
+    case 'confirmed':
+      return 'bg-blue-100 text-blue-800';
+    case 'in_preparation':
+      return 'bg-orange-100 text-orange-800';
+    case 'ready':
+      return 'bg-green-100 text-green-800';
+    case 'delivered':
+      return 'bg-gray-200 text-gray-800';
+    case 'cancelled':
+      return 'bg-red-100 text-red-800';
+    default:
+      return 'bg-gray-100 text-gray-700';
+  }
+}
+
+export default async function PedidoDetallePage({ params }: PageProps) {
+  const { id } = await params;
   const supabase = await createClient();
 
-  // ⚠️ Acá deberías obtener el store_id según el usuario
-  // Por ahora lo dejamos fijo o lo resolvemos después
-  const storeId = 'TU_STORE_ID';
-
-  const { data: orders, error } = await supabase
+  const { data: order, error } = await supabase
     .from('orders')
     .select(`
       id,
       order_number,
       customer_name,
       customer_phone,
-      total,
-      status,
+      customer_email,
       delivery_type,
-      created_at
+      delivery_address,
+      notes,
+      subtotal,
+      shipping_cost,
+      total,
+      currency,
+      status,
+      created_at,
+      order_items (
+        id,
+        product_name,
+        unit_price,
+        quantity,
+        line_total
+      )
     `)
-    .eq('store_id', storeId)
-    .order('created_at', { ascending: false });
+    .eq('id', id)
+    .single();
 
-  if (error) {
-    return <div>Error cargando pedidos</div>;
+  if (error || !order) {
+    notFound();
   }
 
   return (
-    <main className="p-8 space-y-6">
-      <h1 className="text-2xl font-bold">Pedidos</h1>
+    <main className="space-y-6 p-8">
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="space-y-2">
+          <Link
+            href="/admin/pedidos"
+            className="inline-flex items-center rounded-full border px-3 py-1 text-sm text-gray-700 transition hover:bg-gray-50"
+          >
+            ← Volver a pedidos
+          </Link>
 
-      {!orders || orders.length === 0 ? (
-        <p>No hay pedidos todavía.</p>
-      ) : (
-        <div className="space-y-4">
-          {orders.map((order) => (
-            <div
-              key={order.id}
-              className="rounded-xl border p-4 flex justify-between"
-            >
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              Pedido #{order.order_number}
+            </h1>
+            <p className="text-sm text-gray-500">
+              Creado el {formatDate(order.created_at)}
+            </p>
+          </div>
+        </div>
+
+        <span
+          className={`inline-flex rounded-full border px-3 py-1 text-sm font-medium ${getStatusClasses(
+            order.status
+          )}`}
+        >
+          {getStatusLabel(order.status)}
+        </span>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+        <div className="space-y-6">
+          <section className="rounded-2xl border bg-white p-5">
+            <h2 className="mb-4 text-lg font-semibold text-gray-900">
+              Productos
+            </h2>
+
+            <div className="space-y-4">
+              {order.order_items.map((item: any) => (
+                <div
+                  key={item.id}
+                  className="flex items-start justify-between gap-4 rounded-2xl border border-gray-100 p-4"
+                >
+                  <div className="min-w-0">
+                    <p className="font-medium text-gray-900">
+                      {item.product_name}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {item.quantity} x {formatCurrency(Number(item.unit_price))}
+                    </p>
+                  </div>
+
+                  <p className="shrink-0 font-semibold text-gray-900">
+                    {formatCurrency(Number(item.line_total))}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {order.notes ? (
+            <section className="rounded-2xl border bg-white p-5">
+              <h2 className="mb-3 text-lg font-semibold text-gray-900">
+                Observaciones
+              </h2>
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-600">
+                {order.notes}
+              </p>
+            </section>
+          ) : null}
+        </div>
+
+        <div className="space-y-6">
+          <section className="rounded-2xl border bg-white p-5">
+            <h2 className="mb-4 text-lg font-semibold text-gray-900">
+              Cliente
+            </h2>
+
+            <div className="space-y-3 text-sm">
               <div>
-                <p className="font-semibold">
-                  Pedido #{order.order_number}
-                </p>
-                <p className="text-sm text-gray-500">
-                  {order.customer_name}
-                </p>
-                <p className="text-sm text-gray-500">
-                  {order.customer_phone}
+                <p className="text-gray-500">Nombre</p>
+                <p className="font-medium text-gray-900">
+                  {order.customer_name || 'No informado'}
                 </p>
               </div>
 
-              <div className="text-right">
-                <p className="font-semibold">
-                  ${order.total}
+              <div>
+                <p className="text-gray-500">Teléfono</p>
+                <p className="font-medium text-gray-900">
+                  {order.customer_phone || 'No informado'}
                 </p>
-                <p className="text-sm">{order.status}</p>
+              </div>
+
+              {order.customer_email ? (
+                <div>
+                  <p className="text-gray-500">Email</p>
+                  <p className="font-medium text-gray-900">
+                    {order.customer_email}
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          </section>
+
+          <section className="rounded-2xl border bg-white p-5">
+            <h2 className="mb-4 text-lg font-semibold text-gray-900">
+              Entrega
+            </h2>
+
+            <div className="space-y-3 text-sm">
+              <div>
+                <p className="text-gray-500">Tipo</p>
+                <p className="font-medium text-gray-900">
+                  {order.delivery_type === 'delivery' ? 'Envío' : 'Retiro'}
+                </p>
+              </div>
+
+              {order.delivery_address ? (
+                <div>
+                  <p className="text-gray-500">Dirección</p>
+                  <p className="font-medium text-gray-900">
+                    {order.delivery_address}
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          </section>
+
+          <section className="rounded-2xl border bg-white p-5">
+            <h2 className="mb-4 text-lg font-semibold text-gray-900">
+              Totales
+            </h2>
+
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-500">Subtotal</span>
+                <span className="font-medium text-gray-900">
+                  {formatCurrency(Number(order.subtotal))}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-gray-500">Envío</span>
+                <span className="font-medium text-gray-900">
+                  {formatCurrency(Number(order.shipping_cost))}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between border-t pt-3">
+                <span className="font-semibold text-gray-900">Total</span>
+                <span className="text-lg font-bold text-gray-900">
+                  {formatCurrency(Number(order.total))}
+                </span>
               </div>
             </div>
-          ))}
+          </section>
+
+          <section className="rounded-2xl border bg-white p-5">
+            <h2 className="mb-4 text-lg font-semibold text-gray-900">
+              Cambiar estado
+            </h2>
+
+            <UpdateOrderStatus
+              orderId={order.id}
+              currentStatus={order.status}
+            />
+          </section>
         </div>
-      )}
+      </div>
     </main>
   );
 }

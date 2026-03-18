@@ -102,13 +102,13 @@ export default async function PedidosPage({ searchParams }: PageProps) {
                     {formatCurrency(Number(order.total))}
                   </p>
 
-                  <span
-                    className={`inline-block rounded-full px-3 py-1 text-xs ${getStatusClasses(
-                      order.status
-                    )}`}
-                  >
-                    {order.status}
-                  </span>
+<span
+  className={`inline-block rounded-full px-3 py-1 text-xs ${getStatusClasses(
+    order.status
+  )}`}
+>
+  {getStatusLabel(order.status)}
+</span>
                 </div>
               </div>
             </Link>

@@ -37,12 +37,17 @@ function getStatusClasses(status: string) {
   }
 }
 
-export default async function PedidosPage({
-  searchParams,
-}: {
-  searchParams: { status?: string };
-}) {
+type PageProps = {
+  searchParams: Promise<{
+    status?: string;
+  }>;
+};
+
+export default async function PedidosPage({ searchParams }: PageProps) {
   const supabase = await createClient();
+  const resolvedSearchParams = await searchParams;
+  const status = resolvedSearchParams.status;
+
   const storeId = 'TU_STORE_ID';
 
   let query = supabase
@@ -51,8 +56,8 @@ export default async function PedidosPage({
     .eq('store_id', storeId)
     .order('created_at', { ascending: false });
 
-  if (searchParams.status && searchParams.status !== 'all') {
-    query = query.eq('status', searchParams.status);
+  if (status && status !== 'all') {
+    query = query.eq('status', status);
   }
 
   const { data: orders, error } = await query;
@@ -65,18 +70,12 @@ export default async function PedidosPage({
     <main className="p-8 space-y-6">
       <div className="space-y-2">
         <h1 className="text-2xl font-bold">Pedidos</h1>
-        <p className="text-sm text-gray-500">
-          Gestión de pedidos en tiempo real
-        </p>
+        <p className="text-sm text-gray-500">Gestión de pedidos en tiempo real</p>
       </div>
 
-      {/* MÉTRICAS */}
       <OrdersStats orders={orders || []} />
-
-      {/* FILTROS */}
       <OrdersFilters />
 
-      {/* LISTADO */}
       {!orders || orders.length === 0 ? (
         <p>No hay pedidos.</p>
       ) : (
@@ -89,22 +88,18 @@ export default async function PedidosPage({
             >
               <div className="flex justify-between">
                 <div>
-                  <p className="font-semibold">
-                    #{order.order_number}
-                  </p>
+                  <p className="font-semibold">#{order.order_number}</p>
 
-                  <p className="text-sm text-gray-500">
-                    {order.customer_name}
-                  </p>
+                  <p className="text-sm text-gray-500">{order.customer_name}</p>
 
                   <p className="text-xs text-gray-400">
                     {formatDate(order.created_at)}
                   </p>
                 </div>
 
-                <div className="text-right space-y-1">
+                <div className="space-y-1 text-right">
                   <p className="font-semibold">
-                    {formatCurrency(order.total)}
+                    {formatCurrency(Number(order.total))}
                   </p>
 
                   <span

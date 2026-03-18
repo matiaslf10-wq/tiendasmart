@@ -49,6 +49,15 @@ export default function ProductCard({
     window.setTimeout(() => setAdded(false), 1200);
   }
 
+  const stockBadgeClass =
+    stockLabel === 'Sin stock' || stockLabel === 'No disponible'
+      ? 'border-red-200 bg-red-50 text-red-700'
+      : stockLabel === 'Últimas unidades'
+        ? 'border-amber-200 bg-amber-50 text-amber-700'
+        : stockLabel === 'Disponible por encargo'
+          ? 'border-blue-200 bg-blue-50 text-blue-700'
+          : 'border-green-200 bg-green-50 text-green-700';
+
   return (
     <article className="overflow-hidden rounded-3xl border bg-white shadow-sm transition hover:shadow-md">
       <div className="aspect-[4/3] bg-gray-100">
@@ -71,7 +80,9 @@ export default function ProductCard({
             {product.name}
           </h2>
 
-          <span className="shrink-0 rounded-full border px-2.5 py-1 text-xs text-gray-600">
+          <span
+            className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium ${stockBadgeClass}`}
+          >
             {stockLabel}
           </span>
         </div>

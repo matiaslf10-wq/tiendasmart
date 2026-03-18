@@ -226,8 +226,8 @@ export default function WhatsAppCart({
                         </div>
 
                         {reachedMax && (
-                          <p className="mt-2 text-xs text-amber-600">
-                            Alcanzaste el máximo disponible para este producto.
+                          <p className="mt-2 text-xs text-red-600">
+                            Sin stock
                           </p>
                         )}
 

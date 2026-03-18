@@ -41,14 +41,17 @@ export default function ProductImageGallery({
     if (!container || normalizedImages.length === 0) return;
 
     function handleScroll() {
+      const currentContainer = scrollRef.current;
+      if (!currentContainer) return;
+
       const slides = Array.from(
-        container.querySelectorAll<HTMLElement>('[data-slide="true"]')
+        currentContainer.querySelectorAll<HTMLElement>('[data-slide="true"]')
       );
 
       if (slides.length === 0) return;
 
-      const containerLeft = container.scrollLeft;
-      const containerWidth = container.clientWidth;
+      const containerLeft = currentContainer.scrollLeft;
+      const containerWidth = currentContainer.clientWidth;
       const viewportCenter = containerLeft + containerWidth / 2;
 
       let closestIndex = 0;

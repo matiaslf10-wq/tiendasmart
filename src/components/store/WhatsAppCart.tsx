@@ -14,6 +14,11 @@ import {
   saveCustomerData,
   type CartItem,
 } from '@/lib/cart';
+import {
+  canPurchase,
+  getMaxPurchasableQuantity,
+  getStockLabel,
+} from '@/lib/stock';
 
 type WhatsAppCartProps = {
   storeSlug: string;
@@ -69,21 +74,26 @@ export default function WhatsAppCart({
     });
   }, [customerName, customerAddress, customerNotes, storeSlug]);
 
-  const totalItems = useMemo(
-    () => items.reduce((acc, item) => acc + item.quantity, 0),
+  const validItems = useMemo(
+    () => items.filter((item) => canPurchase(item) && item.quantity > 0),
     [items]
   );
 
+  const totalItems = useMemo(
+    () => validItems.reduce((acc, item) => acc + item.quantity, 0),
+    [validItems]
+  );
+
   const totalPrice = useMemo(
-    () => items.reduce((acc, item) => acc + item.quantity * item.price, 0),
-    [items]
+    () => validItems.reduce((acc, item) => acc + item.quantity * item.price, 0),
+    [validItems]
   );
 
   const whatsappUrl = useMemo(() => {
     const baseMessage = buildWhatsAppMessage({
       storeName,
       storeSlug,
-      items,
+      items: validItems,
     });
 
     const extraLines = [
@@ -99,7 +109,7 @@ export default function WhatsAppCart({
       `${baseMessage}\n${extraLines.join('\n')}`
     );
   }, [
-    items,
+    validItems,
     storeName,
     storeSlug,
     whatsappNumber,
@@ -108,7 +118,7 @@ export default function WhatsAppCart({
     customerNotes,
   ]);
 
-  const canSend = items.length > 0 && customerName.trim().length > 0;
+  const canSend = validItems.length > 0 && customerName.trim().length > 0;
 
   return (
     <>
@@ -138,70 +148,97 @@ export default function WhatsAppCart({
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto space-y-5 px-5 py-4">
+            <div className="flex-1 space-y-5 overflow-y-auto px-5 py-4">
               {items.length === 0 ? (
                 <p className="text-sm text-gray-600">
                   Todavía no agregaste productos.
                 </p>
               ) : (
                 <div className="space-y-4">
-                  {items.map((item) => (
-                    <div
-                      key={item.id}
-                      className="rounded-2xl border border-gray-200 p-4"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <h3 className="font-semibold">{item.name}</h3>
-                          <p className="text-sm text-gray-500">
-                            {formatPrice(item.price)} c/u
-                          </p>
-                          <p className="mt-1 text-sm font-medium">
-                            Subtotal: {formatPrice(item.price * item.quantity)}
-                          </p>
+                  {items.map((item) => {
+                    const purchasable = canPurchase(item);
+                    const maxQty = getMaxPurchasableQuantity(item);
+                    const stockLabel = getStockLabel(item);
+                    const reachedMax =
+                      Number.isFinite(maxQty) && item.quantity >= maxQty;
+
+                    return (
+                      <div
+                        key={item.id}
+                        className="rounded-2xl border border-gray-200 p-4"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <h3 className="font-semibold">{item.name}</h3>
+
+                            <p className="mt-1 text-xs text-gray-500">
+                              {stockLabel}
+                            </p>
+
+                            <p className="text-sm text-gray-500">
+                              {formatPrice(item.price)} c/u
+                            </p>
+
+                            <p className="mt-1 text-sm font-medium">
+                              Subtotal: {formatPrice(item.price * item.quantity)}
+                            </p>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              removeCartItem(storeSlug, item.id);
+                              loadCart();
+                            }}
+                            className="text-sm text-red-600"
+                          >
+                            Quitar
+                          </button>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => {
-                            removeCartItem(storeSlug, item.id);
-                            loadCart();
-                          }}
-                          className="text-sm text-red-600"
-                        >
-                          Quitar
-                        </button>
+                        <div className="mt-4 flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              decreaseCartItem(storeSlug, item.id);
+                              loadCart();
+                            }}
+                            className="rounded-xl border px-3 py-1"
+                          >
+                            -
+                          </button>
+
+                          <span className="min-w-6 text-center font-semibold">
+                            {item.quantity}
+                          </span>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              increaseCartItem(storeSlug, item.id);
+                              loadCart();
+                            }}
+                            disabled={!purchasable || reachedMax}
+                            className="rounded-xl border px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            +
+                          </button>
+                        </div>
+
+                        {reachedMax && (
+                          <p className="mt-2 text-xs text-amber-600">
+                            Alcanzaste el máximo disponible para este producto.
+                          </p>
+                        )}
+
+                        {!purchasable && (
+                          <p className="mt-2 text-xs text-red-600">
+                            Este producto ya no está disponible.
+                          </p>
+                        )}
                       </div>
-
-                      <div className="mt-4 flex items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            decreaseCartItem(storeSlug, item.id);
-                            loadCart();
-                          }}
-                          className="rounded-xl border px-3 py-1"
-                        >
-                          -
-                        </button>
-
-                        <span className="min-w-6 text-center font-semibold">
-                          {item.quantity}
-                        </span>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            increaseCartItem(storeSlug, item.id);
-                            loadCart();
-                          }}
-                          className="rounded-xl border px-3 py-1"
-                        >
-                          +
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 
@@ -249,6 +286,12 @@ export default function WhatsAppCart({
                 <p className="text-xs text-gray-500">
                   Para enviar el pedido, completá al menos tu nombre.
                 </p>
+
+                {items.length > 0 && validItems.length === 0 && (
+                  <p className="text-xs text-red-600">
+                    No hay productos disponibles para enviar en este momento.
+                  </p>
+                )}
               </section>
             </div>
 

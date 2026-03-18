@@ -29,6 +29,9 @@ type Product = {
   image_url: string | null;
   is_active: boolean;
   category_id: string | null;
+  track_stock: boolean;
+  stock_quantity: number;
+  allow_backorder: boolean;
   created_at: string;
   product_images?: ProductImage[];
 };
@@ -98,6 +101,9 @@ export default async function ProductosPage({ searchParams }: ProductosPageProps
         image_url,
         is_active,
         category_id,
+        track_stock,
+        stock_quantity,
+        allow_backorder,
         created_at,
         product_images (
           id,

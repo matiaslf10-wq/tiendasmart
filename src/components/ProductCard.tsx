@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { addToCart } from '@/lib/cart';
 import { canPurchase, getStockLabel } from '@/lib/stock';
+import StoreToast from '@/components/store/StoreToast';
 
 type Product = {
   id: string;
@@ -21,18 +22,34 @@ type ProductCardProps = {
   storeSlug?: string;
 };
 
+type ToastState = {
+  message: string;
+  tone: 'success' | 'error' | 'info';
+} | null;
+
 export default function ProductCard({
   product,
   storeSlug = '',
 }: ProductCardProps) {
   const [added, setAdded] = useState(false);
+  const [toast, setToast] = useState<ToastState>(null);
 
   const purchasable = canPurchase(product);
   const stockLabel = getStockLabel(product);
   const buttonDisabled = !storeSlug || !purchasable;
 
+  function showToast(message: string, tone: 'success' | 'error' | 'info') {
+    setToast({ message, tone });
+    window.setTimeout(() => setToast(null), 1800);
+  }
+
   function handleAdd() {
-    if (!storeSlug || !purchasable) return;
+    if (!storeSlug) return;
+
+    if (!purchasable) {
+      showToast('Este producto no tiene stock.', 'error');
+      return;
+    }
 
     addToCart(storeSlug, {
       id: product.id,
@@ -46,6 +63,7 @@ export default function ProductCard({
     });
 
     setAdded(true);
+    showToast('Producto agregado al carrito.', 'success');
     window.setTimeout(() => setAdded(false), 1200);
   }
 
@@ -59,59 +77,63 @@ export default function ProductCard({
           : 'border-green-200 bg-green-50 text-green-700';
 
   return (
-    <article className="overflow-hidden rounded-3xl border bg-white shadow-sm transition hover:shadow-md">
-      <div className="aspect-[4/3] bg-gray-100">
-        {product.image_url ? (
-          <img
-            src={product.image_url}
-            alt={product.name}
-            className="h-full w-full object-cover transition hover:scale-[1.02]"
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center text-sm text-gray-400">
-            Sin imagen
-          </div>
-        )}
-      </div>
-
-      <div className="space-y-3 p-5">
-        <div className="flex items-start justify-between gap-3">
-          <h2 className="text-lg font-semibold leading-tight text-gray-900">
-            {product.name}
-          </h2>
-
-          <span
-            className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium ${stockBadgeClass}`}
-          >
-            {stockLabel}
-          </span>
+    <>
+      <article className="overflow-hidden rounded-3xl border bg-white shadow-sm transition hover:shadow-md">
+        <div className="aspect-[4/3] bg-gray-100">
+          {product.image_url ? (
+            <img
+              src={product.image_url}
+              alt={product.name}
+              className="h-full w-full object-cover transition hover:scale-[1.02]"
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center text-sm text-gray-400">
+              Sin imagen
+            </div>
+          )}
         </div>
 
-        <p className="text-xl font-bold text-gray-900">
-          ${Number(product.price).toLocaleString('es-AR')}
-        </p>
+        <div className="space-y-3 p-5">
+          <div className="flex items-start justify-between gap-3">
+            <h2 className="text-lg font-semibold leading-tight text-gray-900">
+              {product.name}
+            </h2>
 
-        {product.description && (
-          <p className="line-clamp-3 text-sm leading-5 text-gray-600">
-            {product.description}
+            <span
+              className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium ${stockBadgeClass}`}
+            >
+              {stockLabel}
+            </span>
+          </div>
+
+          <p className="text-xl font-bold text-gray-900">
+            ${Number(product.price).toLocaleString('es-AR')}
           </p>
-        )}
 
-        <button
-          type="button"
-          onClick={handleAdd}
-          disabled={buttonDisabled}
-          className={`w-full rounded-2xl px-4 py-3 text-sm font-semibold transition ${
-            added
-              ? 'bg-green-600 text-white'
-              : buttonDisabled
-                ? 'cursor-not-allowed bg-gray-200 text-gray-500'
-                : 'bg-black text-white hover:opacity-90'
-          }`}
-        >
-          {added ? 'Agregado ✓' : purchasable ? 'Agregar al carrito' : 'Sin stock'}
-        </button>
-      </div>
-    </article>
+          {product.description && (
+            <p className="line-clamp-3 text-sm leading-5 text-gray-600">
+              {product.description}
+            </p>
+          )}
+
+          <button
+            type="button"
+            onClick={handleAdd}
+            disabled={buttonDisabled}
+            className={`w-full rounded-2xl px-4 py-3 text-sm font-semibold transition ${
+              added
+                ? 'bg-green-600 text-white'
+                : buttonDisabled
+                  ? 'cursor-not-allowed bg-gray-200 text-gray-500'
+                  : 'bg-black text-white hover:opacity-90'
+            }`}
+          >
+            {added ? 'Agregado ✓' : purchasable ? 'Agregar al carrito' : 'Sin stock'}
+          </button>
+        </div>
+      </article>
+
+      {toast && <StoreToast message={toast.message} tone={toast.tone} />}
+    </>
   );
 }

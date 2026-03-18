@@ -7,6 +7,7 @@ import {
   getMaxPurchasableQuantity,
   getStockLabel,
 } from '@/lib/stock';
+import StoreToast from '@/components/store/StoreToast';
 
 type ProductDetailCartProduct = {
   id: string;
@@ -24,17 +25,28 @@ type ProductDetailActionsProps = {
   product: ProductDetailCartProduct;
 };
 
+type ToastState = {
+  message: string;
+  tone: 'success' | 'error' | 'info';
+} | null;
+
 export default function ProductDetailActions({
   storeSlug,
   product,
 }: ProductDetailActionsProps) {
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
+  const [toast, setToast] = useState<ToastState>(null);
 
   const purchasable = canPurchase(product);
   const maxQty = getMaxPurchasableQuantity(product);
   const stockLabel = getStockLabel(product);
   const quantityDisabled = !purchasable || maxQty === 0;
+
+  function showToast(message: string, tone: 'success' | 'error' | 'info') {
+    setToast({ message, tone });
+    window.setTimeout(() => setToast(null), 1800);
+  }
 
   function decrease() {
     setQuantity((prev) => Math.max(1, prev - 1));
@@ -67,7 +79,17 @@ export default function ProductDetailActions({
   }
 
   function handleAdd() {
-    if (!storeSlug || !purchasable) return;
+    if (!storeSlug) return;
+
+    if (!purchasable) {
+      showToast('Este producto no tiene stock.', 'error');
+      return;
+    }
+
+    if (Number.isFinite(maxQty) && quantity > maxQty) {
+      showToast(`Solo hay ${maxQty} disponible${maxQty === 1 ? '' : 's'}.`, 'error');
+      return;
+    }
 
     addToCart(
       storeSlug,
@@ -85,70 +107,80 @@ export default function ProductDetailActions({
     );
 
     setAdded(true);
+    showToast(
+      quantity === 1
+        ? 'Producto agregado al carrito.'
+        : `${quantity} unidades agregadas al carrito.`,
+      'success'
+    );
     window.setTimeout(() => setAdded(false), 1200);
   }
 
   return (
-    <div className="space-y-4">
-      <div className="text-sm text-gray-600">
-        Disponibilidad: <span className="font-medium">{stockLabel}</span>
+    <>
+      <div className="space-y-4">
+        <div className="text-sm text-gray-600">
+          Disponibilidad: <span className="font-medium">{stockLabel}</span>
+        </div>
+
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="space-y-2">
+            <span className="block text-sm font-medium text-gray-700">Cantidad</span>
+
+            <div className="flex items-center overflow-hidden rounded-xl border">
+              <button
+                type="button"
+                onClick={decrease}
+                disabled={quantityDisabled}
+                className="px-4 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                −
+              </button>
+
+              <input
+                type="number"
+                min={1}
+                value={quantity}
+                onChange={(e) => handleQuantityChange(e.target.value)}
+                disabled={quantityDisabled}
+                className="w-20 border-x px-3 py-3 text-center outline-none disabled:cursor-not-allowed disabled:bg-gray-50"
+              />
+
+              <button
+                type="button"
+                onClick={increase}
+                disabled={quantityDisabled || (Number.isFinite(maxQty) && quantity >= maxQty)}
+                className="px-4 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                +
+              </button>
+            </div>
+          </label>
+
+          <button
+            type="button"
+            onClick={handleAdd}
+            disabled={!purchasable}
+            className={`rounded-xl px-5 py-3 text-white transition ${
+              added
+                ? 'bg-green-600'
+                : purchasable
+                  ? 'bg-black hover:opacity-90'
+                  : 'cursor-not-allowed bg-gray-300 text-gray-600'
+            }`}
+          >
+            {added ? 'Agregado ✓' : purchasable ? 'Agregar al carrito' : 'Sin stock'}
+          </button>
+        </div>
+
+        {Number.isFinite(maxQty) && purchasable && (
+          <p className="text-sm text-gray-500">
+            Máximo disponible para agregar: {maxQty}
+          </p>
+        )}
       </div>
 
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="space-y-2">
-          <span className="block text-sm font-medium text-gray-700">Cantidad</span>
-
-          <div className="flex items-center overflow-hidden rounded-xl border">
-            <button
-              type="button"
-              onClick={decrease}
-              disabled={quantityDisabled}
-              className="px-4 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              −
-            </button>
-
-            <input
-              type="number"
-              min={1}
-              value={quantity}
-              onChange={(e) => handleQuantityChange(e.target.value)}
-              disabled={quantityDisabled}
-              className="w-20 border-x px-3 py-3 text-center outline-none disabled:cursor-not-allowed disabled:bg-gray-50"
-            />
-
-            <button
-              type="button"
-              onClick={increase}
-              disabled={quantityDisabled || (Number.isFinite(maxQty) && quantity >= maxQty)}
-              className="px-4 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              +
-            </button>
-          </div>
-        </label>
-
-        <button
-          type="button"
-          onClick={handleAdd}
-          disabled={!purchasable}
-          className={`rounded-xl px-5 py-3 text-white transition ${
-            added
-              ? 'bg-green-600'
-              : purchasable
-                ? 'bg-black hover:opacity-90'
-                : 'cursor-not-allowed bg-gray-300 text-gray-600'
-          }`}
-        >
-          {added ? 'Agregado ✓' : purchasable ? 'Agregar al carrito' : 'Sin stock'}
-        </button>
-      </div>
-
-      {Number.isFinite(maxQty) && purchasable && (
-        <p className="text-sm text-gray-500">
-          Máximo disponible para agregar: {maxQty}
-        </p>
-      )}
-    </div>
+      {toast && <StoreToast message={toast.message} tone={toast.tone} />}
+    </>
   );
 }

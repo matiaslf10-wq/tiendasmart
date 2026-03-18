@@ -1,6 +1,8 @@
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { getCurrentUserStore } from '@/lib/stores';
+import AdminShell from '@/components/admin/AdminShell';
 import UpdateOrderStatus from './UpdateOrderStatus';
 
 type PageProps = {
@@ -61,6 +63,13 @@ function getStatusClasses(status: string) {
 }
 
 export default async function PedidoDetallePage({ params }: PageProps) {
+  const membership = await getCurrentUserStore();
+
+  if (!membership || !membership.stores) {
+    redirect('/login');
+  }
+
+  const store = membership.stores;
   const { id } = await params;
   const supabase = await createClient();
 
@@ -68,6 +77,7 @@ export default async function PedidoDetallePage({ params }: PageProps) {
     .from('orders')
     .select(`
       id,
+      store_id,
       order_number,
       customer_name,
       customer_phone,
@@ -90,6 +100,7 @@ export default async function PedidoDetallePage({ params }: PageProps) {
       )
     `)
     .eq('id', id)
+    .eq('store_id', store.id)
     .single();
 
   if (error || !order) {
@@ -97,7 +108,13 @@ export default async function PedidoDetallePage({ params }: PageProps) {
   }
 
   return (
-    <main className="space-y-6 p-8">
+    <AdminShell
+      title={`Pedido #${order.order_number}`}
+      subtitle={`Tienda: ${store.name}`}
+      storeName={store.name}
+      storeSlug={store.slug}
+      current="pedidos"
+    >
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div className="space-y-2">
           <Link
@@ -265,6 +282,6 @@ export default async function PedidoDetallePage({ params }: PageProps) {
           </section>
         </div>
       </div>
-    </main>
+    </AdminShell>
   );
 }

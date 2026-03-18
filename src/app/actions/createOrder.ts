@@ -63,7 +63,12 @@ export async function createOrder(
     }
 
     const normalizedItems = input.items
-      .filter((item) => item.productId && Number.isInteger(item.quantity) && item.quantity > 0)
+      .filter(
+        (item) =>
+          item.productId &&
+          Number.isInteger(item.quantity) &&
+          item.quantity > 0
+      )
       .map((item) => ({
         productId: item.productId,
         quantity: item.quantity,
@@ -88,7 +93,15 @@ export async function createOrder(
 
     const { data: products, error: productsError } = await supabase
       .from('products')
-      .select('id, name, price, stock, is_active')
+      .select(`
+        id,
+        name,
+        price,
+        is_active,
+        track_stock,
+        stock_quantity,
+        allow_backorder
+      `)
       .eq('store_id', store.id)
       .in('id', productIds);
 
@@ -118,16 +131,21 @@ export async function createOrder(
       }
 
       if (!product.is_active) {
-        return { success: false, error: `El producto "${product.name}" no está disponible.` };
-      }
-
-      const stock = Number(product.stock ?? 0);
-      const unitPrice = Number(product.price ?? 0);
-
-      if (item.quantity > stock) {
         return {
           success: false,
-          error: `No hay stock suficiente para "${product.name}". Stock disponible: ${stock}.`,
+          error: `El producto "${product.name}" no está disponible.`,
+        };
+      }
+
+      const unitPrice = Number(product.price ?? 0);
+      const trackStock = Boolean(product.track_stock);
+      const allowBackorder = Boolean(product.allow_backorder);
+      const stockQuantity = Number(product.stock_quantity ?? 0);
+
+      if (trackStock && !allowBackorder && item.quantity > stockQuantity) {
+        return {
+          success: false,
+          error: `No hay stock suficiente para "${product.name}". Stock disponible: ${stockQuantity}.`,
         };
       }
 
@@ -154,7 +172,8 @@ export async function createOrder(
         customer_phone: customerPhone,
         customer_email: customerEmail,
         delivery_type: input.deliveryType,
-        delivery_address: input.deliveryType === 'delivery' ? deliveryAddress : null,
+        delivery_address:
+          input.deliveryType === 'delivery' ? deliveryAddress : null,
         notes,
         subtotal,
         shipping_cost: shippingCost,
@@ -183,17 +202,29 @@ export async function createOrder(
 
     if (itemsError) {
       await supabase.from('orders').delete().eq('id', insertedOrder.id);
-      return { success: false, error: 'No se pudieron guardar los items del pedido.' };
+      return {
+        success: false,
+        error: 'No se pudieron guardar los items del pedido.',
+      };
     }
 
     for (const item of normalizedItems) {
       const product = productsMap.get(item.productId)!;
-      const currentStock = Number(product.stock ?? 0);
-      const newStock = currentStock - item.quantity;
+      const trackStock = Boolean(product.track_stock);
+      const allowBackorder = Boolean(product.allow_backorder);
+      const currentStock = Number(product.stock_quantity ?? 0);
+
+      if (!trackStock) {
+        continue;
+      }
+
+      const newStock = allowBackorder
+        ? currentStock
+        : Math.max(0, currentStock - item.quantity);
 
       const { error: stockError } = await supabase
         .from('products')
-        .update({ stock: newStock })
+        .update({ stock_quantity: newStock })
         .eq('id', product.id)
         .eq('store_id', store.id);
 

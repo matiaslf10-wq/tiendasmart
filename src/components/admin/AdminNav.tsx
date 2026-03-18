@@ -2,37 +2,32 @@ import Link from 'next/link';
 
 type AdminNavProps = {
   storeSlug: string;
-  current?: 'panel' | 'productos' | 'categorias';
+  current?: 'panel' | 'productos' | 'categorias' | 'pedidos';
 };
 
 function getItemClass(isActive: boolean) {
   return isActive
     ? 'rounded-2xl border border-black bg-black px-4 py-4 text-sm font-semibold text-white shadow-md transition'
-    : 'rounded-2xl border border-gray-200 bg-white px-4 py-4 text-sm font-semibold text-gray-800 shadow-sm transition hover:-translate-y-1 hover:shadow-lg hover:border-gray-300';
+    : 'rounded-2xl border border-gray-200 bg-white px-4 py-4 text-sm font-semibold text-gray-800 shadow-sm transition hover:-translate-y-1 hover:border-gray-300 hover:shadow-lg';
 }
 
-export default function AdminNav({
-  storeSlug,
-  current,
-}: AdminNavProps) {
+export default function AdminNav({ storeSlug, current }: AdminNavProps) {
   return (
-    <section className="rounded-3xl border border-gray-200 bg-gradient-to-br from-gray-50 to-white p-6 shadow-sm">      <div className="mb-3">
+    <section className="rounded-3xl border border-gray-200 bg-gradient-to-br from-gray-50 to-white p-6 shadow-sm">
+      <div className="mb-3">
         <h2 className="text-lg font-semibold text-gray-900">Gestión</h2>
         <p className="text-sm text-gray-600">
           Accesos rápidos del panel administrativo
         </p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Link
-          href="/admin"
-          className={getItemClass(current === 'panel')}
-        >
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <Link href="/admin" className={getItemClass(current === 'panel')}>
           <div className="flex items-center gap-3">
             <span className="text-lg">🏠</span>
             <div>
               <div>Panel</div>
-              <div className="text-xs opacity-80 font-normal">
+              <div className="text-xs font-normal opacity-80">
                 Configuración general
               </div>
             </div>
@@ -47,7 +42,7 @@ export default function AdminNav({
             <span className="text-lg">📦</span>
             <div>
               <div>Productos</div>
-              <div className="text-xs opacity-80 font-normal">
+              <div className="text-xs font-normal opacity-80">
                 Crear y editar productos
               </div>
             </div>
@@ -62,8 +57,23 @@ export default function AdminNav({
             <span className="text-lg">🗂️</span>
             <div>
               <div>Categorías</div>
-              <div className="text-xs opacity-80 font-normal">
+              <div className="text-xs font-normal opacity-80">
                 Crear y editar categorías
+              </div>
+            </div>
+          </div>
+        </Link>
+
+        <Link
+          href="/admin/pedidos"
+          className={getItemClass(current === 'pedidos')}
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-lg">🧾</span>
+            <div>
+              <div>Pedidos</div>
+              <div className="text-xs font-normal opacity-80">
+                Ver y gestionar pedidos
               </div>
             </div>
           </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { updateOrderStatus } from '@/app/actions/updateOrderStatus';
 
 type Props = {
@@ -46,23 +47,31 @@ export default function UpdateOrderStatus({
   orderId,
   currentStatus,
 }: Props) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
+  const [localStatus, setLocalStatus] = useState(currentStatus);
 
   function handleChange(status: string) {
-    if (status === currentStatus) return;
+    if (status === localStatus) return;
 
     setMessage(null);
 
     startTransition(async () => {
+      const previousStatus = localStatus;
+
+      setLocalStatus(status);
+
       const result = await updateOrderStatus(orderId, status);
 
       if (!result.success) {
+        setLocalStatus(previousStatus);
         setMessage(result.error ?? 'No se pudo actualizar el estado.');
         return;
       }
 
       setMessage('Estado actualizado.');
+      router.refresh();
     });
   }
 
@@ -74,10 +83,10 @@ export default function UpdateOrderStatus({
             key={status.value}
             type="button"
             onClick={() => handleChange(status.value)}
-            disabled={isPending || status.value === currentStatus}
+            disabled={isPending || status.value === localStatus}
             className={`rounded-full border px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60 ${getButtonClasses(
               status.value,
-              currentStatus
+              localStatus
             )}`}
           >
             {status.label}

@@ -3,7 +3,7 @@ import Link from 'next/link';
 type AdminSidebarProps = {
   storeName: string;
   storeSlug: string;
-  current?: 'panel' | 'productos' | 'categorias';
+  current?: 'panel' | 'productos' | 'categorias' | 'pedidos';
 };
 
 function itemClass(active: boolean) {
@@ -18,7 +18,7 @@ export default function AdminSidebar({
   current,
 }: AdminSidebarProps) {
   return (
-    <aside className="w-full rounded-3xl border border-gray-200 bg-white/90 backdrop-blur p-5 shadow-md lg:sticky lg:top-6">
+    <aside className="w-full rounded-3xl border border-gray-200 bg-white/90 p-5 shadow-md backdrop-blur lg:sticky lg:top-6">
       <div className="mb-6 border-b border-gray-100 pb-4">
         <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
           TiendaSmart
@@ -55,6 +55,17 @@ export default function AdminSidebar({
           <div>
             <div className="text-sm font-semibold">Categorías</div>
             <div className="text-xs opacity-80">Crear y editar categorías</div>
+          </div>
+        </Link>
+
+        <Link
+          href="/admin/pedidos"
+          className={itemClass(current === 'pedidos')}
+        >
+          <span className="text-lg">🧾</span>
+          <div>
+            <div className="text-sm font-semibold">Pedidos</div>
+            <div className="text-xs opacity-80">Ver y gestionar pedidos</div>
           </div>
         </Link>
       </nav>

@@ -1,7 +1,11 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { getCurrentUserStore } from '@/lib/stores';
 import OrdersFilters from '@/components/admin/OrdersFilters';
 import OrdersStats from '@/components/admin/OrdersStats';
+import AdminShell from '@/components/admin/AdminShell';
+import OrdersRealtimeListener from '@/components/admin/OrdersRealtimeListener';
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat('es-AR', {
@@ -63,16 +67,21 @@ type PageProps = {
 };
 
 export default async function PedidosPage({ searchParams }: PageProps) {
+  const membership = await getCurrentUserStore();
+
+  if (!membership || !membership.stores) {
+    redirect('/login');
+  }
+
+  const store = membership.stores;
   const supabase = await createClient();
   const resolvedSearchParams = await searchParams;
   const status = resolvedSearchParams.status;
 
-  const storeId = 'TU_STORE_ID';
-
   let query = supabase
     .from('orders')
     .select('*')
-    .eq('store_id', storeId)
+    .eq('store_id', store.id)
     .order('created_at', { ascending: false });
 
   if (status && status !== 'all') {
@@ -81,59 +90,74 @@ export default async function PedidosPage({ searchParams }: PageProps) {
 
   const { data: orders, error } = await query;
 
-  if (error) {
-    return <div>Error cargando pedidos</div>;
-  }
-
   return (
-    <main className="p-8 space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-2xl font-bold">Pedidos</h1>
-        <p className="text-sm text-gray-500">Gestión de pedidos en tiempo real</p>
+    <AdminShell
+      title="Pedidos"
+      subtitle={`Tienda: ${store.name}`}
+      storeName={store.name}
+      storeSlug={store.slug}
+      current="pedidos"
+    >
+      <OrdersRealtimeListener storeId={store.id} />
+
+      <div className="-mt-1">
+        <p className="text-sm text-gray-500">
+          Gestión de pedidos de tu tienda.
+        </p>
       </div>
 
-      <OrdersStats orders={orders || []} />
-      <OrdersFilters />
-
-      {!orders || orders.length === 0 ? (
-        <p>No hay pedidos.</p>
-      ) : (
-        <div className="space-y-4">
-          {orders.map((order) => (
-            <Link
-              key={order.id}
-              href={`/admin/pedidos/${order.id}`}
-              className="block rounded-2xl border p-4 hover:bg-gray-50"
-            >
-              <div className="flex justify-between">
-                <div>
-                  <p className="font-semibold">#{order.order_number}</p>
-
-                  <p className="text-sm text-gray-500">{order.customer_name}</p>
-
-                  <p className="text-xs text-gray-400">
-                    {formatDate(order.created_at)}
-                  </p>
-                </div>
-
-                <div className="space-y-1 text-right">
-                  <p className="font-semibold">
-                    {formatCurrency(Number(order.total))}
-                  </p>
-
-                  <span
-                    className={`inline-block rounded-full px-3 py-1 text-xs ${getStatusClasses(
-                      order.status
-                    )}`}
-                  >
-                    {getStatusLabel(order.status)}
-                  </span>
-                </div>
-              </div>
-            </Link>
-          ))}
+      {error ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-red-700">
+          Error cargando pedidos: {error.message}
         </div>
+      ) : (
+        <>
+          <OrdersStats orders={orders || []} />
+          <OrdersFilters />
+
+          {!orders || orders.length === 0 ? (
+            <p>No hay pedidos.</p>
+          ) : (
+            <div className="space-y-4">
+              {orders.map((order) => (
+                <Link
+                  key={order.id}
+                  href={`/admin/pedidos/${order.id}`}
+                  className="block rounded-2xl border p-4 hover:bg-gray-50"
+                >
+                  <div className="flex justify-between gap-4">
+                    <div>
+                      <p className="font-semibold">#{order.order_number}</p>
+
+                      <p className="text-sm text-gray-500">
+                        {order.customer_name}
+                      </p>
+
+                      <p className="text-xs text-gray-400">
+                        {formatDate(order.created_at)}
+                      </p>
+                    </div>
+
+                    <div className="space-y-1 text-right">
+                      <p className="font-semibold">
+                        {formatCurrency(Number(order.total))}
+                      </p>
+
+                      <span
+                        className={`inline-block rounded-full px-3 py-1 text-xs ${getStatusClasses(
+                          order.status
+                        )}`}
+                      >
+                        {getStatusLabel(order.status)}
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </>
       )}
-    </main>
+    </AdminShell>
   );
 }

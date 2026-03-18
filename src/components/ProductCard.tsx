@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
 import { addToCart } from '@/lib/cart';
 import { canPurchase, getStockLabel } from '@/lib/stock';
@@ -8,6 +9,7 @@ import StoreToast from '@/components/store/StoreToast';
 type Product = {
   id: string;
   name: string;
+  slug: string;
   description: string | null;
   price: number;
   image_url: string | null;
@@ -37,6 +39,7 @@ export default function ProductCard({
   const purchasable = canPurchase(product);
   const stockLabel = getStockLabel(product);
   const buttonDisabled = !storeSlug || !purchasable;
+  const productHref = storeSlug ? `/${storeSlug}/producto/${product.slug}` : '#';
 
   function showToast(message: string, tone: 'success' | 'error' | 'info') {
     setToast({ message, tone });
@@ -79,25 +82,29 @@ export default function ProductCard({
   return (
     <>
       <article className="overflow-hidden rounded-3xl border bg-white shadow-sm transition hover:shadow-md">
-        <div className="aspect-[4/3] bg-gray-100">
-          {product.image_url ? (
-            <img
-              src={product.image_url}
-              alt={product.name}
-              className="h-full w-full object-cover transition hover:scale-[1.02]"
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center text-sm text-gray-400">
-              Sin imagen
-            </div>
-          )}
-        </div>
+        <Link href={productHref} className="block">
+          <div className="aspect-[4/3] bg-gray-100">
+            {product.image_url ? (
+              <img
+                src={product.image_url}
+                alt={product.name}
+                className="h-full w-full object-cover transition hover:scale-[1.02]"
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center text-sm text-gray-400">
+                Sin imagen
+              </div>
+            )}
+          </div>
+        </Link>
 
         <div className="space-y-3 p-5">
           <div className="flex items-start justify-between gap-3">
-            <h2 className="text-lg font-semibold leading-tight text-gray-900">
-              {product.name}
-            </h2>
+            <Link href={productHref} className="min-w-0">
+              <h2 className="text-lg font-semibold leading-tight text-gray-900 hover:underline">
+                {product.name}
+              </h2>
+            </Link>
 
             <span
               className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium ${stockBadgeClass}`}
@@ -116,20 +123,29 @@ export default function ProductCard({
             </p>
           )}
 
-          <button
-            type="button"
-            onClick={handleAdd}
-            disabled={buttonDisabled}
-            className={`w-full rounded-2xl px-4 py-3 text-sm font-semibold transition ${
-              added
-                ? 'bg-green-600 text-white'
-                : buttonDisabled
-                  ? 'cursor-not-allowed bg-gray-200 text-gray-500'
-                  : 'bg-black text-white hover:opacity-90'
-            }`}
-          >
-            {added ? 'Agregado ✓' : purchasable ? 'Agregar al carrito' : 'Sin stock'}
-          </button>
+          <div className="flex gap-3">
+            <Link
+              href={productHref}
+              className="flex-1 rounded-2xl border px-4 py-3 text-center text-sm font-semibold text-gray-800 transition hover:bg-gray-50"
+            >
+              Ver detalle
+            </Link>
+
+            <button
+              type="button"
+              onClick={handleAdd}
+              disabled={buttonDisabled}
+              className={`flex-1 rounded-2xl px-4 py-3 text-sm font-semibold transition ${
+                added
+                  ? 'bg-green-600 text-white'
+                  : buttonDisabled
+                    ? 'cursor-not-allowed bg-gray-200 text-gray-500'
+                    : 'bg-black text-white hover:opacity-90'
+              }`}
+            >
+              {added ? 'Agregado ✓' : purchasable ? 'Agregar' : 'Sin stock'}
+            </button>
+          </div>
         </div>
       </article>
 

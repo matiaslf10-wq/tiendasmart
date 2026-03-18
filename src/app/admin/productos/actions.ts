@@ -129,6 +129,20 @@ function revalidateProductPaths(storeSlug: string, productSlug?: string | null) 
   }
 }
 
+function parseCheckbox(value: FormDataEntryValue | null) {
+  return value === 'true';
+}
+
+function parseNonNegativeInt(value: FormDataEntryValue | null) {
+  const parsed = Number(value ?? 0);
+
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return 0;
+  }
+
+  return Math.floor(parsed);
+}
+
 export async function createProduct(formData: FormData) {
   const { store } = await getAuthorizedStore();
   const supabase = await createClient();
@@ -138,6 +152,12 @@ export async function createProduct(formData: FormData) {
   const priceRaw = String(formData.get('price') || '0').trim();
   const coverIndexRaw = String(formData.get('cover_index') || '0').trim();
   const categoryIdRaw = String(formData.get('category_id') || '').trim();
+
+  const trackStock = parseCheckbox(formData.get('track_stock'));
+  const stockQuantity = parseNonNegativeInt(formData.get('stock_quantity'));
+  const allowBackorder = trackStock
+    ? parseCheckbox(formData.get('allow_backorder'))
+    : false;
 
   const price = Number(priceRaw);
   const coverIndex = Number(coverIndexRaw);
@@ -172,6 +192,9 @@ export async function createProduct(formData: FormData) {
       is_active: true,
       image_url: null,
       category_id: categoryId,
+      track_stock: trackStock,
+      stock_quantity: trackStock ? stockQuantity : 0,
+      allow_backorder: allowBackorder,
     })
     .select('id, slug');
 
@@ -240,6 +263,12 @@ export async function updateProduct(formData: FormData) {
   const coverImageId = String(formData.get('cover_image_id') || '').trim();
   const categoryIdRaw = String(formData.get('category_id') || '').trim();
 
+  const trackStock = parseCheckbox(formData.get('track_stock'));
+  const stockQuantity = parseNonNegativeInt(formData.get('stock_quantity'));
+  const allowBackorder = trackStock
+    ? parseCheckbox(formData.get('allow_backorder'))
+    : false;
+
   const price = Number(priceRaw);
   const categoryId = categoryIdRaw || null;
 
@@ -276,6 +305,9 @@ export async function updateProduct(formData: FormData) {
       description: description || null,
       price,
       category_id: categoryId,
+      track_stock: trackStock,
+      stock_quantity: trackStock ? stockQuantity : 0,
+      allow_backorder: allowBackorder,
     })
     .eq('id', productId)
     .eq('store_id', store.id);

@@ -124,6 +124,16 @@ export default function ProductEditForm({
           <p className="text-sm">
             Estado: {product.is_active ? 'Activo' : 'Inactivo'}
           </p>
+          <p className="text-sm">
+  Stock:{' '}
+  {!product.track_stock
+    ? 'Sin control'
+    : (product.stock_quantity ?? 0) > 0
+      ? `${product.stock_quantity ?? 0} unidades`
+      : product.allow_backorder
+        ? 'Sin stock, pero disponible por encargo'
+        : 'Sin stock'}
+</p>
 
           <div className="flex flex-wrap gap-2 pt-1">
             <button
@@ -269,6 +279,45 @@ export default function ProductEditForm({
                 className="min-h-24 w-full rounded-xl border px-4 py-3"
               />
             </label>
+
+            <div className="space-y-3 rounded-2xl border p-4">
+  <p className="text-sm font-medium">Control de stock</p>
+
+  <label className="flex items-center gap-2">
+    <input
+      type="checkbox"
+      name="track_stock"
+      value="true"
+      defaultChecked={!!product.track_stock}
+    />
+    <span className="text-sm">Controlar stock</span>
+  </label>
+
+  <label className="block space-y-2">
+    <span className="text-sm font-medium">Cantidad en stock</span>
+    <input
+      type="number"
+      name="stock_quantity"
+      defaultValue={String(product.stock_quantity ?? 0)}
+      min="0"
+      className="w-full rounded-xl border px-4 py-3"
+    />
+  </label>
+
+  <label className="flex items-center gap-2">
+    <input
+      type="checkbox"
+      name="allow_backorder"
+      value="true"
+      defaultChecked={!!product.allow_backorder}
+    />
+    <span className="text-sm">Permitir vender sin stock</span>
+  </label>
+
+  <p className="text-xs text-gray-500">
+    Si no activás el control de stock, el producto se podrá comprar sin límite.
+  </p>
+</div>
 
             {remainingSlots > 0 && (
               <div className="space-y-3">

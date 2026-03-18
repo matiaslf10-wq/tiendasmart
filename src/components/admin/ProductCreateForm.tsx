@@ -20,6 +20,7 @@ export default function ProductCreateForm({
     Array.from({ length: 5 }, () => null)
   );
   const [selectedCoverIndex, setSelectedCoverIndex] = useState(0);
+  const [trackStock, setTrackStock] = useState(false);
 
   function handleFileChange(index: number, fileList: FileList | null) {
     const file = fileList && fileList[0] ? fileList[0] : null;
@@ -102,6 +103,47 @@ export default function ProductCreateForm({
           className="min-h-24 w-full rounded-xl border px-4 py-3"
         />
       </label>
+
+      <div className="space-y-3 rounded-2xl border p-4">
+        <p className="text-sm font-medium">Control de stock</p>
+
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            name="track_stock"
+            value="true"
+            checked={trackStock}
+            onChange={(e) => setTrackStock(e.target.checked)}
+          />
+          <span className="text-sm">Controlar stock</span>
+        </label>
+
+        <label className="block space-y-2">
+          <span className="text-sm font-medium">Cantidad en stock</span>
+          <input
+            type="number"
+            name="stock_quantity"
+            defaultValue="0"
+            min="0"
+            className="w-full rounded-xl border px-4 py-3"
+            disabled={!trackStock}
+          />
+        </label>
+
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            name="allow_backorder"
+            value="true"
+            disabled={!trackStock}
+          />
+          <span className="text-sm">Permitir vender sin stock</span>
+        </label>
+
+        <p className="text-xs text-gray-500">
+          Si no activás el control de stock, el producto se podrá comprar sin límite.
+        </p>
+      </div>
 
       <input type="hidden" name="cover_index" value={String(selectedCoverIndex)} />
 

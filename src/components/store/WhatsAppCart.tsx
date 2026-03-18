@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import {
   buildWhatsAppMessage,
   clearCart,
@@ -20,6 +20,7 @@ import {
   getStockLabel,
 } from '@/lib/stock';
 import StoreToast from '@/components/store/StoreToast';
+import { createOrder } from '@/app/actions/createOrder';
 
 type WhatsAppCartProps = {
   storeSlug: string;
@@ -43,10 +44,11 @@ export default function WhatsAppCart({
   const [customerAddress, setCustomerAddress] = useState('');
   const [customerNotes, setCustomerNotes] = useState('');
   const [toast, setToast] = useState<ToastState>(null);
+  const [isSubmitting, startTransition] = useTransition();
 
   function showToast(message: string, tone: 'success' | 'error' | 'info') {
     setToast({ message, tone });
-    window.setTimeout(() => setToast(null), 1800);
+    window.setTimeout(() => setToast(null), 2200);
   }
 
   function loadCart() {
@@ -101,36 +103,60 @@ export default function WhatsAppCart({
     [validItems]
   );
 
-  const whatsappUrl = useMemo(() => {
-    const baseMessage = buildWhatsAppMessage({
-      storeName,
-      storeSlug,
-      items: validItems,
-    });
-
-    const extraLines = [
-      '',
-      '*Datos del cliente:*',
-      `- Nombre: ${customerName.trim() || 'No informado'}`,
-      `- Dirección: ${customerAddress.trim() || 'No informada'}`,
-      `- Observaciones: ${customerNotes.trim() || 'Sin observaciones'}`,
-    ];
-
-    return getWhatsAppUrl(
-      whatsappNumber,
-      `${baseMessage}\n${extraLines.join('\n')}`
-    );
-  }, [
-    validItems,
-    storeName,
-    storeSlug,
-    whatsappNumber,
-    customerName,
-    customerAddress,
-    customerNotes,
-  ]);
-
   const canSend = validItems.length > 0 && customerName.trim().length > 0;
+
+  async function handleSubmitOrder() {
+    if (!canSend) return;
+
+    startTransition(async () => {
+      const result = await createOrder({
+        storeSlug,
+        customerName: customerName.trim(),
+        customerPhone: 'No informado',
+        deliveryType: customerAddress.trim() ? 'delivery' : 'pickup',
+        deliveryAddress: customerAddress.trim(),
+        notes: customerNotes.trim(),
+        items: validItems.map((item) => ({
+          productId: item.id,
+          quantity: item.quantity,
+        })),
+      });
+
+      if (!result.success) {
+        showToast(result.error, 'error');
+        return;
+      }
+
+      const baseMessage = buildWhatsAppMessage({
+        storeName,
+        storeSlug,
+        items: validItems,
+      });
+
+      const extraLines = [
+        '',
+        `*Pedido:* #${result.orderNumber}`,
+        '',
+        '*Datos del cliente:*',
+        `- Nombre: ${customerName.trim() || 'No informado'}`,
+        `- Dirección: ${customerAddress.trim() || 'No informada'}`,
+        `- Observaciones: ${customerNotes.trim() || 'Sin observaciones'}`,
+      ];
+
+      const whatsappUrl = getWhatsAppUrl(
+        whatsappNumber,
+        `${baseMessage}\n${extraLines.join('\n')}`
+      );
+
+      clearCart(storeSlug);
+      loadCart();
+
+      showToast(`Pedido #${result.orderNumber} creado con éxito.`, 'success');
+
+      window.open(whatsappUrl, '_blank', 'noreferrer');
+      setOpen(false);
+    });
+  }
 
   return (
     <>
@@ -323,23 +349,23 @@ export default function WhatsAppCart({
                     showToast('Carrito vaciado.', 'info');
                   }}
                   className="rounded-xl border px-4 py-3 text-sm"
-                  disabled={items.length === 0}
+                  disabled={items.length === 0 || isSubmitting}
                 >
                   Vaciar
                 </button>
 
-                <a
-                  href={canSend ? whatsappUrl : '#'}
-                  target="_blank"
-                  rel="noreferrer"
+                <button
+                  type="button"
+                  onClick={handleSubmitOrder}
+                  disabled={!canSend || isSubmitting}
                   className={`flex-1 rounded-xl px-4 py-3 text-center text-sm font-semibold ${
-                    canSend
+                    canSend && !isSubmitting
                       ? 'bg-green-600 text-white'
-                      : 'pointer-events-none bg-gray-200 text-gray-500'
+                      : 'cursor-not-allowed bg-gray-200 text-gray-500'
                   }`}
                 >
-                  Enviar por WhatsApp
-                </a>
+                  {isSubmitting ? 'Creando pedido...' : 'Enviar por WhatsApp'}
+                </button>
               </div>
             </div>
           </div>

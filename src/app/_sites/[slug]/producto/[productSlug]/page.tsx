@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { createClient } from '@/lib/supabase/server';
 import WhatsAppCart from '@/components/store/WhatsAppCart';
 import ProductDetailActions from '@/components/store/ProductDetailActions';
+import ProductImageGallery from '@/components/store/ProductImageGallery';
 import { getStockLabel } from '@/lib/stock';
 
 type PageProps = {
@@ -165,11 +166,11 @@ export default async function PublicProductPage({ params }: PageProps) {
   const typedImages: ProductImage[] = (images || []) as ProductImage[];
   const typedRelatedProducts: RelatedProduct[] = (relatedProducts || []) as RelatedProduct[];
 
-  const mainImage =
-    typedImages.find((img) => img.is_cover)?.image_url ||
-    typedImages[0]?.image_url ||
-    typedProduct.image_url ||
-    null;
+  const orderedImages = [...typedImages].sort((a, b) => {
+    if (a.is_cover && !b.is_cover) return -1;
+    if (!a.is_cover && b.is_cover) return 1;
+    return (a.sort_order ?? 0) - (b.sort_order ?? 0);
+  });
 
   const stockLabel = getStockLabel(typedProduct);
 
@@ -199,36 +200,11 @@ export default async function PublicProductPage({ params }: PageProps) {
       <section className="mx-auto max-w-6xl px-6 py-10">
         <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="space-y-4">
-            <div className="overflow-hidden rounded-3xl border bg-gray-50">
-              {mainImage ? (
-                <img
-                  src={mainImage}
-                  alt={typedProduct.name}
-                  className="h-[420px] w-full object-cover"
-                />
-              ) : (
-                <div className="flex h-[420px] items-center justify-center text-gray-400">
-                  Sin imagen
-                </div>
-              )}
-            </div>
-
-            {typedImages.length > 1 && (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {typedImages.map((image) => (
-                  <div
-                    key={image.id}
-                    className="overflow-hidden rounded-2xl border bg-gray-50"
-                  >
-                    <img
-                      src={image.image_url}
-                      alt={typedProduct.name}
-                      className="h-28 w-full object-cover"
-                    />
-                  </div>
-                ))}
-              </div>
-            )}
+            <ProductImageGallery
+              productName={typedProduct.name}
+              images={orderedImages}
+              fallbackImage={typedProduct.image_url}
+            />
           </div>
 
           <div className="space-y-6">

@@ -37,6 +37,25 @@ function getStatusClasses(status: string) {
   }
 }
 
+function getStatusLabel(status: string) {
+  switch (status) {
+    case 'pending':
+      return 'Pendiente';
+    case 'confirmed':
+      return 'Confirmado';
+    case 'in_preparation':
+      return 'En preparación';
+    case 'ready':
+      return 'Listo';
+    case 'delivered':
+      return 'Entregado';
+    case 'cancelled':
+      return 'Cancelado';
+    default:
+      return status;
+  }
+}
+
 type PageProps = {
   searchParams: Promise<{
     status?: string;
@@ -102,13 +121,13 @@ export default async function PedidosPage({ searchParams }: PageProps) {
                     {formatCurrency(Number(order.total))}
                   </p>
 
-<span
-  className={`inline-block rounded-full px-3 py-1 text-xs ${getStatusClasses(
-    order.status
-  )}`}
->
-  {getStatusLabel(order.status)}
-</span>
+                  <span
+                    className={`inline-block rounded-full px-3 py-1 text-xs ${getStatusClasses(
+                      order.status
+                    )}`}
+                  >
+                    {getStatusLabel(order.status)}
+                  </span>
                 </div>
               </div>
             </Link>

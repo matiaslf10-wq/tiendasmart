@@ -1,15 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error(
-    'Faltan NEXT_PUBLIC_SUPABASE_URL o NEXT_PUBLIC_SUPABASE_ANON_KEY'
-  );
-}
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { createClient } from '@/lib/supabase/client';
 
 function buildFilePath(folder: 'logos' | 'covers' | 'products', file: File) {
   const fileExt = file.name.split('.').pop() || 'png';
@@ -21,7 +10,16 @@ export async function uploadImageFromClient(
   file: File,
   folder: 'logos' | 'covers' | 'products'
 ): Promise<string> {
+  const supabase = createClient();
   const filePath = buildFilePath(folder, file);
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session) {
+    throw new Error('No hay sesión activa en el cliente para subir imágenes.');
+  }
 
   const { error: uploadError } = await supabase.storage
     .from('stores')

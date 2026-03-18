@@ -2,6 +2,8 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { createClient } from '@/lib/supabase/server';
 import WhatsAppCart from '@/components/store/WhatsAppCart';
+import ProductDetailActions from '@/components/store/ProductDetailActions';
+import { getStockLabel } from '@/lib/stock';
 
 type PageProps = {
   params: Promise<{ slug: string; productSlug: string }>;
@@ -14,12 +16,29 @@ type ProductImage = {
   sort_order: number | null;
 };
 
+type Product = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  price: number;
+  image_url: string | null;
+  is_active: boolean;
+  category_id: string | null;
+  track_stock: boolean;
+  stock_quantity: number;
+  allow_backorder: boolean;
+};
+
 type RelatedProduct = {
   id: string;
   name: string;
   slug: string;
   price: number;
   image_url: string | null;
+  track_stock: boolean;
+  stock_quantity: number;
+  allow_backorder: boolean;
 };
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -93,7 +112,10 @@ export default async function PublicProductPage({ params }: PageProps) {
       price,
       image_url,
       is_active,
-      category_id
+      category_id,
+      track_stock,
+      stock_quantity,
+      allow_backorder
     `)
     .eq('slug', productSlug)
     .eq('store_id', store.id)
@@ -122,7 +144,16 @@ export default async function PublicProductPage({ params }: PageProps) {
 
     supabase
       .from('products')
-      .select('id, name, slug, price, image_url')
+      .select(`
+        id,
+        name,
+        slug,
+        price,
+        image_url,
+        track_stock,
+        stock_quantity,
+        allow_backorder
+      `)
       .eq('store_id', store.id)
       .eq('is_active', true)
       .neq('id', product.id)
@@ -130,18 +161,21 @@ export default async function PublicProductPage({ params }: PageProps) {
       .limit(4),
   ]);
 
-  const typedImages: ProductImage[] = images || [];
-  const typedRelatedProducts: RelatedProduct[] = relatedProducts || [];
+  const typedProduct: Product = product as Product;
+  const typedImages: ProductImage[] = (images || []) as ProductImage[];
+  const typedRelatedProducts: RelatedProduct[] = (relatedProducts || []) as RelatedProduct[];
 
   const mainImage =
     typedImages.find((img) => img.is_cover)?.image_url ||
     typedImages[0]?.image_url ||
-    product.image_url ||
+    typedProduct.image_url ||
     null;
 
-  const productPath = `/${store.slug}/producto/${product.slug}`;
+  const stockLabel = getStockLabel(typedProduct);
+
+  const productPath = `/${store.slug}/producto/${typedProduct.slug}`;
   const whatsappText = encodeURIComponent(
-    `Hola! Quiero consultar por este producto: ${product.name} (${store.name}). Link: ${productPath}`
+    `Hola! Quiero consultar por este producto: ${typedProduct.name} (${store.name}). Link: ${productPath}`
   );
 
   return (
@@ -158,7 +192,7 @@ export default async function PublicProductPage({ params }: PageProps) {
               <span>/</span>
             </>
           ) : null}
-          <span className="text-gray-900">{product.name}</span>
+          <span className="text-gray-900">{typedProduct.name}</span>
         </div>
       </section>
 
@@ -169,7 +203,7 @@ export default async function PublicProductPage({ params }: PageProps) {
               {mainImage ? (
                 <img
                   src={mainImage}
-                  alt={product.name}
+                  alt={typedProduct.name}
                   className="h-[420px] w-full object-cover"
                 />
               ) : (
@@ -188,7 +222,7 @@ export default async function PublicProductPage({ params }: PageProps) {
                   >
                     <img
                       src={image.image_url}
-                      alt={product.name}
+                      alt={typedProduct.name}
                       className="h-28 w-full object-cover"
                     />
                   </div>
@@ -225,15 +259,19 @@ export default async function PublicProductPage({ params }: PageProps) {
                 <p className="text-sm text-gray-500">Categoría: {category.name}</p>
               ) : null}
 
-              <h1 className="text-4xl font-bold text-gray-900">{product.name}</h1>
+              <h1 className="text-4xl font-bold text-gray-900">{typedProduct.name}</h1>
 
               <p className="text-3xl font-semibold text-gray-900">
-                ${Number(product.price).toLocaleString('es-AR')}
+                ${Number(typedProduct.price).toLocaleString('es-AR')}
               </p>
 
-              {product.description ? (
+              <div className="inline-flex rounded-full border px-3 py-1 text-sm text-gray-700">
+                {stockLabel}
+              </div>
+
+              {typedProduct.description ? (
                 <p className="text-base leading-relaxed text-gray-600">
-                  {product.description}
+                  {typedProduct.description}
                 </p>
               ) : (
                 <p className="text-base text-gray-500">
@@ -242,8 +280,22 @@ export default async function PublicProductPage({ params }: PageProps) {
               )}
             </div>
 
-            <div className="rounded-2xl border p-5 space-y-4">
+            <div className="space-y-4 rounded-2xl border p-5">
               <h2 className="text-lg font-semibold">¿Te interesa este producto?</h2>
+
+              <ProductDetailActions
+                storeSlug={store.slug}
+                product={{
+                  id: typedProduct.id,
+                  name: typedProduct.name,
+                  price: Number(typedProduct.price),
+                  image_url: typedProduct.image_url ?? null,
+                  is_active: typedProduct.is_active,
+                  track_stock: typedProduct.track_stock,
+                  stock_quantity: typedProduct.stock_quantity,
+                  allow_backorder: typedProduct.allow_backorder,
+                }}
+              />
 
               <div className="flex flex-wrap gap-3">
                 {store.whatsapp_number ? (
@@ -251,22 +303,25 @@ export default async function PublicProductPage({ params }: PageProps) {
                     href={`https://wa.me/${store.whatsapp_number}?text=${whatsappText}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="rounded-xl bg-black px-5 py-3 text-white"
+                    className="rounded-xl border px-5 py-3"
                   >
                     Consultar por WhatsApp
                   </a>
                 ) : null}
 
-                <a
-                  href={`/${store.slug}`}
-                  className="rounded-xl border px-5 py-3"
-                >
+                <a href={`/${store.slug}`} className="rounded-xl border px-5 py-3">
                   Seguir comprando
                 </a>
               </div>
 
               <p className="text-sm text-gray-500">
-                Podés consultar disponibilidad, medios de pago y envío directamente con la tienda.
+                {!typedProduct.track_stock
+                  ? 'Producto disponible. Podés consultar medios de pago y envío directamente con la tienda.'
+                  : typedProduct.stock_quantity > 0
+                    ? `Hay ${typedProduct.stock_quantity} unidad${typedProduct.stock_quantity === 1 ? '' : 'es'} cargada${typedProduct.stock_quantity === 1 ? '' : 's'} en stock.`
+                    : typedProduct.allow_backorder
+                      ? 'Actualmente no hay stock cargado, pero la tienda acepta pedidos por encargo.'
+                      : 'Actualmente el producto figura sin stock. Podés consultar si vuelve a ingresar.'}
               </p>
             </div>
           </div>
@@ -305,6 +360,9 @@ export default async function PublicProductPage({ params }: PageProps) {
                       <p className="mt-1 text-sm font-semibold text-gray-700">
                         ${Number(item.price).toLocaleString('es-AR')}
                       </p>
+                      <p className="mt-1 text-xs text-gray-500">
+                        {getStockLabel(item)}
+                      </p>
                     </div>
                   </div>
                 </a>
@@ -315,11 +373,12 @@ export default async function PublicProductPage({ params }: PageProps) {
       )}
 
       {store.whatsapp_number && (
-  <WhatsAppCart
-    storeSlug={store.slug}
-    storeName={store.name}
-    whatsappNumber={store.whatsapp_number}
-  />
-)}    </main>
+        <WhatsAppCart
+          storeSlug={store.slug}
+          storeName={store.name}
+          whatsappNumber={store.whatsapp_number}
+        />
+      )}
+    </main>
   );
 }

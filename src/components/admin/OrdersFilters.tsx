@@ -13,6 +13,17 @@ const STATUS_OPTIONS = [
   { value: 'cancelled', label: 'Cancelado' },
 ];
 
+const DELIVERY_OPTIONS = [
+  { value: 'all', label: 'Todas' },
+  { value: 'delivery', label: 'Envío' },
+  { value: 'pickup', label: 'Retiro' },
+];
+
+const NOTES_OPTIONS = [
+  { value: 'all', label: 'Todas' },
+  { value: 'with_notes', label: 'Con observaciones' },
+];
+
 export default function OrdersFilters() {
   const router = useRouter();
   const pathname = usePathname();
@@ -20,14 +31,26 @@ export default function OrdersFilters() {
 
   const currentStatus = searchParams.get('status') ?? 'all';
   const currentQuery = searchParams.get('q') ?? '';
+  const currentDelivery = searchParams.get('delivery') ?? 'all';
+  const currentNotes = searchParams.get('notes') ?? 'all';
 
   const [query, setQuery] = useState(currentQuery);
 
   const hasFilters = useMemo(() => {
-    return currentStatus !== 'all' || currentQuery.trim() !== '';
-  }, [currentStatus, currentQuery]);
+    return (
+      currentStatus !== 'all' ||
+      currentDelivery !== 'all' ||
+      currentNotes !== 'all' ||
+      currentQuery.trim() !== ''
+    );
+  }, [currentStatus, currentDelivery, currentNotes, currentQuery]);
 
-  function updateParams(next: { status?: string; q?: string }) {
+  function updateParams(next: {
+    status?: string;
+    q?: string;
+    delivery?: string;
+    notes?: string;
+  }) {
     const params = new URLSearchParams(searchParams.toString());
 
     if (next.status !== undefined) {
@@ -35,6 +58,22 @@ export default function OrdersFilters() {
         params.delete('status');
       } else {
         params.set('status', next.status);
+      }
+    }
+
+    if (next.delivery !== undefined) {
+      if (!next.delivery || next.delivery === 'all') {
+        params.delete('delivery');
+      } else {
+        params.set('delivery', next.delivery);
+      }
+    }
+
+    if (next.notes !== undefined) {
+      if (!next.notes || next.notes === 'all') {
+        params.delete('notes');
+      } else {
+        params.set('notes', next.notes);
       }
     }
 
@@ -67,11 +106,11 @@ export default function OrdersFilters() {
       <div className="mb-4">
         <h2 className="text-lg font-semibold text-gray-900">Filtrar pedidos</h2>
         <p className="text-sm text-gray-500">
-          Buscá por nombre, teléfono o número de pedido.
+          Buscá por nombre, teléfono, número de pedido o dirección.
         </p>
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-[220px_minmax(0,1fr)_auto]">
+      <div className="grid gap-3 lg:grid-cols-[220px_220px_220px_minmax(0,1fr)_auto]">
         <div>
           <label
             htmlFor="status"
@@ -94,6 +133,50 @@ export default function OrdersFilters() {
           </select>
         </div>
 
+        <div>
+          <label
+            htmlFor="delivery"
+            className="mb-2 block text-sm font-medium text-gray-700"
+          >
+            Entrega
+          </label>
+
+          <select
+            id="delivery"
+            value={currentDelivery}
+            onChange={(e) => updateParams({ delivery: e.target.value })}
+            className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-black"
+          >
+            {DELIVERY_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label
+            htmlFor="notes"
+            className="mb-2 block text-sm font-medium text-gray-700"
+          >
+            Observaciones
+          </label>
+
+          <select
+            id="notes"
+            value={currentNotes}
+            onChange={(e) => updateParams({ notes: e.target.value })}
+            className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-black"
+          >
+            {NOTES_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <form onSubmit={handleSubmit} className="min-w-0">
           <label
             htmlFor="q"
@@ -108,7 +191,7 @@ export default function OrdersFilters() {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Ej: Juan, 1133445566 o 1024"
+              placeholder="Ej: Juan, 1133445566, 1024 o dirección"
               className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-black"
             />
 

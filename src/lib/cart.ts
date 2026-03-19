@@ -181,28 +181,30 @@ function getCustomerKey(storeSlug: string) {
 
 export type CustomerData = {
   name: string;
+  phone: string;
   address: string;
   notes: string;
 };
 
 export function getCustomerData(storeSlug: string): CustomerData {
   if (typeof window === 'undefined') {
-    return { name: '', address: '', notes: '' };
+    return { name: '', phone: '', address: '', notes: '' };
   }
 
   try {
     const raw = localStorage.getItem(getCustomerKey(storeSlug));
-    if (!raw) return { name: '', address: '', notes: '' };
+    if (!raw) return { name: '', phone: '', address: '', notes: '' };
 
     const parsed = JSON.parse(raw) as Partial<CustomerData>;
 
     return {
       name: parsed.name ?? '',
+      phone: parsed.phone ?? '',
       address: parsed.address ?? '',
       notes: parsed.notes ?? '',
     };
   } catch {
-    return { name: '', address: '', notes: '' };
+    return { name: '', phone: '', address: '', notes: '' };
   }
 }
 

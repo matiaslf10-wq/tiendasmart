@@ -41,6 +41,7 @@ export default function WhatsAppCart({
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<CartItem[]>([]);
   const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
   const [customerNotes, setCustomerNotes] = useState('');
   const [toast, setToast] = useState<ToastState>(null);
@@ -59,9 +60,10 @@ export default function WhatsAppCart({
     loadCart();
 
     const saved = getCustomerData(storeSlug);
-    setCustomerName(saved.name);
-    setCustomerAddress(saved.address);
-    setCustomerNotes(saved.notes);
+    setCustomerName(saved.name ?? '');
+    setCustomerPhone(saved.phone ?? '');
+    setCustomerAddress(saved.address ?? '');
+    setCustomerNotes(saved.notes ?? '');
 
     function onUpdate() {
       loadCart();
@@ -83,10 +85,11 @@ export default function WhatsAppCart({
   useEffect(() => {
     saveCustomerData(storeSlug, {
       name: customerName,
+      phone: customerPhone,
       address: customerAddress,
       notes: customerNotes,
     });
-  }, [customerName, customerAddress, customerNotes, storeSlug]);
+  }, [customerName, customerPhone, customerAddress, customerNotes, storeSlug]);
 
   const validItems = useMemo(
     () => items.filter((item) => canPurchase(item) && item.quantity > 0),
@@ -103,7 +106,10 @@ export default function WhatsAppCart({
     [validItems]
   );
 
-  const canSend = validItems.length > 0 && customerName.trim().length > 0;
+  const canSend =
+    validItems.length > 0 &&
+    customerName.trim().length > 0 &&
+    customerPhone.trim().length > 0;
 
   async function handleSubmitOrder() {
     if (!canSend) return;
@@ -112,7 +118,7 @@ export default function WhatsAppCart({
       const result = await createOrder({
         storeSlug,
         customerName: customerName.trim(),
-        customerPhone: 'No informado',
+        customerPhone: customerPhone.trim(),
         deliveryType: customerAddress.trim() ? 'delivery' : 'pickup',
         deliveryAddress: customerAddress.trim(),
         notes: customerNotes.trim(),
@@ -139,6 +145,7 @@ export default function WhatsAppCart({
         '',
         '*Datos del cliente:*',
         `- Nombre: ${customerName.trim() || 'No informado'}`,
+        `- Teléfono: ${customerPhone.trim() || 'No informado'}`,
         `- Dirección: ${customerAddress.trim() || 'No informada'}`,
         `- Observaciones: ${customerNotes.trim() || 'Sin observaciones'}`,
       ];
@@ -299,6 +306,19 @@ export default function WhatsAppCart({
 
                 <label className="block space-y-2">
                   <span className="text-sm font-medium text-gray-700">
+                    Teléfono *
+                  </span>
+                  <input
+                    type="tel"
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    placeholder="Ej: 11 2345 6789"
+                    className="w-full rounded-xl border px-4 py-3 text-sm"
+                  />
+                </label>
+
+                <label className="block space-y-2">
+                  <span className="text-sm font-medium text-gray-700">
                     Dirección
                   </span>
                   <input
@@ -323,7 +343,7 @@ export default function WhatsAppCart({
                 </label>
 
                 <p className="text-xs text-gray-500">
-                  Para enviar el pedido, completá al menos tu nombre.
+                  Para enviar el pedido, completá tu nombre y tu teléfono.
                 </p>
 
                 {items.length > 0 && validItems.length === 0 && (

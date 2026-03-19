@@ -71,6 +71,26 @@ function getDeliveryTypeClasses(deliveryType: string | null) {
     : 'bg-slate-100 text-slate-700';
 }
 
+function getDeliveryFilterLabel(delivery: string) {
+  switch (delivery) {
+    case 'delivery':
+      return 'Envío';
+    case 'pickup':
+      return 'Retiro';
+    default:
+      return 'Todas';
+  }
+}
+
+function getNotesFilterLabel(notes: string) {
+  switch (notes) {
+    case 'with_notes':
+      return 'Con observaciones';
+    default:
+      return 'Todas';
+  }
+}
+
 type Order = {
   id: string;
   order_number: number | null;
@@ -180,10 +200,24 @@ export default async function PedidosPage({ searchParams }: PageProps) {
       return bPending - aPending;
     }
 
-    return (
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
+
+  const activeFilters = [
+    ...(status !== 'all'
+      ? [{ key: 'status', label: `Estado: ${getStatusLabel(status)}` }]
+      : []),
+    ...(delivery !== 'all'
+      ? [{ key: 'delivery', label: `Entrega: ${getDeliveryFilterLabel(delivery)}` }]
+      : []),
+    ...(notes !== 'all'
+      ? [{ key: 'notes', label: `Observaciones: ${getNotesFilterLabel(notes)}` }]
+      : []),
+    ...(queryText.trim()
+      ? [{ key: 'q', label: `Búsqueda: "${queryText.trim()}"` }]
+      : []),
+  ];
+
   return (
     <AdminShell
       title="Pedidos"
@@ -208,19 +242,18 @@ export default async function PedidosPage({ searchParams }: PageProps) {
           <OrdersStats orders={visibleOrders || []} />
           <OrdersFilters />
 
-          {(queryText.trim() || delivery !== 'all' || notes !== 'all') && (
-            <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
-              {queryText.trim() ? (
-                <>
-                  Mostrando resultados para{' '}
-                  <span className="font-semibold text-gray-900">
-                    “{queryText.trim()}”
+          {activeFilters.length > 0 && (
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
+              <div className="flex flex-wrap gap-2">
+                {activeFilters.map((filter) => (
+                  <span
+                    key={filter.key}
+                    className="inline-flex rounded-full bg-white px-3 py-1 text-xs font-medium text-gray-700 ring-1 ring-gray-200"
+                  >
+                    {filter.label}
                   </span>
-                  .
-                </>
-              ) : (
-                <>Filtros aplicados.</>
-              )}
+                ))}
+              </div>
             </div>
           )}
 
@@ -237,8 +270,10 @@ export default async function PedidosPage({ searchParams }: PageProps) {
                   <div
                     key={order.id}
                     className={`rounded-2xl border p-4 transition hover:bg-gray-50 ${
-  order.status === 'pending' ? 'border-yellow-300 bg-yellow-50/40' : ''
-}`}
+                      order.status === 'pending'
+                        ? 'border-yellow-300 bg-yellow-50/40'
+                        : ''
+                    }`}
                   >
                     <div className="flex flex-col gap-4">
                       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">

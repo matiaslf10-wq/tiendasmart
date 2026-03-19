@@ -5,6 +5,8 @@ import { getCurrentUserStore } from '@/lib/stores';
 import OrdersFilters from '@/components/admin/OrdersFilters';
 import OrdersStats from '@/components/admin/OrdersStats';
 import AdminShell from '@/components/admin/AdminShell';
+import OrderQuickActions from '@/components/admin/OrderQuickActions';
+import OrderWhatsAppButton from '@/components/admin/OrderWhatsAppButton';
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat('es-AR', {
@@ -178,37 +180,62 @@ export default async function PedidosPage({ searchParams }: PageProps) {
                   href={`/admin/pedidos/${order.id}`}
                   className="block rounded-2xl border p-4 transition hover:bg-gray-50"
                 >
-                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                    <div className="min-w-0">
-                      <p className="font-semibold">#{order.order_number}</p>
+                  <div className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                      <div className="min-w-0">
+                        <p className="font-semibold">#{order.order_number}</p>
 
-                      <p className="text-sm text-gray-500">
-                        {order.customer_name || 'Cliente sin nombre'}
-                      </p>
-
-                      {order.customer_phone ? (
-                        <p className="text-xs text-gray-400">
-                          {order.customer_phone}
+                        <p className="text-sm text-gray-500">
+                          {order.customer_name || 'Cliente sin nombre'}
                         </p>
-                      ) : null}
 
-                      <p className="text-xs text-gray-400">
-                        {formatDate(order.created_at)}
-                      </p>
+                        {order.customer_phone ? (
+                          <p className="text-xs text-gray-400">
+                            {order.customer_phone}
+                          </p>
+                        ) : null}
+
+                        <p className="text-xs text-gray-400">
+                          {formatDate(order.created_at)}
+                        </p>
+                      </div>
+
+                      <div className="space-y-2 text-left md:text-right">
+                        <p className="font-semibold">
+                          {formatCurrency(Number(order.total ?? 0))}
+                        </p>
+
+                        <span
+                          className={`inline-block rounded-full px-3 py-1 text-xs ${getStatusClasses(
+                            order.status
+                          )}`}
+                        >
+                          {getStatusLabel(order.status)}
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="space-y-2 text-left md:text-right">
-                      <p className="font-semibold">
-                        {formatCurrency(Number(order.total ?? 0))}
-                      </p>
+                    <div
+                      className="flex flex-col gap-3 border-t pt-3"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
+                    >
+                      <div className="flex flex-wrap gap-2">
+                        <OrderWhatsAppButton
+                          phone={order.customer_phone}
+                          customerName={order.customer_name}
+                          orderNumber={order.order_number}
+                          total={Number(order.total ?? 0)}
+                          status={order.status}
+                        />
+                      </div>
 
-                      <span
-                        className={`inline-block rounded-full px-3 py-1 text-xs ${getStatusClasses(
-                          order.status
-                        )}`}
-                      >
-                        {getStatusLabel(order.status)}
-                      </span>
+                      <OrderQuickActions
+                        orderId={order.id}
+                        currentStatus={order.status}
+                      />
                     </div>
                   </div>
                 </Link>

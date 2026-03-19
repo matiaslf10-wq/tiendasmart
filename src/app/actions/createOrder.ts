@@ -86,6 +86,7 @@ export async function createOrder(
       .single();
 
     if (storeError || !store) {
+      console.error('createOrder storeError:', storeError);
       return { success: false, error: 'No se encontró la tienda.' };
     }
 
@@ -106,6 +107,7 @@ export async function createOrder(
       .in('id', productIds);
 
     if (productsError) {
+      console.error('createOrder productsError:', productsError);
       return { success: false, error: 'No se pudieron validar los productos.' };
     }
 
@@ -164,29 +166,37 @@ export async function createOrder(
     const shippingCost = 0;
     const total = subtotal + shippingCost;
 
+    const orderPayload = {
+      store_id: store.id,
+      customer_name: customerName,
+      customer_phone: customerPhone,
+      customer_email: customerEmail,
+      delivery_type: input.deliveryType,
+      delivery_address:
+        input.deliveryType === 'delivery' ? deliveryAddress : null,
+      notes,
+      subtotal,
+      shipping_cost: shippingCost,
+      total,
+      currency: 'ARS',
+      status: 'pending',
+      source: 'web',
+    };
+
+    console.log('createOrder orderPayload:', orderPayload);
+
     const { data: insertedOrder, error: orderError } = await supabase
       .from('orders')
-      .insert({
-        store_id: store.id,
-        customer_name: customerName,
-        customer_phone: customerPhone,
-        customer_email: customerEmail,
-        delivery_type: input.deliveryType,
-        delivery_address:
-          input.deliveryType === 'delivery' ? deliveryAddress : null,
-        notes,
-        subtotal,
-        shipping_cost: shippingCost,
-        total,
-        currency: 'ARS',
-        status: 'pending',
-        source: 'web',
-      })
+      .insert(orderPayload)
       .select('id, order_number')
       .single();
 
     if (orderError || !insertedOrder) {
-      return { success: false, error: 'No se pudo crear el pedido.' };
+      console.error('createOrder orderError:', orderError);
+      return {
+        success: false,
+        error: `No se pudo crear el pedido.${orderError?.message ? ` ${orderError.message}` : ''}`,
+      };
     }
 
     const { error: itemsError } = await supabase.from('order_items').insert(
@@ -201,10 +211,11 @@ export async function createOrder(
     );
 
     if (itemsError) {
+      console.error('createOrder itemsError:', itemsError);
       await supabase.from('orders').delete().eq('id', insertedOrder.id);
       return {
         success: false,
-        error: 'No se pudieron guardar los items del pedido.',
+        error: `No se pudieron guardar los items del pedido.${itemsError.message ? ` ${itemsError.message}` : ''}`,
       };
     }
 
@@ -229,6 +240,7 @@ export async function createOrder(
         .eq('store_id', store.id);
 
       if (stockError) {
+        console.error('createOrder stockError:', stockError);
         return {
           success: false,
           error:
@@ -238,8 +250,8 @@ export async function createOrder(
     }
 
     revalidatePath(`/${store.slug}`);
-    revalidatePath(`/admin/productos`);
-    revalidatePath(`/admin/pedidos`);
+    revalidatePath('/admin/productos');
+    revalidatePath('/admin/pedidos');
 
     return {
       success: true,
@@ -247,7 +259,7 @@ export async function createOrder(
       orderNumber: insertedOrder.order_number,
     };
   } catch (error) {
-    console.error('createOrder error:', error);
+    console.error('createOrder unexpected error:', error);
     return {
       success: false,
       error: 'Ocurrió un error inesperado al crear el pedido.',

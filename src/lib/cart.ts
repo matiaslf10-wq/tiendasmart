@@ -12,6 +12,8 @@ export type CartItem = {
   allow_backorder?: boolean | null;
 };
 
+export type DeliveryType = 'pickup' | 'delivery';
+
 const CART_KEY_PREFIX = 'tiendasmart_cart_';
 
 function getCartKey(storeSlug: string) {
@@ -24,14 +26,9 @@ function sanitizeCart(items: CartItem[]): CartItem[] {
     .filter((item) => canPurchase(item))
     .map((item) => {
       const maxQty = getMaxPurchasableQuantity(item);
-      const normalizedQuantity = Math.max(
-        1,
-        Math.min(item.quantity ?? 1, maxQty)
-      );
-
       return {
         ...item,
-        quantity: normalizedQuantity,
+        quantity: Math.max(1, Math.min(item.quantity ?? 1, maxQty)),
       };
     })
     .filter((item) => item.quantity > 0);
@@ -81,7 +78,6 @@ export function addToCart(
     existing.quantity = Math.min(existing.quantity + quantity, maxQty);
   } else {
     const initialQty = Math.min(Math.max(quantity, 1), maxQty);
-
     if (initialQty <= 0) return;
 
     cart.push({ ...item, quantity: initialQty });
@@ -109,14 +105,14 @@ export function decreaseCartItem(storeSlug: string, productId: string) {
   if (!item) return;
 
   item.quantity -= 1;
-
-  const next = cart.filter((p) => p.quantity > 0);
-  saveCart(storeSlug, next);
+  saveCart(storeSlug, cart.filter((p) => p.quantity > 0));
 }
 
 export function removeCartItem(storeSlug: string, productId: string) {
-  const cart = getCart(storeSlug).filter((p) => p.id !== productId);
-  saveCart(storeSlug, cart);
+  saveCart(
+    storeSlug,
+    getCart(storeSlug).filter((p) => p.id !== productId)
+  );
 }
 
 export function clearCart(storeSlug: string) {
@@ -146,11 +142,33 @@ export function buildWhatsAppMessage(params: {
   storeName: string;
   storeSlug: string;
   items: CartItem[];
+  orderNumber?: string | number;
+  customerName?: string;
+  customerPhone?: string;
+  deliveryType?: DeliveryType;
+  deliveryAddress?: string;
+  notes?: string;
 }) {
-  const { storeName, storeSlug, items } = params;
+  const {
+    storeName,
+    storeSlug,
+    items,
+    orderNumber,
+    customerName,
+    customerPhone,
+    deliveryType,
+    deliveryAddress,
+    notes,
+  } = params;
 
-  const lines = [
+  const total = items.reduce(
+    (acc, item) => acc + item.price * item.quantity,
+    0
+  );
+
+  return [
     `Hola! Quiero hacer un pedido en *${storeName}*`,
+    ...(orderNumber ? ['', `*Pedido:* #${orderNumber}`] : []),
     '',
     '*Productos:*',
     ...items.map(
@@ -158,14 +176,23 @@ export function buildWhatsAppMessage(params: {
         `- ${item.name} x${item.quantity} (${formatPrice(item.price)} c/u) = ${formatPrice(item.price * item.quantity)}`
     ),
     '',
-    `*Total:* ${formatPrice(
-      items.reduce((acc, item) => acc + item.price * item.quantity, 0)
-    )}`,
+    `*Total:* ${formatPrice(total)}`,
+    '',
+    '*Datos del cliente:*',
+    `- Nombre: ${customerName || 'No informado'}`,
+    `- Teléfono: ${customerPhone || 'No informado'}`,
+    `- Tipo de entrega: ${
+      deliveryType === 'delivery' ? 'Envío a domicilio' : 'Retiro en local'
+    }`,
+    `- Dirección: ${
+      deliveryType === 'delivery'
+        ? deliveryAddress || 'No informada'
+        : 'No corresponde'
+    }`,
+    `- Observaciones: ${notes || 'Sin observaciones'}`,
     '',
     `Tienda: /${storeSlug}`,
-  ];
-
-  return lines.join('\n');
+  ].join('\n');
 }
 
 export function getWhatsAppUrl(phone: string, message: string) {
@@ -184,32 +211,40 @@ export type CustomerData = {
   phone: string;
   address: string;
   notes: string;
+  deliveryType: DeliveryType;
+};
+
+const EMPTY: CustomerData = {
+  name: '',
+  phone: '',
+  address: '',
+  notes: '',
+  deliveryType: 'pickup',
 };
 
 export function getCustomerData(storeSlug: string): CustomerData {
-  if (typeof window === 'undefined') {
-    return { name: '', phone: '', address: '', notes: '' };
-  }
+  if (typeof window === 'undefined') return { ...EMPTY };
 
   try {
     const raw = localStorage.getItem(getCustomerKey(storeSlug));
-    if (!raw) return { name: '', phone: '', address: '', notes: '' };
+    if (!raw) return { ...EMPTY };
 
-    const parsed = JSON.parse(raw) as Partial<CustomerData>;
+    const parsed = JSON.parse(raw);
 
     return {
       name: parsed.name ?? '',
       phone: parsed.phone ?? '',
       address: parsed.address ?? '',
       notes: parsed.notes ?? '',
+      deliveryType:
+        parsed.deliveryType === 'delivery' ? 'delivery' : 'pickup',
     };
   } catch {
-    return { name: '', phone: '', address: '', notes: '' };
+    return { ...EMPTY };
   }
 }
 
 export function saveCustomerData(storeSlug: string, data: CustomerData) {
   if (typeof window === 'undefined') return;
-
   localStorage.setItem(getCustomerKey(storeSlug), JSON.stringify(data));
 }

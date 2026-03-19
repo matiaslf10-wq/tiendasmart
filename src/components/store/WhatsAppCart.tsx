@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import {
   buildWhatsAppMessage,
   clearCart,
@@ -13,6 +13,7 @@ import {
   removeCartItem,
   saveCustomerData,
   type CartItem,
+  type DeliveryType,
 } from '@/lib/cart';
 import {
   canPurchase,
@@ -37,12 +38,16 @@ function isPhoneValid(phone: string) {
   const digits = phone.replace(/\D/g, '');
 
   return (
-    /^\d{10}$/.test(digits) ||       // 1123456789
-    /^0\d{10,11}$/.test(digits) ||   // 01123456789
-    /^54\d{10,12}$/.test(digits) ||  // 541123456789
+    /^\d{10}$/.test(digits) || // 1123456789
+    /^0\d{10,11}$/.test(digits) || // 01123456789
+    /^54\d{10,12}$/.test(digits) || // 541123456789
     /^549\d{10,12}$/.test(digits) || // 5491123456789
     /^\d{2,4}15\d{6,8}$/.test(digits.replace(/^0/, ''))
   );
+}
+
+function normalizePhone(phone: string) {
+  return phone.replace(/\D/g, '');
 }
 
 export default function WhatsAppCart({
@@ -56,12 +61,22 @@ export default function WhatsAppCart({
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
   const [customerNotes, setCustomerNotes] = useState('');
+  const [deliveryType, setDeliveryType] = useState<DeliveryType>('pickup');
   const [toast, setToast] = useState<ToastState>(null);
   const [isSubmitting, startTransition] = useTransition();
+  const toastTimeoutRef = useRef<number | null>(null);
 
   function showToast(message: string, tone: 'success' | 'error' | 'info') {
     setToast({ message, tone });
-    window.setTimeout(() => setToast(null), 2200);
+
+    if (toastTimeoutRef.current) {
+      window.clearTimeout(toastTimeoutRef.current);
+    }
+
+    toastTimeoutRef.current = window.setTimeout(() => {
+      setToast(null);
+      toastTimeoutRef.current = null;
+    }, 2200);
   }
 
   function loadCart() {
@@ -76,6 +91,7 @@ export default function WhatsAppCart({
     setCustomerPhone(saved.phone ?? '');
     setCustomerAddress(saved.address ?? '');
     setCustomerNotes(saved.notes ?? '');
+    setDeliveryType(saved.deliveryType ?? 'pickup');
 
     function onUpdate() {
       loadCart();
@@ -91,6 +107,10 @@ export default function WhatsAppCart({
     return () => {
       window.removeEventListener('cart-updated', onUpdate as EventListener);
       window.removeEventListener('open-cart', onOpenCart as EventListener);
+
+      if (toastTimeoutRef.current) {
+        window.clearTimeout(toastTimeoutRef.current);
+      }
     };
   }, [storeSlug]);
 
@@ -100,8 +120,16 @@ export default function WhatsAppCart({
       phone: customerPhone,
       address: customerAddress,
       notes: customerNotes,
+      deliveryType,
     });
-  }, [customerName, customerPhone, customerAddress, customerNotes, storeSlug]);
+  }, [
+    customerName,
+    customerPhone,
+    customerAddress,
+    customerNotes,
+    deliveryType,
+    storeSlug,
+  ]);
 
   const validItems = useMemo(
     () => items.filter((item) => canPurchase(item) && item.quantity > 0),
@@ -119,12 +147,15 @@ export default function WhatsAppCart({
   );
 
   const validPhone = isPhoneValid(customerPhone);
+  const requiresAddress = deliveryType === 'delivery';
+  const hasValidAddress = customerAddress.trim().length > 0;
 
   const canSend =
     validItems.length > 0 &&
     customerName.trim().length > 0 &&
     customerPhone.trim().length > 0 &&
-    validPhone;
+    validPhone &&
+    (!requiresAddress || hasValidAddress);
 
   async function handleSubmitOrder() {
     if (!customerName.trim()) {
@@ -142,59 +173,61 @@ export default function WhatsAppCart({
       return;
     }
 
+    if (requiresAddress && !customerAddress.trim()) {
+      showToast('Completá la dirección para envío a domicilio.', 'error');
+      return;
+    }
+
     if (validItems.length === 0) {
       showToast('No hay productos disponibles para enviar.', 'error');
       return;
     }
 
-    startTransition(async () => {
-      const result = await createOrder({
-        storeSlug,
-        customerName: customerName.trim(),
-        customerPhone: customerPhone.trim(),
-        deliveryType: customerAddress.trim() ? 'delivery' : 'pickup',
-        deliveryAddress: customerAddress.trim(),
-        notes: customerNotes.trim(),
-        items: validItems.map((item) => ({
-          productId: item.id,
-          quantity: item.quantity,
-        })),
-      });
+    startTransition(() => {
+      void (async () => {
+        const normalizedPhone = normalizePhone(customerPhone);
 
-      if (!result.success) {
-        showToast(result.error, 'error');
-        return;
-      }
+        const result = await createOrder({
+          storeSlug,
+          customerName: customerName.trim(),
+          customerPhone: normalizedPhone,
+          deliveryType,
+          deliveryAddress:
+            deliveryType === 'delivery' ? customerAddress.trim() : '',
+          notes: customerNotes.trim(),
+          items: validItems.map((item) => ({
+            productId: item.id,
+            quantity: item.quantity,
+          })),
+        });
 
-      const baseMessage = buildWhatsAppMessage({
-        storeName,
-        storeSlug,
-        items: validItems,
-      });
+        if (!result.success) {
+          showToast(result.error, 'error');
+          return;
+        }
 
-      const extraLines = [
-        '',
-        `*Pedido:* #${result.orderNumber}`,
-        '',
-        '*Datos del cliente:*',
-        `- Nombre: ${customerName.trim() || 'No informado'}`,
-        `- Teléfono: ${customerPhone.trim() || 'No informado'}`,
-        `- Dirección: ${customerAddress.trim() || 'No informada'}`,
-        `- Observaciones: ${customerNotes.trim() || 'Sin observaciones'}`,
-      ];
+        const message = buildWhatsAppMessage({
+          storeName,
+          storeSlug,
+          items: validItems,
+          orderNumber: result.orderNumber,
+          customerName: customerName.trim(),
+          customerPhone: normalizedPhone,
+          deliveryType,
+          deliveryAddress: customerAddress.trim(),
+          notes: customerNotes.trim(),
+        });
 
-      const whatsappUrl = getWhatsAppUrl(
-        whatsappNumber,
-        `${baseMessage}\n${extraLines.join('\n')}`
-      );
+        const whatsappUrl = getWhatsAppUrl(whatsappNumber, message);
 
-      clearCart(storeSlug);
-      loadCart();
+        window.open(whatsappUrl, '_blank', 'noreferrer');
 
-      showToast(`Pedido #${result.orderNumber} creado con éxito.`, 'success');
+        clearCart(storeSlug);
+        loadCart();
 
-      window.open(whatsappUrl, '_blank', 'noreferrer');
-      setOpen(false);
+        showToast(`Pedido #${result.orderNumber} creado con éxito.`, 'success');
+        setOpen(false);
+      })();
     });
   }
 
@@ -305,9 +338,7 @@ export default function WhatsAppCart({
                         </div>
 
                         {reachedMax && (
-                          <p className="mt-2 text-xs text-red-600">
-                            Sin stock
-                          </p>
+                          <p className="mt-2 text-xs text-red-600">Sin stock</p>
                         )}
 
                         {!purchasable && (
@@ -350,23 +381,69 @@ export default function WhatsAppCart({
                   />
                   {customerPhone.trim().length > 0 && !validPhone && (
                     <p className="text-xs text-red-600">
-                      Ingresá un número válido con código de área. Ej: 11 2345 6789
+                      Ingresá un número válido con código de área. Ej: 11 2345
+                      6789
                     </p>
                   )}
                 </label>
 
-                <label className="block space-y-2">
+                <div className="space-y-2">
                   <span className="text-sm font-medium text-gray-700">
-                    Dirección
+                    Tipo de entrega *
                   </span>
-                  <input
-                    type="text"
-                    value={customerAddress}
-                    onChange={(e) => setCustomerAddress(e.target.value)}
-                    placeholder="Ej: Av. Siempreviva 123"
-                    className="w-full rounded-xl border px-4 py-3 text-sm"
-                  />
-                </label>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setDeliveryType('pickup')}
+                      className={`rounded-xl border px-4 py-3 text-sm font-medium ${
+                        deliveryType === 'pickup'
+                          ? 'border-black bg-black text-white'
+                          : 'border-gray-300 bg-white text-gray-700'
+                      }`}
+                    >
+                      Retiro en local
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setDeliveryType('delivery')}
+                      className={`rounded-xl border px-4 py-3 text-sm font-medium ${
+                        deliveryType === 'delivery'
+                          ? 'border-black bg-black text-white'
+                          : 'border-gray-300 bg-white text-gray-700'
+                      }`}
+                    >
+                      Envío a domicilio
+                    </button>
+                  </div>
+                </div>
+
+                {deliveryType === 'delivery' && (
+                  <label className="block space-y-2">
+                    <span className="text-sm font-medium text-gray-700">
+                      Dirección *
+                    </span>
+                    <input
+                      type="text"
+                      value={customerAddress}
+                      onChange={(e) => setCustomerAddress(e.target.value)}
+                      placeholder="Ej: Av. Siempreviva 123"
+                      className="w-full rounded-xl border px-4 py-3 text-sm"
+                    />
+                    {requiresAddress && !hasValidAddress && (
+                      <p className="text-xs text-red-600">
+                        La dirección es obligatoria para envío a domicilio.
+                      </p>
+                    )}
+                  </label>
+                )}
+
+                {deliveryType === 'pickup' && (
+                  <div className="rounded-xl bg-gray-50 px-4 py-3 text-xs text-gray-600">
+                    Vas a retirar tu pedido en el local.
+                  </div>
+                )}
 
                 <label className="block space-y-2">
                   <span className="text-sm font-medium text-gray-700">
@@ -396,6 +473,20 @@ export default function WhatsAppCart({
               <div className="flex items-center justify-between text-sm">
                 <span>Total</span>
                 <strong>{formatPrice(totalPrice)}</strong>
+              </div>
+
+              <div className="rounded-xl bg-gray-50 px-4 py-3 text-xs text-gray-600">
+                <p>
+                  <strong>Entrega:</strong>{' '}
+                  {deliveryType === 'delivery'
+                    ? 'Envío a domicilio'
+                    : 'Retiro en local'}
+                </p>
+                {deliveryType === 'delivery' && customerAddress.trim() && (
+                  <p className="mt-1">
+                    <strong>Dirección:</strong> {customerAddress.trim()}
+                  </p>
+                )}
               </div>
 
               <div className="flex gap-3">

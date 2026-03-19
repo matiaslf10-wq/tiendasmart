@@ -3,7 +3,6 @@ import { notFound, redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getCurrentUserStore } from '@/lib/stores';
 import AdminShell from '@/components/admin/AdminShell';
-import OrderWhatsAppButton from '@/components/admin/OrderWhatsAppButton';
 import UpdateOrderStatus from './UpdateOrderStatus';
 
 type PageProps = {
@@ -135,21 +134,13 @@ export default async function PedidoDetallePage({ params }: PageProps) {
           </div>
         </div>
 
-        <div className="flex flex-col items-start gap-2 md:items-end">
-          <span
-            className={`inline-flex rounded-full border px-3 py-1 text-sm font-medium ${getStatusClasses(
-              order.status
-            )}`}
-          >
-            {getStatusLabel(order.status)}
-          </span>
-
-          <OrderWhatsAppButton
-            customerName={order.customer_name}
-            customerPhone={order.customer_phone}
-            orderNumber={order.order_number}
-          />
-        </div>
+        <span
+          className={`inline-flex rounded-full border px-3 py-1 text-sm font-medium ${getStatusClasses(
+            order.status
+          )}`}
+        >
+          {getStatusLabel(order.status)}
+        </span>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">

@@ -7,6 +7,7 @@ import OrdersStats from '@/components/admin/OrdersStats';
 import AdminShell from '@/components/admin/AdminShell';
 import OrderQuickActions from '@/components/admin/OrderQuickActions';
 import OrderWhatsAppButton from '@/components/admin/OrderWhatsAppButton';
+import BulkPendingActions from '@/components/admin/BulkPendingActions';
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat('es-AR', {
@@ -284,6 +285,10 @@ export default async function PedidosPage({ searchParams }: PageProps) {
     },
   ];
 
+  const visiblePendingOrderIds = visibleOrders
+    .filter((order) => order.status === 'pending')
+    .map((order) => order.id);
+
   return (
     <AdminShell
       title="Pedidos"
@@ -357,6 +362,8 @@ export default async function PedidosPage({ searchParams }: PageProps) {
               </div>
             </div>
           )}
+
+          <BulkPendingActions pendingOrderIds={visiblePendingOrderIds} />
 
           {!visibleOrders || visibleOrders.length === 0 ? (
             <p>No hay pedidos para los filtros seleccionados.</p>

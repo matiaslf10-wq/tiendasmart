@@ -36,9 +36,7 @@ export default function CopyPhoneButton({ phone }: Props) {
         📋 Copiar teléfono
       </button>
 
-      {message ? (
-        <p className="text-xs text-gray-500">{message}</p>
-      ) : null}
+      {message ? <p className="text-xs text-gray-500">{message}</p> : null}
     </div>
   );
 }

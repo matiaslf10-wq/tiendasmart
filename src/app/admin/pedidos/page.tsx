@@ -6,6 +6,7 @@ import OrdersFilters from '@/components/admin/OrdersFilters';
 import OrdersStats from '@/components/admin/OrdersStats';
 import AdminShell from '@/components/admin/AdminShell';
 import OrdersRealtimeListener from '@/components/admin/OrdersRealtimeListener';
+import OrderQuickActions from '@/components/admin/OrderQuickActions';
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat('es-AR', {
@@ -177,8 +178,8 @@ export default async function PedidosPage({ searchParams }: PageProps) {
                   href={`/admin/pedidos/${order.id}`}
                   className="block rounded-2xl border p-4 transition hover:bg-gray-50"
                 >
-                  <div className="flex justify-between gap-4">
-                    <div>
+                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <div className="min-w-0">
                       <p className="font-semibold">#{order.order_number}</p>
 
                       <p className="text-sm text-gray-500">
@@ -196,7 +197,7 @@ export default async function PedidosPage({ searchParams }: PageProps) {
                       </p>
                     </div>
 
-                    <div className="space-y-1 text-right">
+                    <div className="space-y-2 text-left md:text-right">
                       <p className="font-semibold">
                         {formatCurrency(Number(order.total ?? 0))}
                       </p>
@@ -208,6 +209,13 @@ export default async function PedidosPage({ searchParams }: PageProps) {
                       >
                         {getStatusLabel(order.status)}
                       </span>
+
+                      <div onClick={(e) => e.preventDefault()}>
+                        <OrderQuickActions
+                          orderId={order.id}
+                          currentStatus={order.status}
+                        />
+                      </div>
                     </div>
                   </div>
                 </Link>

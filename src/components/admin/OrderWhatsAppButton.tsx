@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+
 type Props = {
   phone: string | null;
   customerName: string | null;
@@ -27,16 +29,35 @@ function getStatusText(status: string) {
   }
 }
 
-function normalizePhone(phone: string) {
-  // elimina todo lo que no sea número
-  const cleaned = phone.replace(/\D/g, '');
+function normalizeArgentinaWhatsAppPhone(phone: string) {
+  const digits = phone.replace(/\D/g, '');
 
-  // si empieza con 0 lo sacamos
-  if (cleaned.startsWith('0')) {
-    return cleaned.slice(1);
+  if (!digits) return null;
+
+  // ya viene perfecto
+  if (/^549\d{10,12}$/.test(digits)) {
+    return digits;
   }
 
-  return cleaned;
+  // empieza con 54
+  if (/^54\d{10,12}$/.test(digits)) {
+    const rest = digits.slice(2).replace(/^0/, '');
+
+    const match = rest.match(/^(\d{2,4})15?(\d{6,8})$/);
+    if (match) {
+      return `549${match[1]}${match[2]}`;
+    }
+
+    return `549${rest}`;
+  }
+
+  // formato local argentino
+  const localMatch = digits.match(/^0?(\d{2,4})15?(\d{6,8})$/);
+  if (localMatch) {
+    return `549${localMatch[1]}${localMatch[2]}`;
+  }
+
+  return null;
 }
 
 export default function OrderWhatsAppButton({
@@ -46,26 +67,73 @@ export default function OrderWhatsAppButton({
   total,
   status,
 }: Props) {
-  if (!phone) return null;
+  const [error, setError] = useState<string | null>(null);
 
-  const normalizedPhone = normalizePhone(phone);
+  if (!phone) {
+    return (
+      <p className="text-xs text-red-500">
+        ⚠ Este pedido no tiene teléfono cargado
+      </p>
+    );
+  }
 
-  const message = `Hola ${customerName ?? ''} 👋
-Tu pedido #${orderNumber} está ${getStatusText(status)}.
-Total: $${total}`;
+  const normalizedPhone = normalizeArgentinaWhatsAppPhone(phone);
 
-  const url = `https://wa.me/54${normalizedPhone}?text=${encodeURIComponent(
+  function handleClick(e: React.MouseEvent) {
+    if (!normalizedPhone) {
+      e.preventDefault();
+      setError(
+        'Número inválido. Revisá el teléfono del cliente (debe incluir código de área).'
+      );
+    }
+  }
+
+  if (!normalizedPhone) {
+    return (
+      <div className="space-y-1">
+        <button
+          type="button"
+          onClick={() =>
+            setError(
+              'Número inválido. Revisá el teléfono del cliente (ej: 11 2345 6789).'
+            )
+          }
+          className="inline-flex items-center gap-2 rounded-2xl bg-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 cursor-not-allowed"
+        >
+          💬 WhatsApp no disponible
+        </button>
+
+        {error && (
+          <p className="text-xs text-red-500 leading-snug">{error}</p>
+        )}
+      </div>
+    );
+  }
+
+  const message = `Hola${customerName ? ` ${customerName}` : ''} 👋
+Te escribimos por tu pedido #${orderNumber ?? ''}.
+Estado actual: ${getStatusText(status)}.
+Total: $${total}.`;
+
+  const url = `https://wa.me/${normalizedPhone}?text=${encodeURIComponent(
     message
   )}`;
 
   return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="inline-flex items-center gap-2 rounded-2xl bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-green-700"
-    >
-      💬 Enviar WhatsApp
-    </a>
+    <div className="space-y-1">
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={handleClick}
+        className="inline-flex items-center gap-2 rounded-2xl bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-green-700"
+      >
+        💬 Enviar WhatsApp
+      </a>
+
+      {error && (
+        <p className="text-xs text-red-500 leading-snug">{error}</p>
+      )}
+    </div>
   );
 }

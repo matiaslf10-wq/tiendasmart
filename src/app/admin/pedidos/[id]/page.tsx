@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getCurrentUserStore } from '@/lib/stores';
 import AdminShell from '@/components/admin/AdminShell';
 import OrderWhatsAppButton from '@/components/admin/OrderWhatsAppButton';
+import CopyPhoneButton from '@/components/admin/CopyPhoneButton';
 import UpdateOrderStatus from './UpdateOrderStatus';
 
 type PageProps = {
@@ -216,17 +217,24 @@ export default async function PedidoDetallePage({ params }: PageProps) {
                 </div>
               ) : null}
 
-              {order.customer_phone ? (
-                <div className="pt-2">
-                  <OrderWhatsAppButton
-                    phone={order.customer_phone}
-                    customerName={order.customer_name}
-                    orderNumber={order.order_number}
-                    total={Number(order.total)}
-                    status={order.status}
-                  />
-                </div>
-              ) : null}
+              <div className="flex flex-wrap gap-3 pt-2">
+                {order.customer_phone ? (
+                  <>
+                    <OrderWhatsAppButton
+                      phone={order.customer_phone}
+                      customerName={order.customer_name}
+                      orderNumber={order.order_number}
+                      total={Number(order.total)}
+                      status={order.status}
+                    />
+                    <CopyPhoneButton phone={order.customer_phone} />
+                  </>
+                ) : (
+                  <p className="text-xs text-red-500">
+                    ⚠ Este pedido no tiene teléfono cargado.
+                  </p>
+                )}
+              </div>
             </div>
           </section>
 

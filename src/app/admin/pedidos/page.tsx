@@ -60,11 +60,38 @@ function getStatusLabel(status: string) {
   }
 }
 
+type Order = {
+  id: string;
+  order_number: number | null;
+  customer_name: string | null;
+  customer_phone: string | null;
+  total: number | string | null;
+  status: string;
+  created_at: string;
+};
+
 type PageProps = {
   searchParams: Promise<{
     status?: string;
+    q?: string;
   }>;
 };
+
+function matchesSearch(order: Order, rawQuery: string) {
+  const q = rawQuery.trim().toLowerCase();
+
+  if (!q) return true;
+
+  const customerName = (order.customer_name ?? '').toLowerCase();
+  const customerPhone = (order.customer_phone ?? '').toLowerCase();
+  const orderNumber = String(order.order_number ?? '').toLowerCase();
+
+  return (
+    customerName.includes(q) ||
+    customerPhone.includes(q) ||
+    orderNumber.includes(q)
+  );
+}
 
 export default async function PedidosPage({ searchParams }: PageProps) {
   const membership = await getCurrentUserStore();
@@ -76,11 +103,21 @@ export default async function PedidosPage({ searchParams }: PageProps) {
   const store = membership.stores;
   const supabase = await createClient();
   const resolvedSearchParams = await searchParams;
-  const status = resolvedSearchParams.status;
+
+  const status = resolvedSearchParams.status ?? 'all';
+  const queryText = resolvedSearchParams.q ?? '';
 
   let query = supabase
     .from('orders')
-    .select('*')
+    .select(`
+      id,
+      order_number,
+      customer_name,
+      customer_phone,
+      total,
+      status,
+      created_at
+    `)
     .eq('store_id', store.id)
     .order('created_at', { ascending: false });
 
@@ -88,7 +125,12 @@ export default async function PedidosPage({ searchParams }: PageProps) {
     query = query.eq('status', status);
   }
 
-  const { data: orders, error } = await query;
+  const { data, error } = await query;
+
+  const allOrders = (data ?? []) as Order[];
+  const visibleOrders = queryText.trim()
+    ? allOrders.filter((order) => matchesSearch(order, queryText))
+    : allOrders;
 
   return (
     <AdminShell
@@ -112,26 +154,42 @@ export default async function PedidosPage({ searchParams }: PageProps) {
         </div>
       ) : (
         <>
-          <OrdersStats orders={orders || []} />
+          <OrdersStats orders={visibleOrders || []} />
           <OrdersFilters />
 
-          {!orders || orders.length === 0 ? (
-            <p>No hay pedidos.</p>
+          {queryText.trim() ? (
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+              Mostrando resultados para{' '}
+              <span className="font-semibold text-gray-900">
+                “{queryText.trim()}”
+              </span>
+              .
+            </div>
+          ) : null}
+
+          {!visibleOrders || visibleOrders.length === 0 ? (
+            <p>No hay pedidos para los filtros seleccionados.</p>
           ) : (
             <div className="space-y-4">
-              {orders.map((order) => (
+              {visibleOrders.map((order) => (
                 <Link
                   key={order.id}
                   href={`/admin/pedidos/${order.id}`}
-                  className="block rounded-2xl border p-4 hover:bg-gray-50"
+                  className="block rounded-2xl border p-4 transition hover:bg-gray-50"
                 >
                   <div className="flex justify-between gap-4">
                     <div>
                       <p className="font-semibold">#{order.order_number}</p>
 
                       <p className="text-sm text-gray-500">
-                        {order.customer_name}
+                        {order.customer_name || 'Cliente sin nombre'}
                       </p>
+
+                      {order.customer_phone ? (
+                        <p className="text-xs text-gray-400">
+                          {order.customer_phone}
+                        </p>
+                      ) : null}
 
                       <p className="text-xs text-gray-400">
                         {formatDate(order.created_at)}
@@ -140,7 +198,7 @@ export default async function PedidosPage({ searchParams }: PageProps) {
 
                     <div className="space-y-1 text-right">
                       <p className="font-semibold">
-                        {formatCurrency(Number(order.total))}
+                        {formatCurrency(Number(order.total ?? 0))}
                       </p>
 
                       <span

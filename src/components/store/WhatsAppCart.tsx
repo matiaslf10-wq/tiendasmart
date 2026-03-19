@@ -33,6 +33,18 @@ type ToastState = {
   tone: 'success' | 'error' | 'info';
 } | null;
 
+function isPhoneValid(phone: string) {
+  const digits = phone.replace(/\D/g, '');
+
+  return (
+    /^\d{10}$/.test(digits) ||       // 1123456789
+    /^0\d{10,11}$/.test(digits) ||   // 01123456789
+    /^54\d{10,12}$/.test(digits) ||  // 541123456789
+    /^549\d{10,12}$/.test(digits) || // 5491123456789
+    /^\d{2,4}15\d{6,8}$/.test(digits.replace(/^0/, ''))
+  );
+}
+
 export default function WhatsAppCart({
   storeSlug,
   storeName,
@@ -106,13 +118,34 @@ export default function WhatsAppCart({
     [validItems]
   );
 
+  const validPhone = isPhoneValid(customerPhone);
+
   const canSend =
     validItems.length > 0 &&
     customerName.trim().length > 0 &&
-    customerPhone.trim().length > 0;
+    customerPhone.trim().length > 0 &&
+    validPhone;
 
   async function handleSubmitOrder() {
-    if (!canSend) return;
+    if (!customerName.trim()) {
+      showToast('Completá tu nombre.', 'error');
+      return;
+    }
+
+    if (!customerPhone.trim()) {
+      showToast('Completá tu teléfono.', 'error');
+      return;
+    }
+
+    if (!validPhone) {
+      showToast('Ingresá un teléfono válido con código de área.', 'error');
+      return;
+    }
+
+    if (validItems.length === 0) {
+      showToast('No hay productos disponibles para enviar.', 'error');
+      return;
+    }
 
     startTransition(async () => {
       const result = await createOrder({
@@ -315,6 +348,11 @@ export default function WhatsAppCart({
                     placeholder="Ej: 11 2345 6789"
                     className="w-full rounded-xl border px-4 py-3 text-sm"
                   />
+                  {customerPhone.trim().length > 0 && !validPhone && (
+                    <p className="text-xs text-red-600">
+                      Ingresá un número válido con código de área. Ej: 11 2345 6789
+                    </p>
+                  )}
                 </label>
 
                 <label className="block space-y-2">

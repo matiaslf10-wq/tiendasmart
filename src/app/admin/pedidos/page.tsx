@@ -91,6 +91,34 @@ function getNotesFilterLabel(notes: string) {
   }
 }
 
+function buildStatusHref(params: {
+  nextStatus: string;
+  queryText: string;
+  delivery: string;
+  notes: string;
+}) {
+  const search = new URLSearchParams();
+
+  if (params.nextStatus !== 'all') {
+    search.set('status', params.nextStatus);
+  }
+
+  if (params.queryText.trim()) {
+    search.set('q', params.queryText.trim());
+  }
+
+  if (params.delivery !== 'all') {
+    search.set('delivery', params.delivery);
+  }
+
+  if (params.notes !== 'all') {
+    search.set('notes', params.notes);
+  }
+
+  const queryString = search.toString();
+  return queryString ? `/admin/pedidos?${queryString}` : '/admin/pedidos';
+}
+
 type Order = {
   id: string;
   order_number: number | null;
@@ -208,14 +236,52 @@ export default async function PedidosPage({ searchParams }: PageProps) {
       ? [{ key: 'status', label: `Estado: ${getStatusLabel(status)}` }]
       : []),
     ...(delivery !== 'all'
-      ? [{ key: 'delivery', label: `Entrega: ${getDeliveryFilterLabel(delivery)}` }]
+      ? [
+          {
+            key: 'delivery',
+            label: `Entrega: ${getDeliveryFilterLabel(delivery)}`,
+          },
+        ]
       : []),
     ...(notes !== 'all'
-      ? [{ key: 'notes', label: `Observaciones: ${getNotesFilterLabel(notes)}` }]
+      ? [
+          {
+            key: 'notes',
+            label: `Observaciones: ${getNotesFilterLabel(notes)}`,
+          },
+        ]
       : []),
     ...(queryText.trim()
       ? [{ key: 'q', label: `Búsqueda: "${queryText.trim()}"` }]
       : []),
+  ];
+
+  const quickStatusTabs = [
+    {
+      value: 'all',
+      label: 'Todos',
+      count: allOrders.length,
+    },
+    {
+      value: 'pending',
+      label: 'Pendientes',
+      count: allOrders.filter((order) => order.status === 'pending').length,
+    },
+    {
+      value: 'confirmed',
+      label: 'Confirmados',
+      count: allOrders.filter((order) => order.status === 'confirmed').length,
+    },
+    {
+      value: 'ready',
+      label: 'Listos',
+      count: allOrders.filter((order) => order.status === 'ready').length,
+    },
+    {
+      value: 'delivered',
+      label: 'Entregados',
+      count: allOrders.filter((order) => order.status === 'delivered').length,
+    },
   ];
 
   return (
@@ -241,6 +307,41 @@ export default async function PedidosPage({ searchParams }: PageProps) {
         <>
           <OrdersStats orders={visibleOrders || []} />
           <OrdersFilters />
+
+          <div className="flex flex-wrap gap-2">
+            {quickStatusTabs.map((tab) => {
+              const isActive =
+                status === tab.value || (status === 'all' && tab.value === 'all');
+
+              return (
+                <Link
+                  key={tab.value}
+                  href={buildStatusHref({
+                    nextStatus: tab.value,
+                    queryText,
+                    delivery,
+                    notes,
+                  })}
+                  className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition ${
+                    isActive
+                      ? 'bg-black text-white'
+                      : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs ${
+                      isActive
+                        ? 'bg-white/15 text-white'
+                        : 'bg-gray-100 text-gray-600'
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
 
           {activeFilters.length > 0 && (
             <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">

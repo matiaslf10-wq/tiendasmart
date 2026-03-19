@@ -108,7 +108,7 @@ export default async function PedidosPage({ searchParams }: PageProps) {
   const status = resolvedSearchParams.status ?? 'all';
   const queryText = resolvedSearchParams.q ?? '';
 
-  let query = supabase
+  const { data, error } = await supabase
     .from('orders')
     .select(`
       id,
@@ -122,16 +122,19 @@ export default async function PedidosPage({ searchParams }: PageProps) {
     .eq('store_id', store.id)
     .order('created_at', { ascending: false });
 
-  if (status && status !== 'all') {
-    query = query.eq('status', status);
-  }
-
-  const { data, error } = await query;
-
   const allOrders = (data ?? []) as Order[];
+  const pendingOrdersCount = allOrders.filter(
+    (order) => order.status === 'pending'
+  ).length;
+
+  const statusFilteredOrders =
+    status && status !== 'all'
+      ? allOrders.filter((order) => order.status === status)
+      : allOrders;
+
   const visibleOrders = queryText.trim()
-    ? allOrders.filter((order) => matchesSearch(order, queryText))
-    : allOrders;
+    ? statusFilteredOrders.filter((order) => matchesSearch(order, queryText))
+    : statusFilteredOrders;
 
   return (
     <AdminShell
@@ -140,6 +143,7 @@ export default async function PedidosPage({ searchParams }: PageProps) {
       storeName={store.name}
       storeSlug={store.slug}
       current="pedidos"
+      pendingOrdersCount={pendingOrdersCount}
     >
       <OrdersRealtimeListener storeId={store.id} />
 

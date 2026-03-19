@@ -1,10 +1,10 @@
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/server';
 
 type AdminSidebarProps = {
   storeName: string;
   storeSlug: string;
   current?: 'panel' | 'productos' | 'categorias' | 'pedidos';
+  pendingOrdersCount?: number;
 };
 
 function itemClass(active: boolean) {
@@ -13,31 +13,12 @@ function itemClass(active: boolean) {
     : 'flex items-center gap-3 rounded-2xl px-4 py-3 text-gray-700 transition hover:bg-gray-100 hover:scale-[1.01]';
 }
 
-export default async function AdminSidebar({
+export default function AdminSidebar({
   storeName,
   storeSlug,
   current,
+  pendingOrdersCount = 0,
 }: AdminSidebarProps) {
-  const supabase = await createClient();
-
-  const { data: store } = await supabase
-    .from('stores')
-    .select('id')
-    .eq('slug', storeSlug)
-    .maybeSingle();
-
-  let pendingCount = 0;
-
-  if (store?.id) {
-    const { count } = await supabase
-      .from('orders')
-      .select('*', { count: 'exact', head: true })
-      .eq('store_id', store.id)
-      .eq('status', 'pending');
-
-    pendingCount = count ?? 0;
-  }
-
   return (
     <aside className="w-full rounded-3xl border border-gray-200 bg-white/90 p-5 shadow-md backdrop-blur lg:sticky lg:top-6">
       <div className="mb-6 border-b border-gray-100 pb-4">
@@ -90,7 +71,7 @@ export default async function AdminSidebar({
               <div className="text-xs opacity-80">Ver y gestionar pedidos</div>
             </div>
 
-            {pendingCount > 0 ? (
+            {pendingOrdersCount > 0 ? (
               <span
                 className={`ml-auto inline-flex min-w-7 items-center justify-center rounded-full px-2 py-1 text-xs font-bold ${
                   current === 'pedidos'
@@ -98,7 +79,7 @@ export default async function AdminSidebar({
                     : 'bg-red-100 text-red-700'
                 }`}
               >
-                {pendingCount}
+                {pendingOrdersCount}
               </span>
             ) : null}
           </div>

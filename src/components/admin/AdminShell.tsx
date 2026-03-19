@@ -7,6 +7,7 @@ type AdminShellProps = {
   storeName: string;
   storeSlug: string;
   current?: 'panel' | 'productos' | 'categorias' | 'pedidos';
+  pendingOrdersCount?: number;
   children: React.ReactNode;
 };
 
@@ -16,6 +17,7 @@ export default function AdminShell({
   storeName,
   storeSlug,
   current,
+  pendingOrdersCount = 0,
   children,
 }: AdminShellProps) {
   return (
@@ -26,6 +28,7 @@ export default function AdminShell({
             storeName={storeName}
             storeSlug={storeSlug}
             current={current}
+            pendingOrdersCount={pendingOrdersCount}
           />
 
           <section className="min-w-0 space-y-6">

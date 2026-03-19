@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { updateOrderStatus } from '@/app/actions/updateOrderStatus';
 
@@ -47,6 +47,23 @@ function getButtonClass(status: string) {
   }
 }
 
+function getSuccessMessage(status: string) {
+  switch (status) {
+    case 'confirmed':
+      return 'Pedido confirmado.';
+    case 'in_preparation':
+      return 'Pedido en preparación.';
+    case 'ready':
+      return 'Pedido marcado como listo.';
+    case 'delivered':
+      return 'Pedido entregado.';
+    case 'cancelled':
+      return 'Pedido cancelado.';
+    default:
+      return 'Estado actualizado.';
+  }
+}
+
 export default function OrderQuickActions({
   orderId,
   currentStatus,
@@ -54,14 +71,42 @@ export default function OrderQuickActions({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
+  const [messageTone, setMessageTone] = useState<'success' | 'error' | null>(
+    null
+  );
   const [localStatus, setLocalStatus] = useState(currentStatus);
+  const timeoutRef = useRef<number | null>(null);
 
   const actions = QUICK_ACTIONS_BY_STATUS[localStatus] ?? [];
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        window.clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  function showMessage(text: string, tone: 'success' | 'error') {
+    setMessage(text);
+    setMessageTone(tone);
+
+    if (timeoutRef.current) {
+      window.clearTimeout(timeoutRef.current);
+    }
+
+    timeoutRef.current = window.setTimeout(() => {
+      setMessage(null);
+      setMessageTone(null);
+      timeoutRef.current = null;
+    }, 2200);
+  }
 
   function handleUpdate(nextStatus: string) {
     if (nextStatus === localStatus) return;
 
     setMessage(null);
+    setMessageTone(null);
 
     startTransition(async () => {
       const previousStatus = localStatus;
@@ -71,11 +116,11 @@ export default function OrderQuickActions({
 
       if (!result.success) {
         setLocalStatus(previousStatus);
-        setMessage(result.error ?? 'No se pudo actualizar el estado.');
+        showMessage(result.error ?? 'No se pudo actualizar el estado.', 'error');
         return;
       }
 
-      setMessage('Estado actualizado.');
+      showMessage(getSuccessMessage(nextStatus), 'success');
       router.refresh();
     });
   }
@@ -101,12 +146,20 @@ export default function OrderQuickActions({
               action.value
             )}`}
           >
-            {action.label}
+            {isPending ? 'Actualizando...' : action.label}
           </button>
         ))}
       </div>
 
-      {message ? <p className="text-xs text-gray-500">{message}</p> : null}
+      {message ? (
+        <p
+          className={`text-xs ${
+            messageTone === 'error' ? 'text-red-500' : 'text-gray-500'
+          }`}
+        >
+          {message}
+        </p>
+      ) : null}
     </div>
   );
 }

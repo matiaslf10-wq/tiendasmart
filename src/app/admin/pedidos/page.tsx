@@ -229,6 +229,7 @@ export default async function PedidosPage({ searchParams }: PageProps) {
                           orderNumber={order.order_number}
                           total={Number(order.total ?? 0)}
                           status={order.status}
+                          compact
                         />
                       </div>
 

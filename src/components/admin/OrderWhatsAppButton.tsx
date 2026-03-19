@@ -8,6 +8,7 @@ type Props = {
   orderNumber: number | null;
   total: number;
   status: string;
+  compact?: boolean;
 };
 
 function getStatusText(status: string) {
@@ -34,32 +35,26 @@ function normalizeArgentinaWhatsAppPhone(phone: string) {
 
   if (!digits) return null;
 
-  // ya viene en formato whatsapp argentino correcto
   if (/^549\d{10,12}$/.test(digits)) {
     return digits;
   }
 
-  // +54 ... pero falta el 9
   if (/^54\d{10,12}$/.test(digits)) {
     const rest = digits.slice(2);
 
-    // casos tipo 54 11 23456789
     if (/^\d{10,12}$/.test(rest)) {
       return `549${rest}`;
     }
   }
 
-  // formato local CABA / AMBA: 1123456789
   if (/^\d{10}$/.test(digits)) {
     return `549${digits}`;
   }
 
-  // formato local con 0 adelante: 01123456789
   if (/^0\d{10,11}$/.test(digits)) {
     return `549${digits.slice(1)}`;
   }
 
-  // formato con 15: 0111523456789 / 1152345678
   const withoutLeadingZero = digits.replace(/^0/, '');
   const matchWith15 = withoutLeadingZero.match(/^(\d{2,4})15(\d{6,8})$/);
 
@@ -76,6 +71,7 @@ export default function OrderWhatsAppButton({
   orderNumber,
   total,
   status,
+  compact = false,
 }: Props) {
   const [showError, setShowError] = useState(false);
 
@@ -100,15 +96,17 @@ Total: $${total}.`;
         <button
           type="button"
           onClick={() => setShowError(true)}
-          className="inline-flex items-center gap-2 rounded-2xl bg-gray-300 px-4 py-2 text-sm font-semibold text-gray-700"
+          className={`inline-flex items-center gap-2 rounded-2xl ${
+            compact ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'
+          } bg-gray-300 font-semibold text-gray-700`}
         >
           💬 WhatsApp no disponible
         </button>
 
         {showError && (
           <p className="text-xs leading-snug text-red-500">
-            Número inválido: <span className="font-medium">{phone}</span>.  
-            Usá formato como 11 2345 6789, 011 15 2345 6789 o +54 9 11 2345 6789.
+            Número inválido: <span className="font-medium">{phone}</span>. Usá
+            formato como 11 2345 6789, 011 15 2345 6789 o +54 9 11 2345 6789.
           </p>
         )}
       </div>
@@ -124,9 +122,11 @@ Total: $${total}.`;
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center gap-2 rounded-2xl bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-green-700"
+      className={`inline-flex items-center gap-2 rounded-2xl bg-green-600 font-semibold text-white shadow hover:bg-green-700 ${
+        compact ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'
+      }`}
     >
-      💬 Enviar WhatsApp
+      {compact ? '💬 WhatsApp' : '💬 Enviar WhatsApp'}
     </a>
   );
 }

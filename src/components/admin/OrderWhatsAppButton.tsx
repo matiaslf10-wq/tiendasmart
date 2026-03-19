@@ -97,7 +97,7 @@ Total: $${total}.`;
           type="button"
           onClick={() => setShowError(true)}
           className={`inline-flex items-center gap-2 rounded-2xl ${
-            compact ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'
+            compact ? 'px-3 py-2 text-xs' : 'px-4 py-2 text-sm'
           } bg-gray-300 font-semibold text-gray-700`}
         >
           💬 WhatsApp no disponible
@@ -123,7 +123,7 @@ Total: $${total}.`;
       target="_blank"
       rel="noopener noreferrer"
       className={`inline-flex items-center gap-2 rounded-2xl bg-green-600 font-semibold text-white shadow hover:bg-green-700 ${
-        compact ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm'
+        compact ? 'px-3 py-2 text-xs' : 'px-4 py-2 text-sm'
       }`}
     >
       {compact ? '💬 WhatsApp' : '💬 Enviar WhatsApp'}

@@ -6,6 +6,7 @@ import OrdersFilters from '@/components/admin/OrdersFilters';
 import OrdersStats from '@/components/admin/OrdersStats';
 import AdminShell from '@/components/admin/AdminShell';
 import OrderQuickActions from '@/components/admin/OrderQuickActions';
+import OrderWhatsAppButton from '@/components/admin/OrderWhatsAppButton';
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat('es-AR', {
@@ -184,54 +185,67 @@ export default async function PedidosPage({ searchParams }: PageProps) {
                     className="rounded-2xl border p-4 transition hover:bg-gray-50"
                   >
                     <div className="flex flex-col gap-4">
-                      <Link
-                        href={`/admin/pedidos/${order.id}`}
-                        className="block"
-                      >
-                        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                          <div className="min-w-0">
-                            <p className="font-semibold">#{order.order_number}</p>
+                      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                        <div className="min-w-0">
+                          <p className="font-semibold">#{order.order_number}</p>
 
-                            <p className="text-sm text-gray-500">
-                              {order.customer_name || 'Cliente sin nombre'}
-                            </p>
+                          <p className="text-sm text-gray-500">
+                            {order.customer_name || 'Cliente sin nombre'}
+                          </p>
 
-                            {order.customer_phone ? (
-                              <p className="text-xs text-gray-400">
-                                {order.customer_phone}
-                              </p>
-                            ) : null}
-
+                          {order.customer_phone ? (
                             <p className="text-xs text-gray-400">
-                              {formatDate(order.created_at)}
+                              {order.customer_phone}
                             </p>
-                          </div>
+                          ) : null}
 
-                          <div className="space-y-2 text-left md:text-right">
-                            <p className="font-semibold">
-                              {formatCurrency(Number(order.total ?? 0))}
-                            </p>
+                          <p className="text-xs text-gray-400">
+                            {formatDate(order.created_at)}
+                          </p>
+                        </div>
 
-                            <div className="flex flex-wrap gap-2 md:justify-end">
-                              <span
-                                className={`inline-block rounded-full px-3 py-1 text-xs ${getStatusClasses(
-                                  order.status
-                                )}`}
-                              >
-                                {getStatusLabel(order.status)}
+                        <div className="space-y-2 text-left md:text-right">
+                          <p className="font-semibold">
+                            {formatCurrency(Number(order.total ?? 0))}
+                          </p>
+
+                          <div className="flex flex-wrap gap-2 md:justify-end">
+                            <span
+                              className={`inline-block rounded-full px-3 py-1 text-xs ${getStatusClasses(
+                                order.status
+                              )}`}
+                            >
+                              {getStatusLabel(order.status)}
+                            </span>
+
+                            {hasNotes && (
+                              <span className="inline-block rounded-full bg-amber-100 px-3 py-1 text-xs text-amber-800">
+                                📝 Con observaciones
                               </span>
-
-                              {hasNotes && (
-                                <span className="inline-block rounded-full bg-amber-100 px-3 py-1 text-xs text-amber-800">
-                                  📝 Con observaciones
-                                </span>
-                              )}
-                            </div>
+                            )}
                           </div>
                         </div>
-                      </Link>
+                      </div>
 
-                      <div className="border-t pt-3">
+                      <div className="flex flex-wrap gap-2 border-t pt-3">
+                        <Link
+                          href={`/admin/pedidos/${order.id}`}
+                          className="inline-flex items-center gap-2 rounded-2xl border px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                        >
+                          Ver detalle
+                        </Link>
+
+                        <OrderWhatsAppButton
+                          phone={order.customer_phone}
+                          customerName={order.customer_name}
+                          orderNumber={order.order_number}
+                          total={Number(order.total ?? 0)}
+                          status={order.status}
+                          compact
+                        />
+                      </div>
+
+                      <div>
                         <OrderQuickActions
                           orderId={order.id}
                           currentStatus={order.status}

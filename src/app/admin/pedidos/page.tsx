@@ -16,10 +16,10 @@ function formatCurrency(value: number) {
 }
 
 function formatDate(value: string) {
-  return new Intl.NumberFormat('es-AR').format ? new Intl.DateTimeFormat('es-AR', {
+  return new Intl.DateTimeFormat('es-AR', {
     dateStyle: 'short',
     timeStyle: 'short',
-  }).format(new Date(value)) : value;
+  }).format(new Date(value));
 }
 
 function getStatusClasses(status: string) {

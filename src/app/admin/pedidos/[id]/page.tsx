@@ -5,6 +5,7 @@ import { getCurrentUserStore } from '@/lib/stores';
 import AdminShell from '@/components/admin/AdminShell';
 import OrderWhatsAppButton from '@/components/admin/OrderWhatsAppButton';
 import CopyPhoneButton from '@/components/admin/CopyPhoneButton';
+import CopyAddressButton from '@/components/admin/CopyAddressButton';
 import UpdateOrderStatus from './UpdateOrderStatus';
 
 type PageProps = {
@@ -252,11 +253,15 @@ export default async function PedidoDetallePage({ params }: PageProps) {
               </div>
 
               {order.delivery_address ? (
-                <div>
-                  <p className="text-gray-500">Dirección</p>
-                  <p className="font-medium text-gray-900">
-                    {order.delivery_address}
-                  </p>
+                <div className="space-y-2">
+                  <div>
+                    <p className="text-gray-500">Dirección</p>
+                    <p className="font-medium text-gray-900">
+                      {order.delivery_address}
+                    </p>
+                  </div>
+
+                  <CopyAddressButton address={order.delivery_address} />
                 </div>
               ) : null}
             </div>

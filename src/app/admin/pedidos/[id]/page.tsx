@@ -3,6 +3,7 @@ import { notFound, redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getCurrentUserStore } from '@/lib/stores';
 import AdminShell from '@/components/admin/AdminShell';
+import OrderWhatsAppButton from '@/components/admin/OrderWhatsAppButton';
 import UpdateOrderStatus from './UpdateOrderStatus';
 
 type PageProps = {
@@ -212,6 +213,18 @@ export default async function PedidoDetallePage({ params }: PageProps) {
                   <p className="font-medium text-gray-900">
                     {order.customer_email}
                   </p>
+                </div>
+              ) : null}
+
+              {order.customer_phone ? (
+                <div className="pt-2">
+                  <OrderWhatsAppButton
+                    phone={order.customer_phone}
+                    customerName={order.customer_name}
+                    orderNumber={order.order_number}
+                    total={Number(order.total)}
+                    status={order.status}
+                  />
                 </div>
               ) : null}
             </div>

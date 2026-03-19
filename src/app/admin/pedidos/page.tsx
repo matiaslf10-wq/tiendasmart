@@ -88,6 +88,8 @@ type PageProps = {
   searchParams: Promise<{
     status?: string;
     q?: string;
+    delivery?: string;
+    notes?: string;
   }>;
 };
 
@@ -122,6 +124,8 @@ export default async function PedidosPage({ searchParams }: PageProps) {
 
   const status = resolvedSearchParams.status ?? 'all';
   const queryText = resolvedSearchParams.q ?? '';
+  const delivery = resolvedSearchParams.delivery ?? 'all';
+  const notes = resolvedSearchParams.notes ?? 'all';
 
   const { data, error } = await supabase
     .from('orders')
@@ -146,14 +150,40 @@ export default async function PedidosPage({ searchParams }: PageProps) {
   ).length;
 
   const statusFilteredOrders =
-    status && status !== 'all'
+    status !== 'all'
       ? allOrders.filter((order) => order.status === status)
       : allOrders;
 
-  const visibleOrders = queryText.trim()
-    ? statusFilteredOrders.filter((order) => matchesSearch(order, queryText))
-    : statusFilteredOrders;
+  const deliveryFilteredOrders =
+    delivery !== 'all'
+      ? statusFilteredOrders.filter((order) =>
+          delivery === 'delivery'
+            ? order.delivery_type === 'delivery'
+            : order.delivery_type !== 'delivery'
+        )
+      : statusFilteredOrders;
 
+  const notesFilteredOrders =
+    notes === 'with_notes'
+      ? deliveryFilteredOrders.filter((order) => Boolean(order.notes?.trim()))
+      : deliveryFilteredOrders;
+
+  const searchedOrders = queryText.trim()
+    ? notesFilteredOrders.filter((order) => matchesSearch(order, queryText))
+    : notesFilteredOrders;
+
+  const visibleOrders = [...searchedOrders].sort((a, b) => {
+    const aPending = a.status === 'pending' ? 1 : 0;
+    const bPending = b.status === 'pending' ? 1 : 0;
+
+    if (aPending !== bPending) {
+      return bPending - aPending;
+    }
+
+    return (
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  });
   return (
     <AdminShell
       title="Pedidos"
@@ -178,15 +208,21 @@ export default async function PedidosPage({ searchParams }: PageProps) {
           <OrdersStats orders={visibleOrders || []} />
           <OrdersFilters />
 
-          {queryText.trim() ? (
+          {(queryText.trim() || delivery !== 'all' || notes !== 'all') && (
             <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
-              Mostrando resultados para{' '}
-              <span className="font-semibold text-gray-900">
-                “{queryText.trim()}”
-              </span>
-              .
+              {queryText.trim() ? (
+                <>
+                  Mostrando resultados para{' '}
+                  <span className="font-semibold text-gray-900">
+                    “{queryText.trim()}”
+                  </span>
+                  .
+                </>
+              ) : (
+                <>Filtros aplicados.</>
+              )}
             </div>
-          ) : null}
+          )}
 
           {!visibleOrders || visibleOrders.length === 0 ? (
             <p>No hay pedidos para los filtros seleccionados.</p>
@@ -200,7 +236,9 @@ export default async function PedidosPage({ searchParams }: PageProps) {
                 return (
                   <div
                     key={order.id}
-                    className="rounded-2xl border p-4 transition hover:bg-gray-50"
+                    className={`rounded-2xl border p-4 transition hover:bg-gray-50 ${
+  order.status === 'pending' ? 'border-yellow-300 bg-yellow-50/40' : ''
+}`}
                   >
                     <div className="flex flex-col gap-4">
                       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">

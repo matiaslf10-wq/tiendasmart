@@ -5,7 +5,6 @@ import { getCurrentUserStore } from '@/lib/stores';
 import OrdersFilters from '@/components/admin/OrdersFilters';
 import OrdersStats from '@/components/admin/OrdersStats';
 import AdminShell from '@/components/admin/AdminShell';
-import OrderWhatsAppButton from '@/components/admin/OrderWhatsAppButton';
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat('es-AR', {
@@ -210,15 +209,6 @@ export default async function PedidosPage({ searchParams }: PageProps) {
                       >
                         {getStatusLabel(order.status)}
                       </span>
-
-                      <div onClick={(e) => e.preventDefault()}>
-                        <OrderWhatsAppButton
-                          customerName={order.customer_name}
-                          customerPhone={order.customer_phone}
-                          orderNumber={order.order_number}
-                          compact
-                        />
-                      </div>
                     </div>
                   </div>
                 </Link>

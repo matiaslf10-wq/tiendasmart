@@ -5,8 +5,6 @@ import { getCurrentUserStore } from '@/lib/stores';
 import OrdersFilters from '@/components/admin/OrdersFilters';
 import OrdersStats from '@/components/admin/OrdersStats';
 import AdminShell from '@/components/admin/AdminShell';
-import OrdersRealtimeListener from '@/components/admin/OrdersRealtimeListener';
-import OrderQuickActions from '@/components/admin/OrderQuickActions';
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat('es-AR', {
@@ -145,8 +143,6 @@ export default async function PedidosPage({ searchParams }: PageProps) {
       current="pedidos"
       pendingOrdersCount={pendingOrdersCount}
     >
-      <OrdersRealtimeListener storeId={store.id} />
-
       <div className="-mt-1">
         <p className="text-sm text-gray-500">
           Gestión de pedidos de tu tienda.
@@ -213,13 +209,6 @@ export default async function PedidosPage({ searchParams }: PageProps) {
                       >
                         {getStatusLabel(order.status)}
                       </span>
-
-                      <div onClick={(e) => e.preventDefault()}>
-                        <OrderQuickActions
-                          orderId={order.id}
-                          currentStatus={order.status}
-                        />
-                      </div>
                     </div>
                   </div>
                 </Link>

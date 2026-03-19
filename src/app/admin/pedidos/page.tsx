@@ -61,6 +61,16 @@ function getStatusLabel(status: string) {
   }
 }
 
+function getDeliveryTypeLabel(deliveryType: string | null) {
+  return deliveryType === 'delivery' ? 'Envío' : 'Retiro';
+}
+
+function getDeliveryTypeClasses(deliveryType: string | null) {
+  return deliveryType === 'delivery'
+    ? 'bg-purple-100 text-purple-800'
+    : 'bg-slate-100 text-slate-700';
+}
+
 type Order = {
   id: string;
   order_number: number | null;
@@ -69,6 +79,8 @@ type Order = {
   total: number | string | null;
   status: string;
   notes: string | null;
+  delivery_type: string | null;
+  delivery_address: string | null;
   created_at: string;
 };
 
@@ -87,11 +99,13 @@ function matchesSearch(order: Order, rawQuery: string) {
   const customerName = (order.customer_name ?? '').toLowerCase();
   const customerPhone = (order.customer_phone ?? '').toLowerCase();
   const orderNumber = String(order.order_number ?? '').toLowerCase();
+  const deliveryAddress = (order.delivery_address ?? '').toLowerCase();
 
   return (
     customerName.includes(q) ||
     customerPhone.includes(q) ||
-    orderNumber.includes(q)
+    orderNumber.includes(q) ||
+    deliveryAddress.includes(q)
   );
 }
 
@@ -119,6 +133,8 @@ export default async function PedidosPage({ searchParams }: PageProps) {
       total,
       status,
       notes,
+      delivery_type,
+      delivery_address,
       created_at
     `)
     .eq('store_id', store.id)
@@ -178,6 +194,8 @@ export default async function PedidosPage({ searchParams }: PageProps) {
             <div className="space-y-4">
               {visibleOrders.map((order) => {
                 const hasNotes = Boolean(order.notes?.trim());
+                const isDelivery = order.delivery_type === 'delivery';
+                const hasAddress = Boolean(order.delivery_address?.trim());
 
                 return (
                   <div
@@ -186,7 +204,7 @@ export default async function PedidosPage({ searchParams }: PageProps) {
                   >
                     <div className="flex flex-col gap-4">
                       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                        <div className="min-w-0">
+                        <div className="min-w-0 space-y-1">
                           <p className="font-semibold">#{order.order_number}</p>
 
                           <p className="text-sm text-gray-500">
@@ -202,6 +220,17 @@ export default async function PedidosPage({ searchParams }: PageProps) {
                           <p className="text-xs text-gray-400">
                             {formatDate(order.created_at)}
                           </p>
+
+                          {isDelivery && hasAddress ? (
+                            <div className="pt-1">
+                              <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400">
+                                Dirección
+                              </p>
+                              <p className="text-xs text-gray-600">
+                                {order.delivery_address}
+                              </p>
+                            </div>
+                          ) : null}
                         </div>
 
                         <div className="space-y-2 text-left md:text-right">
@@ -216,6 +245,14 @@ export default async function PedidosPage({ searchParams }: PageProps) {
                               )}`}
                             >
                               {getStatusLabel(order.status)}
+                            </span>
+
+                            <span
+                              className={`inline-block rounded-full px-3 py-1 text-xs ${getDeliveryTypeClasses(
+                                order.delivery_type
+                              )}`}
+                            >
+                              {getDeliveryTypeLabel(order.delivery_type)}
                             </span>
 
                             {hasNotes && (

@@ -110,82 +110,83 @@ export default function OrdersFilters() {
         </p>
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-[220px_220px_220px_minmax(0,1fr)_auto]">
-        <div>
-          <label
-            htmlFor="status"
-            className="mb-2 block text-sm font-medium text-gray-700"
-          >
-            Estado
-          </label>
+      <div className="space-y-4">
+        <div className="grid gap-4 md:grid-cols-3">
+          <div>
+            <label
+              htmlFor="status"
+              className="mb-2 block text-sm font-medium text-gray-700"
+            >
+              Estado
+            </label>
+            <select
+              id="status"
+              value={currentStatus}
+              onChange={(e) => updateParams({ status: e.target.value })}
+              className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-black"
+            >
+              {STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
 
-          <select
-            id="status"
-            value={currentStatus}
-            onChange={(e) => updateParams({ status: e.target.value })}
-            className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-black"
-          >
-            {STATUS_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+          <div>
+            <label
+              htmlFor="delivery"
+              className="mb-2 block text-sm font-medium text-gray-700"
+            >
+              Entrega
+            </label>
+            <select
+              id="delivery"
+              value={currentDelivery}
+              onChange={(e) => updateParams({ delivery: e.target.value })}
+              className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-black"
+            >
+              {DELIVERY_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label
+              htmlFor="notes"
+              className="mb-2 block text-sm font-medium text-gray-700"
+            >
+              Observaciones
+            </label>
+            <select
+              id="notes"
+              value={currentNotes}
+              onChange={(e) => updateParams({ notes: e.target.value })}
+              className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-black"
+            >
+              {NOTES_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        <div>
-          <label
-            htmlFor="delivery"
-            className="mb-2 block text-sm font-medium text-gray-700"
-          >
-            Entrega
-          </label>
-
-          <select
-            id="delivery"
-            value={currentDelivery}
-            onChange={(e) => updateParams({ delivery: e.target.value })}
-            className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-black"
-          >
-            {DELIVERY_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label
-            htmlFor="notes"
-            className="mb-2 block text-sm font-medium text-gray-700"
-          >
-            Observaciones
-          </label>
-
-          <select
-            id="notes"
-            value={currentNotes}
-            onChange={(e) => updateParams({ notes: e.target.value })}
-            className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:border-black"
-          >
-            {NOTES_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <form onSubmit={handleSubmit} className="min-w-0">
-          <label
-            htmlFor="q"
-            className="mb-2 block text-sm font-medium text-gray-700"
-          >
-            Buscar
-          </label>
-
-          <div className="flex gap-2">
+        <form
+          onSubmit={handleSubmit}
+          className="flex flex-col gap-3 md:flex-row md:items-end"
+        >
+          <div className="min-w-0 flex-1">
+            <label
+              htmlFor="q"
+              className="mb-2 block text-sm font-medium text-gray-700"
+            >
+              Buscar
+            </label>
             <input
               id="q"
               type="text"
@@ -194,26 +195,26 @@ export default function OrdersFilters() {
               placeholder="Ej: Juan, 1133445566, 1024 o dirección"
               className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-black"
             />
+          </div>
 
+          <div className="flex gap-3 md:shrink-0">
             <button
               type="submit"
-              className="rounded-2xl bg-black px-4 py-3 text-sm font-medium text-white transition hover:opacity-90"
+              className="rounded-2xl bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90"
             >
               Buscar
             </button>
+
+            <button
+              type="button"
+              onClick={handleClear}
+              disabled={!hasFilters}
+              className="rounded-2xl border border-gray-300 px-5 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Limpiar filtros
+            </button>
           </div>
         </form>
-
-        <div className="flex items-end">
-          <button
-            type="button"
-            onClick={handleClear}
-            disabled={!hasFilters}
-            className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Limpiar
-          </button>
-        </div>
       </div>
     </section>
   );

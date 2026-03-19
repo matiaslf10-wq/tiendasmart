@@ -3,6 +3,7 @@ import { notFound, redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getCurrentUserStore } from '@/lib/stores';
 import AdminShell from '@/components/admin/AdminShell';
+import OrderDetailRealtimeListener from '@/components/admin/OrderDetailRealtimeListener';
 import UpdateOrderStatus from './UpdateOrderStatus';
 
 type PageProps = {
@@ -115,6 +116,8 @@ export default async function PedidoDetallePage({ params }: PageProps) {
       storeSlug={store.slug}
       current="pedidos"
     >
+      <OrderDetailRealtimeListener storeId={store.id} orderId={order.id} />
+
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div className="space-y-2">
           <Link

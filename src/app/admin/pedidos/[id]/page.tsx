@@ -3,7 +3,7 @@ import { notFound, redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getCurrentUserStore } from '@/lib/stores';
 import AdminShell from '@/components/admin/AdminShell';
-import OrderDetailRealtimeListener from '@/components/admin/OrderDetailRealtimeListener';
+import OrderWhatsAppButton from '@/components/admin/OrderWhatsAppButton';
 import UpdateOrderStatus from './UpdateOrderStatus';
 
 type PageProps = {
@@ -116,8 +116,6 @@ export default async function PedidoDetallePage({ params }: PageProps) {
       storeSlug={store.slug}
       current="pedidos"
     >
-      <OrderDetailRealtimeListener storeId={store.id} orderId={order.id} />
-
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div className="space-y-2">
           <Link
@@ -137,13 +135,21 @@ export default async function PedidoDetallePage({ params }: PageProps) {
           </div>
         </div>
 
-        <span
-          className={`inline-flex rounded-full border px-3 py-1 text-sm font-medium ${getStatusClasses(
-            order.status
-          )}`}
-        >
-          {getStatusLabel(order.status)}
-        </span>
+        <div className="flex flex-col items-start gap-2 md:items-end">
+          <span
+            className={`inline-flex rounded-full border px-3 py-1 text-sm font-medium ${getStatusClasses(
+              order.status
+            )}`}
+          >
+            {getStatusLabel(order.status)}
+          </span>
+
+          <OrderWhatsAppButton
+            customerName={order.customer_name}
+            customerPhone={order.customer_phone}
+            orderNumber={order.order_number}
+          />
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">

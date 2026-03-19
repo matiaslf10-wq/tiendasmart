@@ -61,16 +61,6 @@ function getStatusLabel(status: string) {
   }
 }
 
-function getDeliveryTypeLabel(deliveryType: string | null) {
-  return deliveryType === 'delivery' ? 'Envío' : 'Retiro';
-}
-
-function getDeliveryTypeClasses(deliveryType: string | null) {
-  return deliveryType === 'delivery'
-    ? 'bg-purple-100 text-purple-800'
-    : 'bg-slate-100 text-slate-700';
-}
-
 type Order = {
   id: string;
   order_number: number | null;
@@ -78,7 +68,6 @@ type Order = {
   customer_phone: string | null;
   total: number | string | null;
   status: string;
-  delivery_type: string | null;
   created_at: string;
 };
 
@@ -128,7 +117,6 @@ export default async function PedidosPage({ searchParams }: PageProps) {
       customer_phone,
       total,
       status,
-      delivery_type,
       created_at
     `)
     .eq('store_id', store.id)
@@ -217,23 +205,13 @@ export default async function PedidosPage({ searchParams }: PageProps) {
                           {formatCurrency(Number(order.total ?? 0))}
                         </p>
 
-                        <div className="flex flex-wrap gap-2 md:justify-end">
-                          <span
-                            className={`inline-block rounded-full px-3 py-1 text-xs ${getStatusClasses(
-                              order.status
-                            )}`}
-                          >
-                            {getStatusLabel(order.status)}
-                          </span>
-
-                          <span
-                            className={`inline-block rounded-full px-3 py-1 text-xs ${getDeliveryTypeClasses(
-                              order.delivery_type
-                            )}`}
-                          >
-                            {getDeliveryTypeLabel(order.delivery_type)}
-                          </span>
-                        </div>
+                        <span
+                          className={`inline-block rounded-full px-3 py-1 text-xs ${getStatusClasses(
+                            order.status
+                          )}`}
+                        >
+                          {getStatusLabel(order.status)}
+                        </span>
                       </div>
                     </div>
 

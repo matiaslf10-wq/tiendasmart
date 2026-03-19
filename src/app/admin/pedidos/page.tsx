@@ -67,6 +67,7 @@ type Order = {
   customer_phone: string | null;
   total: number | string | null;
   status: string;
+  notes: string | null;
   created_at: string;
 };
 
@@ -116,6 +117,7 @@ export default async function PedidosPage({ searchParams }: PageProps) {
       customer_phone,
       total,
       status,
+      notes,
       created_at
     `)
     .eq('store_id', store.id)
@@ -173,60 +175,72 @@ export default async function PedidosPage({ searchParams }: PageProps) {
             <p>No hay pedidos para los filtros seleccionados.</p>
           ) : (
             <div className="space-y-4">
-              {visibleOrders.map((order) => (
-                <div
-                  key={order.id}
-                  className="rounded-2xl border p-4 transition hover:bg-gray-50"
-                >
-                  <div className="flex flex-col gap-4">
-                    <Link
-                      href={`/admin/pedidos/${order.id}`}
-                      className="block"
-                    >
-                      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                        <div className="min-w-0">
-                          <p className="font-semibold">#{order.order_number}</p>
+              {visibleOrders.map((order) => {
+                const hasNotes = Boolean(order.notes?.trim());
 
-                          <p className="text-sm text-gray-500">
-                            {order.customer_name || 'Cliente sin nombre'}
-                          </p>
+                return (
+                  <div
+                    key={order.id}
+                    className="rounded-2xl border p-4 transition hover:bg-gray-50"
+                  >
+                    <div className="flex flex-col gap-4">
+                      <Link
+                        href={`/admin/pedidos/${order.id}`}
+                        className="block"
+                      >
+                        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                          <div className="min-w-0">
+                            <p className="font-semibold">#{order.order_number}</p>
 
-                          {order.customer_phone ? (
-                            <p className="text-xs text-gray-400">
-                              {order.customer_phone}
+                            <p className="text-sm text-gray-500">
+                              {order.customer_name || 'Cliente sin nombre'}
                             </p>
-                          ) : null}
 
-                          <p className="text-xs text-gray-400">
-                            {formatDate(order.created_at)}
-                          </p>
+                            {order.customer_phone ? (
+                              <p className="text-xs text-gray-400">
+                                {order.customer_phone}
+                              </p>
+                            ) : null}
+
+                            <p className="text-xs text-gray-400">
+                              {formatDate(order.created_at)}
+                            </p>
+                          </div>
+
+                          <div className="space-y-2 text-left md:text-right">
+                            <p className="font-semibold">
+                              {formatCurrency(Number(order.total ?? 0))}
+                            </p>
+
+                            <div className="flex flex-wrap gap-2 md:justify-end">
+                              <span
+                                className={`inline-block rounded-full px-3 py-1 text-xs ${getStatusClasses(
+                                  order.status
+                                )}`}
+                              >
+                                {getStatusLabel(order.status)}
+                              </span>
+
+                              {hasNotes && (
+                                <span className="inline-block rounded-full bg-amber-100 px-3 py-1 text-xs text-amber-800">
+                                  📝 Con observaciones
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </div>
+                      </Link>
 
-                        <div className="space-y-2 text-left md:text-right">
-                          <p className="font-semibold">
-                            {formatCurrency(Number(order.total ?? 0))}
-                          </p>
-
-                          <span
-                            className={`inline-block rounded-full px-3 py-1 text-xs ${getStatusClasses(
-                              order.status
-                            )}`}
-                          >
-                            {getStatusLabel(order.status)}
-                          </span>
-                        </div>
+                      <div className="border-t pt-3">
+                        <OrderQuickActions
+                          orderId={order.id}
+                          currentStatus={order.status}
+                        />
                       </div>
-                    </Link>
-
-                    <div className="border-t pt-3">
-                      <OrderQuickActions
-                        orderId={order.id}
-                        currentStatus={order.status}
-                      />
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </>

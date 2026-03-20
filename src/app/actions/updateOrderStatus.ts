@@ -15,6 +15,34 @@ const VALID_STATUSES = [
 
 type OrderStatus = (typeof VALID_STATUSES)[number];
 
+const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+  pending: ['confirmed', 'cancelled'],
+  confirmed: ['in_preparation', 'cancelled'],
+  in_preparation: ['ready', 'cancelled'],
+  ready: ['delivered', 'cancelled'],
+  delivered: [],
+  cancelled: [],
+};
+
+function getStatusLabel(status: string) {
+  switch (status) {
+    case 'pending':
+      return 'Pendiente';
+    case 'confirmed':
+      return 'Confirmado';
+    case 'in_preparation':
+      return 'En preparación';
+    case 'ready':
+      return 'Listo';
+    case 'delivered':
+      return 'Entregado';
+    case 'cancelled':
+      return 'Cancelado';
+    default:
+      return status;
+  }
+}
+
 export async function updateOrderStatus(orderId: string, status: string) {
   if (!orderId) {
     return { success: false, error: 'Falta el ID del pedido.' };
@@ -58,8 +86,22 @@ export async function updateOrderStatus(orderId: string, status: string) {
     return { success: false, error: 'Pedido no encontrado o sin permisos.' };
   }
 
-  if (currentOrder.status === status) {
+  const currentStatus = currentOrder.status as OrderStatus;
+  const nextStatus = status as OrderStatus;
+
+  if (currentStatus === nextStatus) {
     return { success: true };
+  }
+
+  const allowedNextStatuses = ALLOWED_TRANSITIONS[currentStatus] ?? [];
+
+  if (!allowedNextStatuses.includes(nextStatus)) {
+    return {
+      success: false,
+      error: `No se puede pasar de "${getStatusLabel(
+        currentStatus
+      )}" a "${getStatusLabel(nextStatus)}".`,
+    };
   }
 
   const { error: updateError } = await supabase
@@ -77,8 +119,8 @@ export async function updateOrderStatus(orderId: string, status: string) {
     .insert({
       order_id: orderId,
       store_id: store.id,
-      from_status: currentOrder.status,
-      to_status: status,
+      from_status: currentStatus,
+      to_status: nextStatus,
       changed_by: changedBy,
     });
 

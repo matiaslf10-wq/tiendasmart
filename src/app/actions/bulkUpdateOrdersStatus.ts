@@ -15,6 +15,15 @@ const VALID_STATUSES = [
 
 type OrderStatus = (typeof VALID_STATUSES)[number];
 
+const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+  pending: ['confirmed', 'cancelled'],
+  confirmed: ['in_preparation', 'cancelled'],
+  in_preparation: ['ready', 'cancelled'],
+  ready: ['delivered', 'cancelled'],
+  delivered: [],
+  cancelled: [],
+};
+
 export async function bulkUpdateOrdersStatus(
   orderIds: string[],
   status: string
@@ -25,6 +34,15 @@ export async function bulkUpdateOrdersStatus(
 
   if (!VALID_STATUSES.includes(status as OrderStatus)) {
     return { success: false, error: 'Estado inválido.' };
+  }
+
+  const nextStatus = status as OrderStatus;
+
+  if (!ALLOWED_TRANSITIONS.pending.includes(nextStatus)) {
+    return {
+      success: false,
+      error: 'La acción masiva solo permite pasar pedidos pendientes a estados válidos.',
+    };
   }
 
   const membership = await getCurrentUserStore();
@@ -76,7 +94,7 @@ export async function bulkUpdateOrdersStatus(
 
   const { error: updateError } = await supabase
     .from('orders')
-    .update({ status })
+    .update({ status: nextStatus })
     .in('id', pendingIds)
     .eq('store_id', store.id);
 
@@ -91,7 +109,7 @@ export async function bulkUpdateOrdersStatus(
         order_id: order.id,
         store_id: store.id,
         from_status: order.status,
-        to_status: status,
+        to_status: nextStatus,
         changed_by: changedBy,
       }))
     );

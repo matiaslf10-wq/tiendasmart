@@ -9,16 +9,36 @@ type Props = {
   currentStatus: string;
 };
 
-const STATUSES = [
-  { value: 'pending', label: 'Pendiente' },
-  { value: 'confirmed', label: 'Confirmado' },
-  { value: 'in_preparation', label: 'En preparación' },
-  { value: 'ready', label: 'Listo' },
-  { value: 'delivered', label: 'Entregado' },
-  { value: 'cancelled', label: 'Cancelado' },
-];
+const VALID_STATUSES = [
+  'pending',
+  'confirmed',
+  'in_preparation',
+  'ready',
+  'delivered',
+  'cancelled',
+] as const;
 
-function getButtonClasses(status: string, currentStatus: string) {
+type OrderStatus = (typeof VALID_STATUSES)[number];
+
+const STATUS_LABELS: Record<OrderStatus, string> = {
+  pending: 'Pendiente',
+  confirmed: 'Confirmado',
+  in_preparation: 'En preparación',
+  ready: 'Listo',
+  delivered: 'Entregado',
+  cancelled: 'Cancelado',
+};
+
+const ALLOWED_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+  pending: ['confirmed', 'cancelled'],
+  confirmed: ['in_preparation', 'cancelled'],
+  in_preparation: ['ready', 'cancelled'],
+  ready: ['delivered', 'cancelled'],
+  delivered: [],
+  cancelled: [],
+};
+
+function getButtonClasses(status: OrderStatus, currentStatus: OrderStatus) {
   const isActive = status === currentStatus;
 
   if (isActive) {
@@ -43,6 +63,10 @@ function getButtonClasses(status: string, currentStatus: string) {
   }
 }
 
+function isValidStatus(status: string): status is OrderStatus {
+  return VALID_STATUSES.includes(status as OrderStatus);
+}
+
 export default function UpdateOrderStatus({
   orderId,
   currentStatus,
@@ -50,51 +74,83 @@ export default function UpdateOrderStatus({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
+  const [tone, setTone] = useState<'success' | 'error' | null>(null);
   const [localStatus, setLocalStatus] = useState(currentStatus);
 
-  function handleChange(status: string) {
-    if (status === localStatus) return;
+  if (!isValidStatus(localStatus)) {
+    return (
+      <p className="text-sm text-red-600">
+        El estado actual del pedido no es válido.
+      </p>
+    );
+  }
+
+  const allowedNextStatuses = ALLOWED_TRANSITIONS[localStatus];
+
+  function handleChange(nextStatus: OrderStatus) {
+    if (nextStatus === localStatus) return;
 
     setMessage(null);
+    setTone(null);
 
     startTransition(async () => {
       const previousStatus = localStatus;
 
-      setLocalStatus(status);
+      setLocalStatus(nextStatus);
 
-      const result = await updateOrderStatus(orderId, status);
+      const result = await updateOrderStatus(orderId, nextStatus);
 
       if (!result.success) {
         setLocalStatus(previousStatus);
+        setTone('error');
         setMessage(result.error ?? 'No se pudo actualizar el estado.');
         return;
       }
 
-      setMessage('Estado actualizado.');
+      setTone('success');
+      setMessage(`Estado actualizado a "${STATUS_LABELS[nextStatus]}".`);
       router.refresh();
     });
   }
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap gap-2">
-        {STATUSES.map((status) => (
-          <button
-            key={status.value}
-            type="button"
-            onClick={() => handleChange(status.value)}
-            disabled={isPending || status.value === localStatus}
-            className={`rounded-full border px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60 ${getButtonClasses(
-              status.value,
-              localStatus
-            )}`}
-          >
-            {status.label}
-          </button>
-        ))}
-      </div>
+      <p className="text-sm text-gray-600">
+        Estado actual: <strong>{STATUS_LABELS[localStatus]}</strong>
+      </p>
 
-      {message ? <p className="text-sm text-gray-500">{message}</p> : null}
+      {allowedNextStatuses.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {allowedNextStatuses.map((status) => (
+            <button
+              key={status}
+              type="button"
+              onClick={() => handleChange(status)}
+              disabled={isPending}
+              className={`rounded-full border px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-60 ${getButtonClasses(
+                status,
+                localStatus
+              )}`}
+            >
+              {isPending ? 'Actualizando...' : `Marcar como ${STATUS_LABELS[status]}`}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-gray-500">
+          Este pedido ya no tiene más cambios de estado disponibles.
+        </p>
+      )}
+
+      {message ? (
+        <p
+          className={`text-sm ${
+            tone === 'error' ? 'text-red-600' : 'text-gray-600'
+          }`}
+        >
+          {message}
+        </p>
+      ) : null}
     </div>
   );
 }

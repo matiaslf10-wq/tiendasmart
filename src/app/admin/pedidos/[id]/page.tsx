@@ -6,10 +6,28 @@ import AdminShell from '@/components/admin/AdminShell';
 import OrderWhatsAppButton from '@/components/admin/OrderWhatsAppButton';
 import CopyPhoneButton from '@/components/admin/CopyPhoneButton';
 import CopyAddressButton from '@/components/admin/CopyAddressButton';
+import OrderStatusTimeline from '@/components/admin/OrderStatusTimeline';
 import UpdateOrderStatus from './UpdateOrderStatus';
 
 type PageProps = {
   params: Promise<{ id: string }>;
+};
+
+type OrderItem = {
+  id: string;
+  product_name: string;
+  unit_price: number | string;
+  quantity: number;
+  line_total: number | string;
+};
+
+type OrderStatusHistoryItem = {
+  id: string;
+  from_status: string | null;
+  to_status: string;
+  changed_by: string | null;
+  note: string | null;
+  created_at: string;
 };
 
 function formatCurrency(value: number) {
@@ -100,6 +118,14 @@ export default async function PedidoDetallePage({ params }: PageProps) {
         unit_price,
         quantity,
         line_total
+      ),
+      order_status_history (
+        id,
+        from_status,
+        to_status,
+        changed_by,
+        note,
+        created_at
       )
     `)
     .eq('id', id)
@@ -109,6 +135,17 @@ export default async function PedidoDetallePage({ params }: PageProps) {
   if (error || !order) {
     notFound();
   }
+
+  const orderItems = ((order.order_items ?? []) as OrderItem[]).sort((a, b) =>
+    a.product_name.localeCompare(b.product_name)
+  );
+
+  const orderStatusHistory = (
+    (order.order_status_history ?? []) as OrderStatusHistoryItem[]
+  ).sort(
+    (a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
 
   return (
     <AdminShell
@@ -154,7 +191,7 @@ export default async function PedidoDetallePage({ params }: PageProps) {
             </h2>
 
             <div className="space-y-4">
-              {order.order_items.map((item: any) => (
+              {orderItems.map((item) => (
                 <div
                   key={item.id}
                   className="flex items-start justify-between gap-4 rounded-2xl border border-gray-100 p-4"
@@ -305,6 +342,14 @@ export default async function PedidoDetallePage({ params }: PageProps) {
               orderId={order.id}
               currentStatus={order.status}
             />
+          </section>
+
+          <section className="rounded-2xl border bg-white p-5">
+            <h2 className="mb-4 text-lg font-semibold text-gray-900">
+              Historial
+            </h2>
+
+            <OrderStatusTimeline events={orderStatusHistory} />
           </section>
         </div>
       </div>

@@ -52,22 +52,46 @@ export async function bulkUpdateOrdersStatus(
     return { success: false, error: fetchError.message };
   }
 
-  const pendingOrders = (orders ?? []).filter((order) => order.status === 'pending');
+  const pendingOrders = (orders ?? []).filter(
+    (order) => order.status === 'pending'
+  );
 
   if (pendingOrders.length === 0) {
-    return { success: false, error: 'No hay pedidos pendientes para actualizar.' };
+    return {
+      success: false,
+      error: 'No hay pedidos pendientes para actualizar.',
+    };
   }
 
   const pendingIds = pendingOrders.map((order) => order.id);
 
-  const { error } = await supabase
+  const { error: updateError } = await supabase
     .from('orders')
     .update({ status })
     .in('id', pendingIds)
     .eq('store_id', store.id);
 
-  if (error) {
+  if (updateError) {
     return { success: false, error: 'No se pudieron actualizar los pedidos.' };
+  }
+
+  const { error: historyError } = await supabase
+    .from('order_status_history')
+    .insert(
+      pendingOrders.map((order) => ({
+        order_id: order.id,
+        store_id: store.id,
+        from_status: order.status,
+        to_status: status,
+        changed_by: 'admin_bulk',
+      }))
+    );
+
+  if (historyError) {
+    return {
+      success: false,
+      error: 'Los pedidos se actualizaron, pero falló el historial.',
+    };
   }
 
   revalidatePath('/admin/pedidos');

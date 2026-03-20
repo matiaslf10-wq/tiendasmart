@@ -38,31 +38,46 @@ export async function updateOrderStatus(orderId: string, status: string) {
 
   const supabase = await createClient();
 
-  // 🔒 Validar que el pedido pertenece a la tienda
-  const { data: order, error: fetchError } = await supabase
+  const { data: currentOrder, error: currentOrderError } = await supabase
     .from('orders')
-    .select('id, store_id')
+    .select('id, status')
     .eq('id', orderId)
     .eq('store_id', store.id)
-    .maybeSingle();
+    .single();
 
-  if (fetchError) {
-    return { success: false, error: fetchError.message };
-  }
-
-  if (!order) {
+  if (currentOrderError || !currentOrder) {
     return { success: false, error: 'Pedido no encontrado o sin permisos.' };
   }
 
-  // ✅ Update seguro
-  const { error } = await supabase
+  if (currentOrder.status === status) {
+    return { success: true };
+  }
+
+  const { error: updateError } = await supabase
     .from('orders')
     .update({ status })
     .eq('id', orderId)
     .eq('store_id', store.id);
 
-  if (error) {
+  if (updateError) {
     return { success: false, error: 'No se pudo actualizar el estado.' };
+  }
+
+  const { error: historyError } = await supabase
+    .from('order_status_history')
+    .insert({
+      order_id: orderId,
+      store_id: store.id,
+      from_status: currentOrder.status,
+      to_status: status,
+      changed_by: 'admin',
+    });
+
+  if (historyError) {
+    return {
+      success: false,
+      error: 'Se actualizó el estado, pero falló el historial.',
+    };
   }
 
   revalidatePath('/admin/pedidos');

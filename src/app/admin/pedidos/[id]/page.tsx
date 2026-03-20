@@ -118,14 +118,6 @@ export default async function PedidoDetallePage({ params }: PageProps) {
         unit_price,
         quantity,
         line_total
-      ),
-      order_status_history (
-        id,
-        from_status,
-        to_status,
-        changed_by,
-        note,
-        created_at
       )
     `)
     .eq('id', id)
@@ -136,16 +128,29 @@ export default async function PedidoDetallePage({ params }: PageProps) {
     notFound();
   }
 
+  const { data: historyData, error: historyError } = await supabase
+    .from('order_status_history')
+    .select(`
+      id,
+      from_status,
+      to_status,
+      changed_by,
+      note,
+      created_at
+    `)
+    .eq('order_id', order.id)
+    .eq('store_id', store.id)
+    .order('created_at', { ascending: false });
+
+  if (historyError) {
+    console.error('Error cargando historial del pedido:', historyError);
+  }
+
   const orderItems = ((order.order_items ?? []) as OrderItem[]).sort((a, b) =>
     a.product_name.localeCompare(b.product_name)
   );
 
-  const orderStatusHistory = (
-    (order.order_status_history ?? []) as OrderStatusHistoryItem[]
-  ).sort(
-    (a, b) =>
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  );
+  const orderStatusHistory = (historyData ?? []) as OrderStatusHistoryItem[];
 
   return (
     <AdminShell

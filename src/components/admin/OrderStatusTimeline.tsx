@@ -55,7 +55,7 @@ export default function OrderStatusTimeline({
           key={event.id}
           className="rounded-2xl border border-gray-200 bg-white p-4"
         >
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <p className="font-medium text-gray-900">
                 {getStatusLabel(event.from_status)} →{' '}
@@ -69,7 +69,7 @@ export default function OrderStatusTimeline({
               ) : null}
 
               {event.note ? (
-                <p className="mt-2 text-sm text-gray-600">{event.note}</p>
+                <p className="mt-1 text-sm text-gray-600">{event.note}</p>
               ) : null}
             </div>
 

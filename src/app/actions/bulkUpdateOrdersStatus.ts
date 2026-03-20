@@ -40,6 +40,15 @@ export async function bulkUpdateOrdersStatus(
   const store = membership.stores;
   const supabase = await createClient();
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const changedBy =
+    user?.email ||
+    user?.id ||
+    (membership.role === 'owner' ? 'owner_bulk' : 'admin_bulk');
+
   const uniqueIds = [...new Set(orderIds.filter(Boolean))];
 
   const { data: orders, error: fetchError } = await supabase
@@ -83,7 +92,7 @@ export async function bulkUpdateOrdersStatus(
         store_id: store.id,
         from_status: order.status,
         to_status: status,
-        changed_by: 'admin_bulk',
+        changed_by: changedBy,
       }))
     );
 

@@ -38,6 +38,15 @@ export async function updateOrderStatus(orderId: string, status: string) {
 
   const supabase = await createClient();
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const changedBy =
+    user?.email ||
+    user?.id ||
+    (membership.role === 'owner' ? 'owner' : 'admin');
+
   const { data: currentOrder, error: currentOrderError } = await supabase
     .from('orders')
     .select('id, status')
@@ -70,7 +79,7 @@ export async function updateOrderStatus(orderId: string, status: string) {
       store_id: store.id,
       from_status: currentOrder.status,
       to_status: status,
-      changed_by: 'admin',
+      changed_by: changedBy,
     });
 
   if (historyError) {

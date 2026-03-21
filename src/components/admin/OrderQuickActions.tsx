@@ -9,9 +9,20 @@ type Props = {
   currentStatus: string;
 };
 
+const VALID_STATUSES = [
+  'pending',
+  'confirmed',
+  'in_preparation',
+  'ready',
+  'delivered',
+  'cancelled',
+] as const;
+
+type OrderStatus = (typeof VALID_STATUSES)[number];
+
 const QUICK_ACTIONS_BY_STATUS: Record<
-  string,
-  Array<{ value: string; label: string }>
+  OrderStatus,
+  Array<{ value: OrderStatus; label: string }>
 > = {
   pending: [
     { value: 'confirmed', label: 'Confirmar' },
@@ -25,12 +36,19 @@ const QUICK_ACTIONS_BY_STATUS: Record<
     { value: 'ready', label: 'Marcar listo' },
     { value: 'cancelled', label: 'Cancelar' },
   ],
-  ready: [{ value: 'delivered', label: 'Entregar' }],
+  ready: [
+    { value: 'delivered', label: 'Entregar' },
+    { value: 'cancelled', label: 'Cancelar' },
+  ],
   delivered: [],
   cancelled: [],
 };
 
-function getButtonClass(status: string) {
+function isValidStatus(status: string): status is OrderStatus {
+  return VALID_STATUSES.includes(status as OrderStatus);
+}
+
+function getButtonClass(status: OrderStatus) {
   switch (status) {
     case 'confirmed':
       return 'border-blue-200 bg-blue-50 text-blue-800 hover:bg-blue-100';
@@ -42,12 +60,13 @@ function getButtonClass(status: string) {
       return 'border-gray-300 bg-gray-100 text-gray-800 hover:bg-gray-200';
     case 'cancelled':
       return 'border-red-200 bg-red-50 text-red-800 hover:bg-red-100';
+    case 'pending':
     default:
       return 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50';
   }
 }
 
-function getSuccessMessage(status: string) {
+function getSuccessMessage(status: OrderStatus) {
   switch (status) {
     case 'confirmed':
       return 'Pedido confirmado.';
@@ -77,7 +96,9 @@ export default function OrderQuickActions({
   const [localStatus, setLocalStatus] = useState(currentStatus);
   const timeoutRef = useRef<number | null>(null);
 
-  const actions = QUICK_ACTIONS_BY_STATUS[localStatus] ?? [];
+  useEffect(() => {
+    setLocalStatus(currentStatus);
+  }, [currentStatus]);
 
   useEffect(() => {
     return () => {
@@ -102,7 +123,17 @@ export default function OrderQuickActions({
     }, 2200);
   }
 
-  function handleUpdate(nextStatus: string) {
+  if (!isValidStatus(localStatus)) {
+    return (
+      <p className="text-xs text-red-500">
+        El estado actual del pedido no es válido.
+      </p>
+    );
+  }
+
+  const actions = QUICK_ACTIONS_BY_STATUS[localStatus] ?? [];
+
+  async function handleUpdate(nextStatus: OrderStatus) {
     if (nextStatus === localStatus) return;
 
     setMessage(null);
@@ -140,7 +171,7 @@ export default function OrderQuickActions({
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              handleUpdate(action.value);
+              void handleUpdate(action.value);
             }}
             className={`rounded-full border px-3 py-1.5 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-60 ${getButtonClass(
               action.value

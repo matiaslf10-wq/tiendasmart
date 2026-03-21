@@ -13,6 +13,7 @@ import {
   YAxis,
 } from 'recharts';
 import type {
+  Formatter,
   NameType,
   ValueType,
 } from 'recharts/types/component/DefaultTooltipContent';
@@ -140,7 +141,10 @@ function getStatusColor(status: string) {
   }
 }
 
-function formatTooltipValue(value: ValueType | undefined): string | number {
+const currencyTooltipFormatter: Formatter<ValueType, NameType> = (
+  value,
+  _name
+) => {
   if (typeof value === 'number') {
     return formatCurrency(value);
   }
@@ -154,9 +158,12 @@ function formatTooltipValue(value: ValueType | undefined): string | number {
   }
 
   return '';
-}
+};
 
-function formatPlainTooltipValue(value: ValueType | undefined): string | number {
+const plainTooltipFormatter: Formatter<ValueType, NameType> = (
+  value,
+  _name
+) => {
   if (typeof value === 'number') {
     return value;
   }
@@ -170,7 +177,7 @@ function formatPlainTooltipValue(value: ValueType | undefined): string | number 
   }
 
   return '';
-}
+};
 
 export default function OrdersCharts({ orders }: Props) {
   const salesByDay = buildSalesByDay(orders);
@@ -202,11 +209,7 @@ export default function OrdersCharts({ orders }: Props) {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="label" />
                   <YAxis tickFormatter={(value: number) => `$${value}`} />
-                  <Tooltip
-                    formatter={(value: ValueType | undefined, _name: NameType) =>
-                      formatTooltipValue(value)
-                    }
-                  />
+                  <Tooltip formatter={currencyTooltipFormatter} />
                   <Bar dataKey="total" radius={[8, 8, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -230,11 +233,7 @@ export default function OrdersCharts({ orders }: Props) {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="label" />
                   <YAxis allowDecimals={false} />
-                  <Tooltip
-                    formatter={(value: ValueType | undefined, _name: NameType) =>
-                      formatPlainTooltipValue(value)
-                    }
-                  />
+                  <Tooltip formatter={plainTooltipFormatter} />
                   <Bar dataKey="orders" radius={[8, 8, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -271,11 +270,7 @@ export default function OrdersCharts({ orders }: Props) {
                         />
                       ))}
                     </Pie>
-                    <Tooltip
-                      formatter={(value: ValueType | undefined, _name: NameType) =>
-                        formatPlainTooltipValue(value)
-                      }
-                    />
+                    <Tooltip formatter={plainTooltipFormatter} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>

@@ -177,10 +177,10 @@ type OrderItemRow = {
   product_name: string | null;
   quantity: number | string | null;
   line_total: number | string | null;
-  orders: {
+  orders: Array<{
     created_at: string;
     store_id: string;
-  } | null;
+  }>;
 };
 
 type PageProps = {
@@ -304,7 +304,7 @@ export default async function PedidosPage({ searchParams }: PageProps) {
 
   const rangeFilteredOrderItems = ((orderItemsData ?? []) as OrderItemRow[]).filter(
     (item) => {
-      const createdAt = item.orders?.created_at;
+      const createdAt = item.orders?.[0]?.created_at;
       return createdAt ? isWithinRange(createdAt, range) : false;
     }
   );

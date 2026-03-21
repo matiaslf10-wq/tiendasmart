@@ -140,7 +140,7 @@ function getStatusColor(status: string) {
   }
 }
 
-function formatTooltipValue(value: ValueType): string | number {
+function formatTooltipValue(value: ValueType | undefined): string | number {
   if (typeof value === 'number') {
     return formatCurrency(value);
   }
@@ -156,7 +156,7 @@ function formatTooltipValue(value: ValueType): string | number {
   return '';
 }
 
-function formatPlainTooltipValue(value: ValueType): string | number {
+function formatPlainTooltipValue(value: ValueType | undefined): string | number {
   if (typeof value === 'number') {
     return value;
   }
@@ -203,7 +203,7 @@ export default function OrdersCharts({ orders }: Props) {
                   <XAxis dataKey="label" />
                   <YAxis tickFormatter={(value: number) => `$${value}`} />
                   <Tooltip
-                    formatter={(value: ValueType, _name: NameType) =>
+                    formatter={(value: ValueType | undefined, _name: NameType) =>
                       formatTooltipValue(value)
                     }
                   />
@@ -231,7 +231,7 @@ export default function OrdersCharts({ orders }: Props) {
                   <XAxis dataKey="label" />
                   <YAxis allowDecimals={false} />
                   <Tooltip
-                    formatter={(value: ValueType, _name: NameType) =>
+                    formatter={(value: ValueType | undefined, _name: NameType) =>
                       formatPlainTooltipValue(value)
                     }
                   />
@@ -272,7 +272,7 @@ export default function OrdersCharts({ orders }: Props) {
                       ))}
                     </Pie>
                     <Tooltip
-                      formatter={(value: ValueType, _name: NameType) =>
+                      formatter={(value: ValueType | undefined, _name: NameType) =>
                         formatPlainTooltipValue(value)
                       }
                     />

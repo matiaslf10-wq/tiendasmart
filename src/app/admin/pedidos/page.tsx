@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getCurrentUserStore } from '@/lib/stores';
 import OrdersFilters from '@/components/admin/OrdersFilters';
 import OrdersStats from '@/components/admin/OrdersStats';
+import OrdersRangeTabs from '@/components/admin/OrdersRangeTabs';
 import AdminShell from '@/components/admin/AdminShell';
 import OrderQuickActions from '@/components/admin/OrderQuickActions';
 import OrderWhatsAppButton from '@/components/admin/OrderWhatsAppButton';
@@ -92,13 +93,50 @@ function getNotesFilterLabel(notes: string) {
   }
 }
 
+type RangeValue = 'today' | '7d' | '30d' | 'month' | 'all';
+
+function getRangeLabel(range: RangeValue) {
+  switch (range) {
+    case 'today':
+      return 'hoy';
+    case '7d':
+      return 'los últimos 7 días';
+    case '30d':
+      return 'los últimos 30 días';
+    case 'month':
+      return 'este mes';
+    default:
+      return 'todo el historial';
+  }
+}
+
+function getRangeFilterLabel(range: RangeValue) {
+  switch (range) {
+    case 'today':
+      return 'Hoy';
+    case '7d':
+      return 'Últimos 7 días';
+    case '30d':
+      return 'Últimos 30 días';
+    case 'month':
+      return 'Este mes';
+    default:
+      return 'Todo';
+  }
+}
+
 function buildStatusHref(params: {
   nextStatus: string;
   queryText: string;
   delivery: string;
   notes: string;
+  range: RangeValue;
 }) {
   const search = new URLSearchParams();
+
+  if (params.range !== 'all') {
+    search.set('range', params.range);
+  }
 
   if (params.nextStatus !== 'all') {
     search.set('status', params.nextStatus);
@@ -139,6 +177,7 @@ type PageProps = {
     q?: string;
     delivery?: string;
     notes?: string;
+    range?: RangeValue;
   }>;
 };
 
@@ -160,6 +199,42 @@ function matchesSearch(order: Order, rawQuery: string) {
   );
 }
 
+function isWithinRange(dateString: string, range: RangeValue) {
+  if (range === 'all') return true;
+
+  const date = new Date(dateString);
+  const now = new Date();
+
+  if (range === 'today') {
+    return (
+      date.getFullYear() === now.getFullYear() &&
+      date.getMonth() === now.getMonth() &&
+      date.getDate() === now.getDate()
+    );
+  }
+
+  if (range === '7d') {
+    const start = new Date(now);
+    start.setDate(now.getDate() - 7);
+    return date >= start;
+  }
+
+  if (range === '30d') {
+    const start = new Date(now);
+    start.setDate(now.getDate() - 30);
+    return date >= start;
+  }
+
+  if (range === 'month') {
+    return (
+      date.getFullYear() === now.getFullYear() &&
+      date.getMonth() === now.getMonth()
+    );
+  }
+
+  return true;
+}
+
 export default async function PedidosPage({ searchParams }: PageProps) {
   const membership = await getCurrentUserStore();
 
@@ -175,6 +250,7 @@ export default async function PedidosPage({ searchParams }: PageProps) {
   const queryText = resolvedSearchParams.q ?? '';
   const delivery = resolvedSearchParams.delivery ?? 'all';
   const notes = resolvedSearchParams.notes ?? 'all';
+  const range: RangeValue = resolvedSearchParams.range ?? 'all';
 
   const { data, error } = await supabase
     .from('orders')
@@ -194,14 +270,19 @@ export default async function PedidosPage({ searchParams }: PageProps) {
     .order('created_at', { ascending: false });
 
   const allOrders = (data ?? []) as Order[];
-  const pendingOrdersCount = allOrders.filter(
+
+  const rangeFilteredOrders = allOrders.filter((order) =>
+    isWithinRange(order.created_at, range)
+  );
+
+  const pendingOrdersCount = rangeFilteredOrders.filter(
     (order) => order.status === 'pending'
   ).length;
 
   const statusFilteredOrders =
     status !== 'all'
-      ? allOrders.filter((order) => order.status === status)
-      : allOrders;
+      ? rangeFilteredOrders.filter((order) => order.status === status)
+      : rangeFilteredOrders;
 
   const deliveryFilteredOrders =
     delivery !== 'all'
@@ -233,6 +314,9 @@ export default async function PedidosPage({ searchParams }: PageProps) {
   });
 
   const activeFilters = [
+    ...(range !== 'all'
+      ? [{ key: 'range', label: `Período: ${getRangeFilterLabel(range)}` }]
+      : []),
     ...(status !== 'all'
       ? [{ key: 'status', label: `Estado: ${getStatusLabel(status)}` }]
       : []),
@@ -261,27 +345,31 @@ export default async function PedidosPage({ searchParams }: PageProps) {
     {
       value: 'all',
       label: 'Todos',
-      count: allOrders.length,
+      count: rangeFilteredOrders.length,
     },
     {
       value: 'pending',
       label: 'Pendientes',
-      count: allOrders.filter((order) => order.status === 'pending').length,
+      count: rangeFilteredOrders.filter((order) => order.status === 'pending')
+        .length,
     },
     {
       value: 'confirmed',
       label: 'Confirmados',
-      count: allOrders.filter((order) => order.status === 'confirmed').length,
+      count: rangeFilteredOrders.filter((order) => order.status === 'confirmed')
+        .length,
     },
     {
       value: 'ready',
       label: 'Listos',
-      count: allOrders.filter((order) => order.status === 'ready').length,
+      count: rangeFilteredOrders.filter((order) => order.status === 'ready')
+        .length,
     },
     {
       value: 'delivered',
       label: 'Entregados',
-      count: allOrders.filter((order) => order.status === 'delivered').length,
+      count: rangeFilteredOrders.filter((order) => order.status === 'delivered')
+        .length,
     },
   ];
 
@@ -310,7 +398,19 @@ export default async function PedidosPage({ searchParams }: PageProps) {
         </div>
       ) : (
         <>
-          <OrdersStats orders={visibleOrders || []} />
+          <OrdersRangeTabs
+            currentRange={range}
+            status={status}
+            queryText={queryText}
+            delivery={delivery}
+            notes={notes}
+          />
+
+          <OrdersStats
+            orders={rangeFilteredOrders}
+            rangeLabel={getRangeLabel(range)}
+          />
+
           <OrdersFilters />
 
           <div className="flex flex-wrap gap-2">
@@ -326,6 +426,7 @@ export default async function PedidosPage({ searchParams }: PageProps) {
                     queryText,
                     delivery,
                     notes,
+                    range,
                   })}
                   className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition ${
                     isActive

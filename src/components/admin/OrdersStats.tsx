@@ -6,6 +6,7 @@ type Order = {
 
 type Props = {
   orders: Order[];
+  rangeLabel?: string;
 };
 
 function formatCurrency(value: number) {
@@ -16,7 +17,7 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
-export default function OrdersStats({ orders }: Props) {
+export default function OrdersStats({ orders, rangeLabel = 'período' }: Props) {
   const totalOrders = orders.length;
   const pending = orders.filter((order) => order.status === 'pending').length;
   const preparing = orders.filter(
@@ -42,16 +43,23 @@ export default function OrdersStats({ orders }: Props) {
   ).length;
 
   return (
-    <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-      <Card label="Total pedidos" value={totalOrders} />
-      <Card label="Pendientes" value={pending} />
-      <Card label="En preparación" value={preparing} />
-      <Card label="Entregados" value={delivered} />
-      <Card label="Total vendido" value={formatCurrency(totalRevenue)} />
-      <Card label="Ticket promedio" value={formatCurrency(averageTicket)} />
-      <Card label="Envíos" value={deliveryCount} />
-      <Card label="Retiros" value={pickupCount} />
-    </div>
+    <section className="space-y-3">
+      <div>
+        <h2 className="text-lg font-semibold text-gray-900">Resumen</h2>
+        <p className="text-sm text-gray-500">Métricas de {rangeLabel}.</p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+        <Card label="Total pedidos" value={totalOrders} />
+        <Card label="Pendientes" value={pending} />
+        <Card label="En preparación" value={preparing} />
+        <Card label="Entregados" value={delivered} />
+        <Card label="Total vendido" value={formatCurrency(totalRevenue)} />
+        <Card label="Ticket promedio" value={formatCurrency(averageTicket)} />
+        <Card label="Envíos" value={deliveryCount} />
+        <Card label="Retiros" value={pickupCount} />
+      </div>
+    </section>
   );
 }
 

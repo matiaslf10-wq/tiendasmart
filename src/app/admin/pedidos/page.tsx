@@ -6,6 +6,7 @@ import OrdersFilters from '@/components/admin/OrdersFilters';
 import OrdersStats from '@/components/admin/OrdersStats';
 import OrdersRangeTabs from '@/components/admin/OrdersRangeTabs';
 import OrdersCharts from '@/components/admin/OrdersCharts';
+import OrdersTopProducts from '@/components/admin/OrdersTopProducts';
 import AdminShell from '@/components/admin/AdminShell';
 import OrderQuickActions from '@/components/admin/OrderQuickActions';
 import OrderWhatsAppButton from '@/components/admin/OrderWhatsAppButton';
@@ -172,6 +173,16 @@ type Order = {
   created_at: string;
 };
 
+type OrderItemRow = {
+  product_name: string | null;
+  quantity: number | string | null;
+  line_total: number | string | null;
+  orders: {
+    created_at: string;
+    store_id: string;
+  } | null;
+};
+
 type PageProps = {
   searchParams: Promise<{
     status?: string;
@@ -253,27 +264,49 @@ export default async function PedidosPage({ searchParams }: PageProps) {
   const notes = resolvedSearchParams.notes ?? 'all';
   const range: RangeValue = resolvedSearchParams.range ?? 'all';
 
-  const { data, error } = await supabase
-    .from('orders')
-    .select(`
-      id,
-      order_number,
-      customer_name,
-      customer_phone,
-      total,
-      status,
-      notes,
-      delivery_type,
-      delivery_address,
-      created_at
-    `)
-    .eq('store_id', store.id)
-    .order('created_at', { ascending: false });
+  const [{ data, error }, { data: orderItemsData, error: orderItemsError }] =
+    await Promise.all([
+      supabase
+        .from('orders')
+        .select(`
+          id,
+          order_number,
+          customer_name,
+          customer_phone,
+          total,
+          status,
+          notes,
+          delivery_type,
+          delivery_address,
+          created_at
+        `)
+        .eq('store_id', store.id)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('order_items')
+        .select(`
+          product_name,
+          quantity,
+          line_total,
+          orders!inner (
+            created_at,
+            store_id
+          )
+        `)
+        .eq('orders.store_id', store.id),
+    ]);
 
   const allOrders = (data ?? []) as Order[];
 
   const rangeFilteredOrders = allOrders.filter((order) =>
     isWithinRange(order.created_at, range)
+  );
+
+  const rangeFilteredOrderItems = ((orderItemsData ?? []) as OrderItemRow[]).filter(
+    (item) => {
+      const createdAt = item.orders?.created_at;
+      return createdAt ? isWithinRange(createdAt, range) : false;
+    }
   );
 
   const pendingOrdersCount = rangeFilteredOrders.filter(
@@ -399,6 +432,12 @@ export default async function PedidosPage({ searchParams }: PageProps) {
         </div>
       ) : (
         <>
+          {orderItemsError ? (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-700">
+              No se pudieron cargar los productos más vendidos: {orderItemsError.message}
+            </div>
+          ) : null}
+
           <OrdersRangeTabs
             currentRange={range}
             status={status}
@@ -413,6 +452,8 @@ export default async function PedidosPage({ searchParams }: PageProps) {
           />
 
           <OrdersCharts orders={rangeFilteredOrders} />
+
+          <OrdersTopProducts items={rangeFilteredOrderItems} />
 
           <OrdersFilters />
 

@@ -5,6 +5,7 @@ import { getCurrentUserStore } from '@/lib/stores';
 import OrdersFilters from '@/components/admin/OrdersFilters';
 import OrdersStats from '@/components/admin/OrdersStats';
 import OrdersRangeTabs from '@/components/admin/OrdersRangeTabs';
+import OrdersCharts from '@/components/admin/OrdersCharts';
 import AdminShell from '@/components/admin/AdminShell';
 import OrderQuickActions from '@/components/admin/OrderQuickActions';
 import OrderWhatsAppButton from '@/components/admin/OrderWhatsAppButton';
@@ -411,6 +412,8 @@ export default async function PedidosPage({ searchParams }: PageProps) {
             rangeLabel={getRangeLabel(range)}
           />
 
+          <OrdersCharts orders={rangeFilteredOrders} />
+
           <OrdersFilters />
 
           <div className="flex flex-wrap gap-2">
@@ -466,7 +469,7 @@ export default async function PedidosPage({ searchParams }: PageProps) {
 
           <BulkPendingActions pendingOrderIds={visiblePendingOrderIds} />
 
-          {!visibleOrders || visibleOrders.length === 0 ? (
+          {visibleOrders.length === 0 ? (
             <p>No hay pedidos para los filtros seleccionados.</p>
           ) : (
             <div className="space-y-4">

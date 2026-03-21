@@ -12,6 +12,10 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import type {
+  NameType,
+  ValueType,
+} from 'recharts/types/component/DefaultTooltipContent';
 
 type Order = {
   status: string;
@@ -136,6 +140,38 @@ function getStatusColor(status: string) {
   }
 }
 
+function formatTooltipValue(value: ValueType): string | number {
+  if (typeof value === 'number') {
+    return formatCurrency(value);
+  }
+
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.join(' - ');
+  }
+
+  return '';
+}
+
+function formatPlainTooltipValue(value: ValueType): string | number {
+  if (typeof value === 'number') {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.join(' - ');
+  }
+
+  return '';
+}
+
 export default function OrdersCharts({ orders }: Props) {
   const salesByDay = buildSalesByDay(orders);
   const statusDistribution = buildStatusDistribution(orders);
@@ -167,10 +203,8 @@ export default function OrdersCharts({ orders }: Props) {
                   <XAxis dataKey="label" />
                   <YAxis tickFormatter={(value: number) => `$${value}`} />
                   <Tooltip
-                    formatter={(value: number | string) =>
-                      typeof value === 'number'
-                        ? formatCurrency(value)
-                        : value
+                    formatter={(value: ValueType, _name: NameType) =>
+                      formatTooltipValue(value)
                     }
                   />
                   <Bar dataKey="total" radius={[8, 8, 0, 0]} />
@@ -197,8 +231,8 @@ export default function OrdersCharts({ orders }: Props) {
                   <XAxis dataKey="label" />
                   <YAxis allowDecimals={false} />
                   <Tooltip
-                    formatter={(value: number | string) =>
-                      typeof value === 'number' ? value : String(value)
+                    formatter={(value: ValueType, _name: NameType) =>
+                      formatPlainTooltipValue(value)
                     }
                   />
                   <Bar dataKey="orders" radius={[8, 8, 0, 0]} />
@@ -238,8 +272,8 @@ export default function OrdersCharts({ orders }: Props) {
                       ))}
                     </Pie>
                     <Tooltip
-                      formatter={(value: number | string) =>
-                        typeof value === 'number' ? value : String(value)
+                      formatter={(value: ValueType, _name: NameType) =>
+                        formatPlainTooltipValue(value)
                       }
                     />
                   </PieChart>

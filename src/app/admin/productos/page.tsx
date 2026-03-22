@@ -148,12 +148,14 @@ export default async function ProductosPage({ searchParams }: ProductosPageProps
 
   return (
     <AdminShell
-      title="Productos"
-      subtitle={`Tienda: ${store.name}`}
-      storeName={store.name}
-      storeSlug={store.slug}
-      current="productos"
-    >
+  title="Categorías"
+  subtitle={`Tienda: ${store.name}`}
+  storeName={store.name}
+  storeSlug={store.slug}
+  plan={store.plan}
+  current="categorias"
+  pendingOrdersCount={0}
+>
       <div className="-mt-1">
         <p className="text-sm text-gray-500">
           Gestioná los productos que se muestran en tu tienda.

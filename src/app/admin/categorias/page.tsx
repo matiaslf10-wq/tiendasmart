@@ -75,12 +75,14 @@ export default async function CategoriasPage({
 
   return (
     <AdminShell
-      title="Categorías"
-      subtitle={`Tienda: ${store.name}`}
-      storeName={store.name}
-      storeSlug={store.slug}
-      current="categorias"
-    >
+  title="Categorías"
+  subtitle={`Tienda: ${store.name}`}
+  storeName={store.name}
+  storeSlug={store.slug}
+  plan={store.plan}
+  current="categorias"
+  pendingOrdersCount={0}
+>
       <p className="text-sm text-gray-500 -mt-2">
         Organizá cómo se agrupan los productos en tu tienda.
       </p>

@@ -1,11 +1,13 @@
 import LogoutButton from '@/components/admin/LogoutButton';
 import AdminSidebar from '@/components/admin/AdminSidebar';
+import type { Plan } from '@/lib/plans';
 
 type AdminShellProps = {
   title: string;
   subtitle?: string;
   storeName: string;
   storeSlug: string;
+  plan: Plan;
   current?: 'panel' | 'productos' | 'categorias' | 'pedidos' | 'analytics';
   pendingOrdersCount?: number;
   children: React.ReactNode;
@@ -16,6 +18,7 @@ export default function AdminShell({
   subtitle,
   storeName,
   storeSlug,
+  plan,
   current,
   pendingOrdersCount = 0,
   children,
@@ -27,6 +30,7 @@ export default function AdminShell({
           <AdminSidebar
             storeName={storeName}
             storeSlug={storeSlug}
+            plan={plan}
             current={current}
             pendingOrdersCount={pendingOrdersCount}
           />

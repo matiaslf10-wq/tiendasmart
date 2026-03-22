@@ -174,8 +174,9 @@ export default async function PedidosPage({ searchParams }: PageProps) {
       subtitle={`Tienda: ${store.name}`}
       storeName={store.name}
       storeSlug={store.slug}
+      plan={store.plan}
       current="pedidos"
-      pendingOrdersCount={pendingOrdersCount}
+      pendingOrdersCount={0}
     >
       <div className="space-y-6">
         <OrdersRangeTabs

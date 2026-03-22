@@ -1,8 +1,10 @@
 import Link from 'next/link';
+import { hasFeature, type Plan } from '@/lib/plans';
 
 type AdminSidebarProps = {
   storeName: string;
   storeSlug: string;
+  plan: Plan;
   current?:
     | 'panel'
     | 'productos'
@@ -21,9 +23,12 @@ function itemClass(active: boolean) {
 export default function AdminSidebar({
   storeName,
   storeSlug,
+  plan,
   current,
   pendingOrdersCount = 0,
 }: AdminSidebarProps) {
+  const canSeeAnalytics = hasFeature(plan, 'advanced_analytics');
+
   return (
     <aside className="w-full rounded-3xl border border-gray-200 bg-white/90 p-5 shadow-md backdrop-blur lg:sticky lg:top-6">
       <div className="mb-6 border-b border-gray-100 pb-4">
@@ -90,16 +95,18 @@ export default function AdminSidebar({
           </div>
         </Link>
 
-        <Link
-          href="/admin/analytics"
-          className={itemClass(current === 'analytics')}
-        >
-          <span className="text-lg">📊</span>
-          <div>
-            <div className="text-sm font-semibold">Analytics</div>
-            <div className="text-xs opacity-80">Métricas y tendencias</div>
-          </div>
-        </Link>
+        {canSeeAnalytics ? (
+          <Link
+            href="/admin/analytics"
+            className={itemClass(current === 'analytics')}
+          >
+            <span className="text-lg">📊</span>
+            <div>
+              <div className="text-sm font-semibold">Analytics</div>
+              <div className="text-xs opacity-80">Métricas y tendencias</div>
+            </div>
+          </Link>
+        ) : null}
       </nav>
 
       <div className="mt-6 border-t border-gray-100 pt-4">

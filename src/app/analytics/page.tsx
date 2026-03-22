@@ -32,13 +32,14 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
   if (!hasFeature(store.plan, 'advanced_analytics')) {
     return (
       <AdminShell
-        title="Analytics"
-        subtitle={`Tienda: ${store.name}`}
-        storeName={store.name}
-        storeSlug={store.slug}
-        current="analytics"
-        pendingOrdersCount={0}
-      >
+  title="Pedidos"
+  subtitle={`Tienda: ${store.name}`}
+  storeName={store.name}
+  storeSlug={store.slug}
+  plan={store.plan}
+  current="pedidos"
+  pendingOrdersCount={0}
+>
         <section className="rounded-3xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
           <div className="space-y-3">
             <p className="text-sm font-medium uppercase tracking-wide text-amber-700">
@@ -153,13 +154,14 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
 
   return (
     <AdminShell
-      title="Analytics"
-      subtitle={`Tienda: ${store.name}`}
-      storeName={store.name}
-      storeSlug={store.slug}
-      current="analytics"
-      pendingOrdersCount={pendingOrdersCount}
-    >
+  title="Pedidos"
+  subtitle={`Tienda: ${store.name}`}
+  storeName={store.name}
+  storeSlug={store.slug}
+  plan={store.plan}
+  current="pedidos"
+  pendingOrdersCount={pendingOrdersCount}
+>
       <div className="space-y-6">
         <OrdersRangeTabs
           currentRange={range}

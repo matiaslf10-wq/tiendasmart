@@ -38,12 +38,14 @@ export default async function AdminPage() {
 
   return (
     <AdminShell
-      title={`Panel de ${store.name}`}
-      subtitle="Administración general de la tienda"
-      storeName={store.name}
-      storeSlug={store.slug}
-      current="panel"
-    >
+  title="Pedidos"
+  subtitle={`Tienda: ${store.name}`}
+  storeName={store.name}
+  storeSlug={store.slug}
+  plan={store.plan}
+  current="pedidos"
+  pendingOrdersCount={0}
+>
       {/* 🔥 MÉTRICAS */}
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <AdminStatCard

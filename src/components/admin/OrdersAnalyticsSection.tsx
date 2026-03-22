@@ -23,6 +23,13 @@ export default function OrdersAnalyticsSection({
 
   return (
     <section className="space-y-6">
+      <div>
+        <h2 className="text-xl font-semibold text-gray-900">Analytics</h2>
+        <p className="text-sm text-gray-500">
+          Vista comercial y operativa de {rangeLabel}.
+        </p>
+      </div>
+
       <OrdersStats orders={orders} rangeLabel={rangeLabel} />
       <OrdersCharts orders={orders} />
       <OrdersTopProducts items={items} />

@@ -154,12 +154,14 @@ export default async function PedidoDetallePage({ params }: PageProps) {
 
   return (
     <AdminShell
-      title={`Pedido #${order.order_number}`}
-      subtitle={`Tienda: ${store.name}`}
-      storeName={store.name}
-      storeSlug={store.slug}
-      current="pedidos"
-    >
+          title="Pedidos"
+          subtitle={`Tienda: ${store.name}`}
+          storeName={store.name}
+          storeSlug={store.slug}
+          plan={store.plan}
+          current="pedidos"
+          pendingOrdersCount={0}
+        >
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div className="space-y-2">
           <Link

@@ -168,3 +168,111 @@ export function getRangeLabel(range: RangeValue): string {
       return 'todo el historial';
   }
 }
+export function getRangeWindow(range: RangeValue, now = new Date()) {
+  const end = new Date(now);
+
+  if (range === 'all') {
+    return null;
+  }
+
+  if (range === 'today') {
+    const start = new Date(now);
+    start.setHours(0, 0, 0, 0);
+
+    const endExclusive = new Date(start);
+    endExclusive.setDate(endExclusive.getDate() + 1);
+
+    return {
+      start,
+      end: endExclusive,
+    };
+  }
+
+  if (range === '7d') {
+    const start = new Date(now);
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - 6);
+
+    const endExclusive = new Date(now);
+    endExclusive.setHours(23, 59, 59, 999);
+
+    return {
+      start,
+      end: endExclusive,
+    };
+  }
+
+  if (range === '30d') {
+    const start = new Date(now);
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - 29);
+
+    const endExclusive = new Date(now);
+    endExclusive.setHours(23, 59, 59, 999);
+
+    return {
+      start,
+      end: endExclusive,
+    };
+  }
+
+  if (range === 'month') {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    const endExclusive = new Date(
+      now.getFullYear(),
+      now.getMonth() + 1,
+      1,
+      0,
+      0,
+      0,
+      0
+    );
+
+    return {
+      start,
+      end: endExclusive,
+    };
+  }
+
+  return null;
+}
+
+export function getPreviousRangeWindow(range: RangeValue, now = new Date()) {
+  const current = getRangeWindow(range, now);
+
+  if (!current) {
+    return null;
+  }
+
+  const currentStart = current.start.getTime();
+  const currentEnd = current.end.getTime();
+  const duration = currentEnd - currentStart;
+
+  const previousEnd = new Date(currentStart);
+  const previousStart = new Date(currentStart - duration);
+
+  return {
+    start: previousStart,
+    end: previousEnd,
+  };
+}
+
+export function isDateInWindow(
+  dateString: string,
+  window: { start: Date; end: Date } | null
+) {
+  if (!window) return false;
+
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return false;
+
+  return date >= window.start && date < window.end;
+}
+
+export function filterOrdersByWindow(
+  orders: Order[],
+  window: { start: Date; end: Date } | null
+) {
+  if (!window) return [];
+  return orders.filter((order) => isDateInWindow(order.created_at, window));
+}

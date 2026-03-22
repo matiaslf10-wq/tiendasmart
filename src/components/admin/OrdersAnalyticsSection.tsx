@@ -30,7 +30,12 @@ export default function OrdersAnalyticsSection({
         </p>
       </div>
 
-      <OrdersStats orders={orders} rangeLabel={rangeLabel} />
+      <OrdersStats
+        orders={orders}
+        range={range}
+        rangeLabel={rangeLabel}
+      />
+
       <OrdersCharts orders={orders} />
       <OrdersTopProducts items={items} />
     </section>

@@ -6,7 +6,7 @@ type AdminShellProps = {
   subtitle?: string;
   storeName: string;
   storeSlug: string;
-  current?: 'panel' | 'productos' | 'categorias' | 'pedidos';
+  current?: 'panel' | 'productos' | 'categorias' | 'pedidos' | 'analytics';
   pendingOrdersCount?: number;
   children: React.ReactNode;
 };

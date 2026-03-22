@@ -3,7 +3,12 @@ import Link from 'next/link';
 type AdminSidebarProps = {
   storeName: string;
   storeSlug: string;
-  current?: 'panel' | 'productos' | 'categorias' | 'pedidos';
+  current?:
+    | 'panel'
+    | 'productos'
+    | 'categorias'
+    | 'pedidos'
+    | 'analytics';
   pendingOrdersCount?: number;
 };
 
@@ -82,6 +87,17 @@ export default function AdminSidebar({
                 {pendingOrdersCount}
               </span>
             ) : null}
+          </div>
+        </Link>
+
+        <Link
+          href="/admin/analytics"
+          className={itemClass(current === 'analytics')}
+        >
+          <span className="text-lg">📊</span>
+          <div>
+            <div className="text-sm font-semibold">Analytics</div>
+            <div className="text-xs opacity-80">Métricas y tendencias</div>
           </div>
         </Link>
       </nav>

@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import AdminShell from '@/components/admin/AdminShell';
 import OrdersAnalyticsSection from '@/components/admin/OrdersAnalyticsSection';
@@ -9,6 +10,7 @@ import {
   type OrderItemRow,
   type RangeValue,
 } from '@/lib/admin/orders';
+import { hasFeature } from '@/lib/plans';
 import { getCurrentUserStore } from '@/lib/stores';
 import { createClient } from '@/lib/supabase/server';
 
@@ -26,6 +28,55 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
   }
 
   const store = membership.stores;
+
+  if (!hasFeature(store.plan, 'advanced_analytics')) {
+    return (
+      <AdminShell
+        title="Analytics"
+        subtitle={`Tienda: ${store.name}`}
+        storeName={store.name}
+        storeSlug={store.slug}
+        current="analytics"
+        pendingOrdersCount={0}
+      >
+        <section className="rounded-3xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
+          <div className="space-y-3">
+            <p className="text-sm font-medium uppercase tracking-wide text-amber-700">
+              Función disponible en planes superiores
+            </p>
+
+            <h2 className="text-2xl font-bold text-amber-950">
+              Analytics avanzado no está incluido en tu plan
+            </h2>
+
+            <p className="max-w-2xl text-sm text-amber-900">
+              Tu tienda está usando el plan <strong>{store.plan}</strong>. Para
+              acceder a métricas avanzadas, comparativas y análisis comercial,
+              necesitás actualizar a <strong>Pro</strong> o{' '}
+              <strong>Intelligence</strong>.
+            </p>
+
+            <div className="flex flex-wrap gap-3 pt-2">
+              <Link
+                href="/admin/pedidos"
+                className="inline-flex items-center rounded-2xl bg-amber-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-amber-800"
+              >
+                Volver a Pedidos
+              </Link>
+
+              <Link
+                href="/admin"
+                className="inline-flex items-center rounded-2xl border border-amber-300 bg-white px-4 py-2 text-sm font-medium text-amber-900 transition hover:bg-amber-100"
+              >
+                Ir al panel
+              </Link>
+            </div>
+          </div>
+        </section>
+      </AdminShell>
+    );
+  }
+
   const supabase = await createClient();
   const resolvedSearchParams = await searchParams;
 
@@ -76,6 +127,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
   }
 
   const allOrders = (ordersData ?? []) as Order[];
+
   const allOrderItems = ((itemsData ?? []) as Array<{
     product_name: string | null;
     quantity: number | string | null;

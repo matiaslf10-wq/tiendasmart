@@ -1,10 +1,10 @@
 'use client';
 
 import { ReactNode } from 'react';
-import { Feature, hasFeature } from '@/lib/plans';
+import { Feature, Plan, hasFeature } from '@/lib/plans';
 
 type Props = {
-  plan: string;
+  plan: Plan;
   feature: Feature;
   children: ReactNode;
   fallback?: ReactNode;
@@ -16,7 +16,7 @@ export default function FeatureGate({
   children,
   fallback = null,
 }: Props) {
-  if (!hasFeature(plan as any, feature)) {
+  if (!hasFeature(plan, feature)) {
     return <>{fallback}</>;
   }
 

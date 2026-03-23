@@ -67,6 +67,11 @@ export async function updateStoreSettings(formData: FormData) {
   const whatsappNumber = String(formData.get('whatsapp_number') || '').trim();
   const logoUrlInput = String(formData.get('logo_url') || '').trim();
   const coverUrlInput = String(formData.get('cover_url') || '').trim();
+  const googleAnalyticsIdInput = String(
+    formData.get('google_analytics_id') || ''
+  )
+    .trim()
+    .toUpperCase();
 
   if (!name) {
     throw new Error('El nombre es obligatorio');
@@ -102,6 +107,15 @@ export async function updateStoreSettings(formData: FormData) {
     throw new Error('Ese slug ya está en uso');
   }
 
+  if (
+    googleAnalyticsIdInput &&
+    !/^G-[A-Z0-9]+$/.test(googleAnalyticsIdInput)
+  ) {
+    throw new Error(
+      'El ID de Google Analytics no es válido. Debe tener formato G-XXXXXXXXXX.'
+    );
+  }
+
   let finalLogoUrl: string | null = logoUrlInput || null;
   let finalCoverUrl: string | null = coverUrlInput || null;
 
@@ -123,18 +137,24 @@ export async function updateStoreSettings(formData: FormData) {
       whatsapp_number: whatsappNumber || null,
       logo_url: finalLogoUrl,
       cover_url: finalCoverUrl,
+      google_analytics_id: googleAnalyticsIdInput || null,
     })
     .eq('id', store.id);
 
   if (updateError) {
+    console.error(updateError);
     throw new Error(updateError.message);
   }
 
   revalidatePath('/admin');
   revalidatePath('/admin/productos');
   revalidatePath('/admin/categorias');
+  revalidatePath('/admin/pedidos');
+  revalidatePath('/admin/analytics');
   revalidatePath(`/${store.slug}`);
   revalidatePath(`/${normalizedSlug}`);
+  revalidatePath(`/_sites/${store.slug}`);
+  revalidatePath(`/_sites/${normalizedSlug}`);
 }
 
 export async function createProduct(formData: FormData) {

@@ -10,7 +10,7 @@ export default async function AdminPage() {
 
   if (!membership || !membership.stores) {
     return (
-      <main className="p-8 space-y-4">
+      <main className="space-y-4 p-8">
         <h1 className="text-3xl font-bold">Panel admin</h1>
         <p>No tenés una tienda asignada todavía.</p>
       </main>
@@ -18,48 +18,35 @@ export default async function AdminPage() {
   }
 
   const store = membership.stores;
-
   const supabase = await createClient();
 
-  const [
-    { count: productsCount },
-    { count: categoriesCount },
-  ] = await Promise.all([
-    supabase
-      .from('products')
-      .select('*', { count: 'exact', head: true })
-      .eq('store_id', store.id),
+  const [{ count: productsCount }, { count: categoriesCount }] =
+    await Promise.all([
+      supabase
+        .from('products')
+        .select('*', { count: 'exact', head: true })
+        .eq('store_id', store.id),
 
-    supabase
-      .from('categories')
-      .select('*', { count: 'exact', head: true })
-      .eq('store_id', store.id),
-  ]);
+      supabase
+        .from('categories')
+        .select('*', { count: 'exact', head: true })
+        .eq('store_id', store.id),
+    ]);
 
   return (
     <AdminShell
-  title="Pedidos"
-  subtitle={`Tienda: ${store.name}`}
-  storeName={store.name}
-  storeSlug={store.slug}
-  plan={store.plan}
-  current="pedidos"
-  pendingOrdersCount={0}
->
-      {/* 🔥 MÉTRICAS */}
+      title="Panel"
+      subtitle={`Tienda: ${store.name}`}
+      storeName={store.name}
+      storeSlug={store.slug}
+      plan={store.plan}
+      current="panel"
+      pendingOrdersCount={0}
+    >
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <AdminStatCard
-          label="Productos"
-          value={productsCount ?? 0}
-        />
-        <AdminStatCard
-          label="Categorías"
-          value={categoriesCount ?? 0}
-        />
-        <AdminStatCard
-          label="Plan"
-          value={store.plan}
-        />
+        <AdminStatCard label="Productos" value={productsCount ?? 0} />
+        <AdminStatCard label="Categorías" value={categoriesCount ?? 0} />
+        <AdminStatCard label="Plan" value={store.plan} />
         <AdminStatCard
           label="Estado"
           value={store.is_active ? 'Activa' : 'Inactiva'}
@@ -67,8 +54,7 @@ export default async function AdminPage() {
         />
       </section>
 
-      {/* INFO BÁSICA */}
-      <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm space-y-2">
+      <div className="space-y-2 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
         <p>
           <strong>Slug:</strong> {store.slug}
         </p>
@@ -80,28 +66,30 @@ export default async function AdminPage() {
         </p>
       </div>
 
-      {/* FEATURES */}
-      <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm space-y-2">
+      <div className="space-y-2 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
         <h2 className="text-xl font-semibold">Features disponibles</h2>
+
         <ul className="list-disc pl-6">
           <li>Productos: {hasFeature(store.plan, 'products') ? 'Sí' : 'No'}</li>
           <li>
             Categorías: {hasFeature(store.plan, 'categories') ? 'Sí' : 'No'}
           </li>
           <li>
-            Pedidos básicos: {hasFeature(store.plan, 'basic_orders') ? 'Sí' : 'No'}
+            Pedidos básicos:{' '}
+            {hasFeature(store.plan, 'basic_orders') ? 'Sí' : 'No'}
           </li>
           <li>Cupones: {hasFeature(store.plan, 'coupons') ? 'Sí' : 'No'}</li>
           <li>
             Analytics avanzados:{' '}
             {hasFeature(store.plan, 'advanced_analytics') ? 'Sí' : 'No'}
           </li>
-          <li>IA: {hasFeature(store.plan, 'ai_descriptions') ? 'Sí' : 'No'}</li>
+          <li>
+            IA: {hasFeature(store.plan, 'ai_descriptions') ? 'Sí' : 'No'}
+          </li>
         </ul>
       </div>
 
-      {/* CONFIG */}
-      <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
+      <div className="space-y-4 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
         <h2 className="text-xl font-semibold">Configuración de la tienda</h2>
 
         <form action={updateStoreSettings} className="grid max-w-2xl gap-4">
@@ -127,9 +115,7 @@ export default async function AdminPage() {
             />
           </label>
 
-          <p className="text-sm text-gray-600">
-            URL pública: /{store.slug}
-          </p>
+          <p className="text-sm text-gray-600">URL pública: /{store.slug}</p>
 
           <label className="block space-y-2">
             <span className="text-sm font-medium">WhatsApp</span>
@@ -143,6 +129,21 @@ export default async function AdminPage() {
           </label>
 
           <label className="block space-y-2">
+            <span className="text-sm font-medium">Google Analytics ID (GA4)</span>
+            <input
+              type="text"
+              name="google_analytics_id"
+              defaultValue={store.google_analytics_id ?? ''}
+              placeholder="G-XXXXXXXXXX"
+              className="w-full rounded-xl border px-4 py-3"
+            />
+            <p className="text-sm text-gray-600">
+              Ejemplo: G-ABC123XYZ. Dejalo vacío si no querés usar Google
+              Analytics en esta tienda.
+            </p>
+          </label>
+
+          <label className="block space-y-2">
             <span className="text-sm font-medium">Logo URL</span>
             <input
               type="text"
@@ -152,13 +153,13 @@ export default async function AdminPage() {
             />
           </label>
 
-          {store.logo_url && (
+          {store.logo_url ? (
             <img
               src={store.logo_url}
               alt="logo"
               className="h-20 w-20 rounded-xl border object-cover"
             />
-          )}
+          ) : null}
 
           <label className="block space-y-2">
             <span className="text-sm font-medium">Subir logo</span>
@@ -175,13 +176,13 @@ export default async function AdminPage() {
             />
           </label>
 
-          {store.cover_url && (
+          {store.cover_url ? (
             <img
               src={store.cover_url}
               alt="cover"
               className="h-32 w-full rounded-xl border object-cover"
             />
-          )}
+          ) : null}
 
           <label className="block space-y-2">
             <span className="text-sm font-medium">Subir portada</span>

@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import WhatsAppCart from '@/components/store/WhatsAppCart';
 import ProductCard from '@/components/ProductCard';
 import CartBadge from '@/components/store/CartBadge';
+import GoogleAnalytics from '@/components/store/GoogleAnalytics';
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -86,6 +87,7 @@ export default async function PublicStorePage({ params }: PageProps) {
       whatsapp_number,
       logo_url,
       cover_url,
+      google_analytics_id,
       is_active
     `)
     .eq('slug', slug)
@@ -130,14 +132,20 @@ export default async function PublicStorePage({ params }: PageProps) {
 
   if (productsError || categoriesError) {
     return (
-      <main className="min-h-screen bg-white">
-        <section className="mx-auto max-w-6xl px-6 py-12">
-          <h1 className="text-3xl font-bold">{store.name}</h1>
-          <p className="mt-4 text-red-600">
-            No se pudieron cargar los productos o categorías.
-          </p>
-        </section>
-      </main>
+      <>
+        {store.google_analytics_id ? (
+          <GoogleAnalytics measurementId={store.google_analytics_id} />
+        ) : null}
+
+        <main className="min-h-screen bg-white">
+          <section className="mx-auto max-w-6xl px-6 py-12">
+            <h1 className="text-3xl font-bold">{store.name}</h1>
+            <p className="mt-4 text-red-600">
+              No se pudieron cargar los productos o categorías.
+            </p>
+          </section>
+        </main>
+      </>
     );
   }
 
@@ -166,151 +174,158 @@ export default async function PublicStorePage({ params }: PageProps) {
   const hasAnyProducts = typedProducts.length > 0;
 
   return (
-    <main className="min-h-screen bg-white">
-      <section className="relative border-b bg-gray-50">
-        {store.cover_url && (
-          <div className="absolute inset-0">
-            <img
-              src={store.cover_url}
-              alt={`Portada de ${store.name}`}
-              className="h-full w-full object-cover"
-            />
-            <div className="absolute inset-0 bg-black/45" />
-          </div>
-        )}
+    <>
+      {store.google_analytics_id ? (
+        <GoogleAnalytics measurementId={store.google_analytics_id} />
+      ) : null}
 
-        <div className="relative mx-auto max-w-6xl px-6 py-12 md:py-16">
-          <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-            <div className="flex flex-col gap-5 md:flex-row md:items-center">
-              {store.logo_url && (
-                <img
-                  src={store.logo_url}
-                  alt={`Logo de ${store.name}`}
-                  className="h-20 w-20 rounded-3xl border bg-white object-cover shadow-sm"
-                />
-              )}
+      <main className="min-h-screen bg-white">
+        <section className="relative border-b bg-gray-50">
+          {store.cover_url && (
+            <div className="absolute inset-0">
+              <img
+                src={store.cover_url}
+                alt={`Portada de ${store.name}`}
+                className="h-full w-full object-cover"
+              />
+              <div className="absolute inset-0 bg-black/45" />
+            </div>
+          )}
 
-              <div className="max-w-3xl">
-                <p
-                  className={`text-sm uppercase tracking-[0.2em] ${
-                    store.cover_url ? 'text-white/80' : 'text-gray-500'
-                  }`}
-                >
-                  Tienda online
-                </p>
+          <div className="relative mx-auto max-w-6xl px-6 py-12 md:py-16">
+            <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+              <div className="flex flex-col gap-5 md:flex-row md:items-center">
+                {store.logo_url && (
+                  <img
+                    src={store.logo_url}
+                    alt={`Logo de ${store.name}`}
+                    className="h-20 w-20 rounded-3xl border bg-white object-cover shadow-sm"
+                  />
+                )}
 
-                <h1
-                  className={`mt-2 text-4xl font-bold md:text-5xl ${
-                    store.cover_url ? 'text-white' : 'text-gray-900'
-                  }`}
-                >
-                  {store.name}
-                </h1>
+                <div className="max-w-3xl">
+                  <p
+                    className={`text-sm uppercase tracking-[0.2em] ${
+                      store.cover_url ? 'text-white/80' : 'text-gray-500'
+                    }`}
+                  >
+                    Tienda online
+                  </p>
 
-                <p
-                  className={`mt-3 max-w-2xl text-base md:text-lg ${
-                    store.cover_url ? 'text-white/90' : 'text-gray-600'
-                  }`}
-                >
-                  Explorá nuestros productos disponibles y elegí lo que necesitás.
-                </p>
+                  <h1
+                    className={`mt-2 text-4xl font-bold md:text-5xl ${
+                      store.cover_url ? 'text-white' : 'text-gray-900'
+                    }`}
+                  >
+                    {store.name}
+                  </h1>
+
+                  <p
+                    className={`mt-3 max-w-2xl text-base md:text-lg ${
+                      store.cover_url ? 'text-white/90' : 'text-gray-600'
+                    }`}
+                  >
+                    Explorá nuestros productos disponibles y elegí lo que necesitás.
+                  </p>
+                </div>
               </div>
-            </div>
 
-            <div>
-              <CartBadge storeSlug={store.slug} />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {hasAnyProducts && (visibleCategories.length > 0 || uncategorizedProducts.length > 0) && (
-        <section className="sticky top-0 z-20 border-b bg-white/90 backdrop-blur">
-          <div className="mx-auto max-w-6xl px-6 py-3">
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {visibleCategories.map((category) => (
-                <a
-                  key={category.id}
-                  href={`#${sectionIdFromCategory(category)}`}
-                  className="whitespace-nowrap rounded-full border px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                >
-                  {category.name}
-                </a>
-              ))}
-
-              {uncategorizedProducts.length > 0 && (
-                <a
-                  href="#otros-productos"
-                  className="whitespace-nowrap rounded-full border px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                >
-                  Otros productos
-                </a>
-              )}
+              <div>
+                <CartBadge storeSlug={store.slug} />
+              </div>
             </div>
           </div>
         </section>
-      )}
 
-      <section className="mx-auto max-w-6xl space-y-12 px-6 py-10">
-        {!hasAnyProducts ? (
-          <div className="rounded-2xl border border-dashed p-10 text-center">
-            <h2 className="text-xl font-semibold">Todavía no hay productos publicados</h2>
-            <p className="mt-2 text-gray-600">Volvé pronto para ver novedades.</p>
-          </div>
-        ) : (
-          <>
-            {visibleCategories.map((category) => {
-              const items = productsByCategory.get(category.id) || [];
+        {hasAnyProducts &&
+        (visibleCategories.length > 0 || uncategorizedProducts.length > 0) ? (
+          <section className="sticky top-0 z-20 border-b bg-white/90 backdrop-blur">
+            <div className="mx-auto max-w-6xl px-6 py-3">
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {visibleCategories.map((category) => (
+                  <a
+                    key={category.id}
+                    href={`#${sectionIdFromCategory(category)}`}
+                    className="whitespace-nowrap rounded-full border px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  >
+                    {category.name}
+                  </a>
+                ))}
 
-              return (
-                <section
-                  key={category.id}
-                  id={sectionIdFromCategory(category)}
-                  className="scroll-mt-24 space-y-5"
-                >
-                  <div className="border-b pb-3">
-                    <h2 className="text-2xl font-semibold text-gray-900">
-                      {category.name}
-                    </h2>
-                  </div>
+                {uncategorizedProducts.length > 0 && (
+                  <a
+                    href="#otros-productos"
+                    className="whitespace-nowrap rounded-full border px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  >
+                    Otros productos
+                  </a>
+                )}
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        <section className="mx-auto max-w-6xl space-y-12 px-6 py-10">
+          {!hasAnyProducts ? (
+            <div className="rounded-2xl border border-dashed p-10 text-center">
+              <h2 className="text-xl font-semibold">Todavía no hay productos publicados</h2>
+              <p className="mt-2 text-gray-600">Volvé pronto para ver novedades.</p>
+            </div>
+          ) : (
+            <>
+              {visibleCategories.map((category) => {
+                const items = productsByCategory.get(category.id) || [];
+
+                return (
+                  <section
+                    key={category.id}
+                    id={sectionIdFromCategory(category)}
+                    className="scroll-mt-24 space-y-5"
+                  >
+                    <div className="border-b pb-3">
+                      <h2 className="text-2xl font-semibold text-gray-900">
+                        {category.name}
+                      </h2>
+                    </div>
+
+                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                      {items.map((product) => (
+                        <div key={product.id}>
+                          <ProductCard product={product} storeSlug={store.slug} />
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                );
+              })}
+
+              {uncategorizedProducts.length > 0 && (
+                <section id="otros-productos" className="space-y-5">
+                  <h2 className="text-2xl font-semibold text-gray-900">
+                    Otros productos
+                  </h2>
 
                   <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                    {items.map((product) => (
+                    {uncategorizedProducts.map((product) => (
                       <div key={product.id}>
                         <ProductCard product={product} storeSlug={store.slug} />
                       </div>
                     ))}
                   </div>
                 </section>
-              );
-            })}
+              )}
+            </>
+          )}
+        </section>
 
-            {uncategorizedProducts.length > 0 && (
-              <section id="otros-productos" className="space-y-5">
-                <h2 className="text-2xl font-semibold text-gray-900">
-                  Otros productos
-                </h2>
-
-                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                  {uncategorizedProducts.map((product) => (
-                    <div key={product.id}>
-                      <ProductCard product={product} storeSlug={store.slug} />
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-          </>
+        {store.whatsapp_number && (
+          <WhatsAppCart
+            storeSlug={store.slug}
+            storeName={store.name}
+            whatsappNumber={store.whatsapp_number}
+          />
         )}
-      </section>
-
-      {store.whatsapp_number && (
-        <WhatsAppCart
-          storeSlug={store.slug}
-          storeName={store.name}
-          whatsappNumber={store.whatsapp_number}
-        />
-      )}
-    </main>
+      </main>
+    </>
   );
 }

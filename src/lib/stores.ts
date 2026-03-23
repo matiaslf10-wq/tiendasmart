@@ -11,6 +11,7 @@ type StoreMembership = {
     whatsapp_number?: string | null;
     logo_url?: string | null;
     cover_url?: string | null;
+    google_analytics_id?: string | null;
   } | null;
 };
 
@@ -35,7 +36,8 @@ export async function getCurrentUserStore(): Promise<StoreMembership | null> {
         is_active,
         whatsapp_number,
         logo_url,
-        cover_url
+        cover_url,
+        google_analytics_id
       )
     `)
     .eq('user_id', user.id)
@@ -45,5 +47,5 @@ export async function getCurrentUserStore(): Promise<StoreMembership | null> {
     return null;
   }
 
-  return data[0] as unknown as StoreMembership;
+  return data[0] as StoreMembership;
 }

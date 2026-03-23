@@ -1,18 +1,26 @@
 import { createClient } from '@/lib/supabase/server';
+import type { Plan } from '@/lib/plans';
+
+type StoreRow = {
+  id: string;
+  name: string;
+  slug: string;
+  plan: Plan;
+  is_active: boolean;
+  whatsapp_number?: string | null;
+  logo_url?: string | null;
+  cover_url?: string | null;
+  google_analytics_id?: string | null;
+};
+
+type StoreMembershipRow = {
+  role: 'owner' | 'admin' | 'staff';
+  stores: StoreRow[] | StoreRow | null;
+};
 
 type StoreMembership = {
   role: 'owner' | 'admin' | 'staff';
-  stores: {
-    id: string;
-    name: string;
-    slug: string;
-    plan: 'esencial' | 'pro' | 'intelligence';
-    is_active: boolean;
-    whatsapp_number?: string | null;
-    logo_url?: string | null;
-    cover_url?: string | null;
-    google_analytics_id?: string | null;
-  } | null;
+  stores: StoreRow | null;
 };
 
 export async function getCurrentUserStore(): Promise<StoreMembership | null> {
@@ -47,5 +55,14 @@ export async function getCurrentUserStore(): Promise<StoreMembership | null> {
     return null;
   }
 
-  return data[0] as StoreMembership;
+  const row = data[0] as StoreMembershipRow;
+
+  const store = Array.isArray(row.stores)
+    ? (row.stores[0] ?? null)
+    : (row.stores ?? null);
+
+  return {
+    role: row.role,
+    stores: store,
+  };
 }

@@ -163,14 +163,26 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
       pendingOrdersCount={pendingOrdersCount}
     >
       <div className="space-y-6">
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="space-y-2">
+            <h2 className="text-lg font-semibold text-slate-900">
+              Rendimiento comercial
+            </h2>
+            <p className="text-sm text-slate-500">
+              Analizá ingresos, comportamiento de pedidos y productos con mejor
+              desempeño en el período seleccionado.
+            </p>
+          </div>
+        </section>
+
         <OrdersRangeTabs
-  basePath="/admin/analytics"
-  currentRange={range}
-  status="all"
-  queryText=""
-  delivery="all"
-  notes="all"
-/>
+          basePath="/admin/analytics"
+          currentRange={range}
+          status="all"
+          queryText=""
+          delivery="all"
+          notes="all"
+        />
 
         <OrdersAnalyticsSection
           orders={rangeFilteredOrders}

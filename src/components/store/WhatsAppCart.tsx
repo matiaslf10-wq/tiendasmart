@@ -20,6 +20,7 @@ import {
   getMaxPurchasableQuantity,
   getStockLabel,
 } from '@/lib/stock';
+import { trackBeginCheckout, trackViewCart } from '@/lib/ga';
 import StoreToast from '@/components/store/StoreToast';
 import { createOrder } from '@/app/actions/createOrder';
 
@@ -44,10 +45,10 @@ function isPhoneValid(phone: string) {
   const digits = phone.replace(/\D/g, '');
 
   return (
-    /^\d{10}$/.test(digits) || // 1123456789
-    /^0\d{10,11}$/.test(digits) || // 01123456789
-    /^54\d{10,12}$/.test(digits) || // 541123456789
-    /^549\d{10,12}$/.test(digits) || // 5491123456789
+    /^\d{10}$/.test(digits) ||
+    /^0\d{10,11}$/.test(digits) ||
+    /^54\d{10,12}$/.test(digits) ||
+    /^549\d{10,12}$/.test(digits) ||
     /^\d{2,4}15\d{6,8}$/.test(digits.replace(/^0/, ''))
   );
 }
@@ -72,6 +73,7 @@ export default function WhatsAppCart({
   const [checkoutResult, setCheckoutResult] = useState<CheckoutResult>(null);
   const [isSubmitting, startTransition] = useTransition();
   const toastTimeoutRef = useRef<number | null>(null);
+  const hasTrackedViewCartRef = useRef(false);
 
   function showToast(message: string, tone: 'success' | 'error' | 'info') {
     setToast({ message, tone });
@@ -168,6 +170,27 @@ export default function WhatsAppCart({
     validPhone &&
     (!requiresAddress || hasValidAddress);
 
+  useEffect(() => {
+    if (!open) {
+      hasTrackedViewCartRef.current = false;
+      return;
+    }
+
+    if (validItems.length === 0) return;
+    if (hasTrackedViewCartRef.current) return;
+
+    trackViewCart(
+      validItems.map((item) => ({
+        item_id: item.id,
+        item_name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+      }))
+    );
+
+    hasTrackedViewCartRef.current = true;
+  }, [open, validItems]);
+
   async function handleCopyMessage() {
     if (!checkoutResult?.message) return;
 
@@ -214,6 +237,15 @@ export default function WhatsAppCart({
       showToast('No hay productos disponibles para enviar.', 'error');
       return;
     }
+
+    trackBeginCheckout(
+      validItems.map((item) => ({
+        item_id: item.id,
+        item_name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+      }))
+    );
 
     startTransition(() => {
       void (async () => {

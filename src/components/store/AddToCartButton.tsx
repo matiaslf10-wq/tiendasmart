@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { addToCart, formatPrice } from '@/lib/cart';
+import { trackAddToCart } from '@/lib/ga';
 
 type AddToCartButtonProps = {
   storeSlug: string;
@@ -25,6 +26,13 @@ export default function AddToCartButton({
       name: product.name,
       price: product.price,
       image_url: product.image_url ?? null,
+    });
+
+    trackAddToCart({
+      item_id: product.id,
+      item_name: product.name,
+      price: product.price,
+      quantity: 1,
     });
 
     setAdded(true);

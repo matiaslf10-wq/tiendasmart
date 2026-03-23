@@ -26,6 +26,14 @@ export function trackEvent(
   window.gtag?.('event', eventName, params ?? {});
 }
 
+export function trackViewItem(item: GAItem) {
+  trackEvent('view_item', {
+    currency: 'ARS',
+    value: item.price ?? 0,
+    items: [item],
+  });
+}
+
 export function trackAddToCart(item: GAItem) {
   trackEvent('add_to_cart', {
     currency: 'ARS',
@@ -56,6 +64,29 @@ export function trackBeginCheckout(items: GAItem[]) {
   trackEvent('begin_checkout', {
     currency: 'ARS',
     value,
+    items,
+  });
+}
+
+export function trackPurchase(params: {
+  transactionId: string | number;
+  items: GAItem[];
+  shipping?: number;
+  tax?: number;
+}) {
+  const { transactionId, items, shipping = 0, tax = 0 } = params;
+
+  const itemsValue = items.reduce(
+    (acc, item) => acc + (item.price ?? 0) * (item.quantity ?? 1),
+    0
+  );
+
+  trackEvent('purchase', {
+    transaction_id: String(transactionId),
+    currency: 'ARS',
+    value: itemsValue + shipping + tax,
+    shipping,
+    tax,
     items,
   });
 }

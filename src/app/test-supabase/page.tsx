@@ -20,4 +20,4 @@ export default async function TestSupabasePage() {
       )}
     </main>
   );
-}
+}Remove-Item -Recurse -Force src/app/test-supabase

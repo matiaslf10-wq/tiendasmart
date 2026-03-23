@@ -1,14 +1,11 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import AdminShell from '@/components/admin/AdminShell';
-import OrdersAnalyticsSection from '@/components/admin/OrdersAnalyticsSection';
 import OrdersFilters from '@/components/admin/OrdersFilters';
 import OrdersRangeTabs from '@/components/admin/OrdersRangeTabs';
 import {
-  filterOrderItemsByRange,
   filterOrders,
   type Order,
-  type OrderItemRow,
   type RangeValue,
 } from '@/lib/admin/orders';
 import { formatPrice } from '@/lib/cart';
@@ -32,6 +29,7 @@ function getStatusClasses(status: string) {
     case 'confirmed':
       return 'bg-blue-100 text-blue-800 border-blue-200';
     case 'preparing':
+    case 'in_preparation':
       return 'bg-violet-100 text-violet-800 border-violet-200';
     case 'ready':
       return 'bg-cyan-100 text-cyan-800 border-cyan-200';
@@ -51,6 +49,7 @@ function getStatusLabel(status: string) {
     case 'confirmed':
       return 'Confirmado';
     case 'preparing':
+    case 'in_preparation':
       return 'Preparando';
     case 'ready':
       return 'Listo';
@@ -78,6 +77,11 @@ function formatOrderDate(dateString: string) {
   }).format(date);
 }
 
+function toNumber(value: number | string | null | undefined) {
+  const parsed = Number(value ?? 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 export default async function PedidosPage({ searchParams }: PageProps) {
   const membership = await getCurrentUserStore();
 
@@ -95,63 +99,30 @@ export default async function PedidosPage({ searchParams }: PageProps) {
   const delivery = resolvedSearchParams.delivery ?? 'all';
   const notes = resolvedSearchParams.notes ?? 'all';
 
-  const [{ data: ordersData, error: ordersError }, { data: itemsData, error: itemsError }] =
-    await Promise.all([
-      supabase
-        .from('orders')
-        .select(
-          `
-          id,
-          order_number,
-          customer_name,
-          customer_phone,
-          total,
-          status,
-          notes,
-          delivery_type,
-          delivery_address,
-          created_at
-        `
-        )
-        .eq('store_id', store.id)
-        .order('created_at', { ascending: false }),
-      supabase
-        .from('order_items')
-        .select(
-          `
-          product_name,
-          quantity,
-          line_total,
-          orders!inner (
-            created_at,
-            store_id
-          )
-        `
-        )
-        .eq('orders.store_id', store.id),
-    ]);
+  const { data: ordersData, error: ordersError } = await supabase
+    .from('orders')
+    .select(
+      `
+      id,
+      order_number,
+      customer_name,
+      customer_phone,
+      total,
+      status,
+      notes,
+      delivery_type,
+      delivery_address,
+      created_at
+    `
+    )
+    .eq('store_id', store.id)
+    .order('created_at', { ascending: false });
 
   if (ordersError) {
     throw new Error(`Error cargando pedidos: ${ordersError.message}`);
   }
 
-  if (itemsError) {
-    throw new Error(`Error cargando items de pedidos: ${itemsError.message}`);
-  }
-
   const allOrders = (ordersData ?? []) as Order[];
-
-  const allOrderItems = ((itemsData ?? []) as Array<{
-    product_name: string | null;
-    quantity: number | string | null;
-    line_total: number | string | null;
-    orders: { created_at: string; store_id: string }[];
-  }>).map((item) => ({
-    product_name: item.product_name,
-    quantity: item.quantity,
-    line_total: item.line_total,
-    orders: item.orders?.[0] ?? null,
-  })) as OrderItemRow[];
 
   const {
     rangeFilteredOrders,
@@ -166,7 +137,22 @@ export default async function PedidosPage({ searchParams }: PageProps) {
     range,
   });
 
-  const rangeFilteredOrderItems = filterOrderItemsByRange(allOrderItems, range);
+  const visibleRevenue = visibleOrders.reduce(
+    (acc, order) => acc + toNumber(order.total),
+    0
+  );
+
+  const visiblePendingCount = visibleOrders.filter(
+    (order) => order.status === 'pending'
+  ).length;
+
+  const visibleDeliveryCount = visibleOrders.filter(
+    (order) => order.delivery_type === 'delivery'
+  ).length;
+
+  const visiblePickupCount = visibleOrders.filter(
+    (order) => order.delivery_type === 'pickup'
+  ).length;
 
   return (
     <AdminShell
@@ -176,23 +162,40 @@ export default async function PedidosPage({ searchParams }: PageProps) {
       storeSlug={store.slug}
       plan={store.plan}
       current="pedidos"
-      pendingOrdersCount={0}
+      pendingOrdersCount={pendingOrdersCount}
     >
       <div className="space-y-6">
         <OrdersRangeTabs
-  basePath="/admin/pedidos"
-  currentRange={range}
-  status={status}
-  queryText={queryText}
-  delivery={delivery}
-  notes={notes}
-/>
-
-        <OrdersAnalyticsSection
-          orders={rangeFilteredOrders}
-          items={rangeFilteredOrderItems}
-          range={range}
+          basePath="/admin/pedidos"
+          currentRange={range}
+          status={status}
+          queryText={queryText}
+          delivery={delivery}
+          notes={notes}
         />
+
+        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <MiniStatCard
+            label="Pedidos visibles"
+            value={visibleOrders.length}
+            hint="Según filtros actuales"
+          />
+          <MiniStatCard
+            label="Pendientes"
+            value={visiblePendingCount}
+            hint="Para accionar ahora"
+          />
+          <MiniStatCard
+            label="Total visible"
+            value={formatPrice(visibleRevenue)}
+            hint="Suma de pedidos filtrados"
+          />
+          <MiniStatCard
+            label="Entrega"
+            value={`${visibleDeliveryCount} envíos / ${visiblePickupCount} retiros`}
+            hint="Distribución operativa"
+          />
+        </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -201,7 +204,8 @@ export default async function PedidosPage({ searchParams }: PageProps) {
                 Gestión de pedidos
               </h2>
               <p className="text-sm text-slate-500">
-                {visibleOrders.length} pedido{visibleOrders.length === 1 ? '' : 's'} visible
+                {visibleOrders.length} pedido
+                {visibleOrders.length === 1 ? '' : 's'} visible
                 {queryText ? `s para “${queryText}”` : 's'}.
               </p>
             </div>
@@ -222,10 +226,7 @@ export default async function PedidosPage({ searchParams }: PageProps) {
             </div>
           ) : (
             visibleOrders.map((order) => {
-              const total =
-                typeof order.total === 'number'
-                  ? order.total
-                  : Number(order.total ?? 0);
+              const total = toNumber(order.total);
 
               return (
                 <article
@@ -306,7 +307,9 @@ export default async function PedidosPage({ searchParams }: PageProps) {
                           <p className="text-xs font-medium uppercase tracking-wide text-amber-700">
                             Notas
                           </p>
-                          <p className="mt-1 text-sm text-amber-900">{order.notes}</p>
+                          <p className="mt-1 text-sm text-amber-900">
+                            {order.notes}
+                          </p>
                         </div>
                       ) : null}
                     </div>
@@ -327,5 +330,23 @@ export default async function PedidosPage({ searchParams }: PageProps) {
         </section>
       </div>
     </AdminShell>
+  );
+}
+
+function MiniStatCard({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string | number;
+  hint?: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <p className="text-sm text-slate-500">{label}</p>
+      <p className="mt-1 text-2xl font-bold text-slate-900">{value}</p>
+      {hint ? <p className="mt-1 text-xs text-slate-400">{hint}</p> : null}
+    </div>
   );
 }

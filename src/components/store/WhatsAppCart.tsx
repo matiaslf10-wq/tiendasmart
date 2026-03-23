@@ -20,7 +20,12 @@ import {
   getMaxPurchasableQuantity,
   getStockLabel,
 } from '@/lib/stock';
-import { trackBeginCheckout, trackViewCart } from '@/lib/ga';
+import {
+  trackBeginCheckout,
+  trackPurchase,
+  trackSendToWhatsApp,
+  trackViewCart,
+} from '@/lib/ga';
 import StoreToast from '@/components/store/StoreToast';
 import { createOrder } from '@/app/actions/createOrder';
 
@@ -203,10 +208,21 @@ export default function WhatsAppCart({
   }
 
   function handleOpenWhatsApp() {
-    if (!checkoutResult?.whatsappUrl) return;
+  if (!checkoutResult?.whatsappUrl) return;
 
-    window.open(checkoutResult.whatsappUrl, '_blank', 'noreferrer');
-  }
+  trackSendToWhatsApp({
+    transactionId: checkoutResult.orderNumber,
+    store_slug: storeSlug,
+    items: validItems.map((item) => ({
+      item_id: item.id,
+      item_name: item.name,
+      price: item.price,
+      quantity: item.quantity,
+    })),
+  });
+
+  window.open(checkoutResult.whatsappUrl, '_blank', 'noreferrer');
+}
 
   function handleCloseCart() {
     setOpen(false);

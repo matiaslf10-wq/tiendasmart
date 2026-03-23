@@ -90,3 +90,34 @@ export function trackPurchase(params: {
     items,
   });
 }
+
+export function trackContactWhatsApp(params: {
+  source: 'product' | 'cart' | 'store';
+  item?: GAItem;
+  store_slug?: string;
+}) {
+  trackEvent('contact_whatsapp', {
+    source: params.source,
+    store_slug: params.store_slug,
+    items: params.item ? [params.item] : undefined,
+  });
+}
+
+export function trackSendToWhatsApp(params: {
+  transactionId?: string | number;
+  items: GAItem[];
+  store_slug?: string;
+}) {
+  const value = params.items.reduce(
+    (acc, item) => acc + (item.price ?? 0) * (item.quantity ?? 1),
+    0
+  );
+
+  trackEvent('send_to_whatsapp', {
+    transaction_id: params.transactionId ? String(params.transactionId) : undefined,
+    currency: 'ARS',
+    value,
+    store_slug: params.store_slug,
+    items: params.items,
+  });
+}

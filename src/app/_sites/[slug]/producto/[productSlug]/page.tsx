@@ -6,6 +6,7 @@ import ProductDetailActions from '@/components/store/ProductDetailActions';
 import ProductImageGallery from '@/components/store/ProductImageGallery';
 import ViewItemTracker from '@/components/store/ViewItemTracker';
 import { getStockLabel } from '@/lib/stock';
+import ProductWhatsAppButton from '@/components/store/ProductWhatsAppButton';
 
 type PageProps = {
   params: Promise<{ slug: string; productSlug: string }>;
@@ -294,15 +295,17 @@ export default async function PublicProductPage({ params }: PageProps) {
 
                 <div className="flex flex-wrap gap-3">
                   {store.whatsapp_number ? (
-                    <a
-                      href={`https://wa.me/${store.whatsapp_number}?text=${whatsappText}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="rounded-xl border px-5 py-3"
-                    >
-                      Consultar por WhatsApp
-                    </a>
-                  ) : null}
+  <ProductWhatsAppButton
+    href={`https://wa.me/${store.whatsapp_number}?text=${whatsappText}`}
+    storeSlug={store.slug}
+    product={{
+      id: typedProduct.id,
+      name: typedProduct.name,
+      price: Number(typedProduct.price),
+      categoryName: category?.name ?? null,
+    }}
+  />
+) : null}
 
                   <a
                     href={`/${store.slug}`}

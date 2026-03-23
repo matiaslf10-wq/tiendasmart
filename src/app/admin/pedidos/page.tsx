@@ -180,12 +180,13 @@ export default async function PedidosPage({ searchParams }: PageProps) {
     >
       <div className="space-y-6">
         <OrdersRangeTabs
-          currentRange={range}
-          status={status}
-          queryText={queryText}
-          delivery={delivery}
-          notes={notes}
-        />
+  basePath="/admin/pedidos"
+  currentRange={range}
+  status={status}
+  queryText={queryText}
+  delivery={delivery}
+  notes={notes}
+/>
 
         <OrdersAnalyticsSection
           orders={rangeFilteredOrders}

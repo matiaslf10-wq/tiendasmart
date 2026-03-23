@@ -3,6 +3,7 @@ import Link from 'next/link';
 type RangeValue = 'today' | '7d' | '30d' | 'month' | 'all';
 
 type Props = {
+  basePath?: string;
   currentRange: RangeValue;
   status: string;
   queryText: string;
@@ -19,6 +20,7 @@ const RANGES: Array<{ value: RangeValue; label: string }> = [
 ];
 
 function buildHref(params: {
+  basePath: string;
   range: RangeValue;
   status: string;
   queryText: string;
@@ -48,10 +50,11 @@ function buildHref(params: {
   }
 
   const queryString = search.toString();
-  return queryString ? `/admin/pedidos?${queryString}` : '/admin/pedidos';
+  return queryString ? `${params.basePath}?${queryString}` : params.basePath;
 }
 
 export default function OrdersRangeTabs({
+  basePath = '/admin/pedidos',
   currentRange,
   status,
   queryText,
@@ -67,6 +70,7 @@ export default function OrdersRangeTabs({
           <Link
             key={range.value}
             href={buildHref({
+              basePath,
               range: range.value,
               status,
               queryText,

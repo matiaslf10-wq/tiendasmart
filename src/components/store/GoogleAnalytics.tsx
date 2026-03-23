@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import Script from 'next/script';
 import GoogleAnalyticsPageTracker from './GoogleAnalyticsPageTracker';
 
@@ -27,7 +28,10 @@ export default function GoogleAnalytics({ measurementId }: Props) {
           });
         `}
       </Script>
-      <GoogleAnalyticsPageTracker measurementId={measurementId} />
+
+      <Suspense fallback={null}>
+        <GoogleAnalyticsPageTracker measurementId={measurementId} />
+      </Suspense>
     </>
   );
 }

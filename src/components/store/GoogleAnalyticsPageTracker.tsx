@@ -2,7 +2,6 @@
 
 import { useEffect } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { trackEvent } from '@/lib/ga';
 
 type Props = {
   measurementId: string;

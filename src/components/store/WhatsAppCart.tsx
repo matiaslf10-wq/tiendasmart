@@ -208,21 +208,21 @@ export default function WhatsAppCart({
   }
 
   function handleOpenWhatsApp() {
-  if (!checkoutResult?.whatsappUrl) return;
+    if (!checkoutResult?.whatsappUrl) return;
 
-  trackSendToWhatsApp({
-    transactionId: checkoutResult.orderNumber,
-    store_slug: storeSlug,
-    items: validItems.map((item) => ({
-      item_id: item.id,
-      item_name: item.name,
-      price: item.price,
-      quantity: item.quantity,
-    })),
-  });
+    trackSendToWhatsApp({
+      transactionId: checkoutResult.orderNumber,
+      store_slug: storeSlug,
+      items: validItems.map((item) => ({
+        item_id: item.id,
+        item_name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+      })),
+    });
 
-  window.open(checkoutResult.whatsappUrl, '_blank', 'noreferrer');
-}
+    window.open(checkoutResult.whatsappUrl, '_blank', 'noreferrer');
+  }
 
   function handleCloseCart() {
     setOpen(false);
@@ -268,47 +268,47 @@ export default function WhatsAppCart({
         const normalizedPhone = normalizePhone(customerPhone);
 
         const result = await createOrder({
-  storeSlug,
-  customerName: customerName.trim(),
-  customerPhone: normalizedPhone,
-  deliveryType,
-  deliveryAddress:
-    deliveryType === 'delivery' ? customerAddress.trim() : '',
-  notes: customerNotes.trim(),
-  items: validItems.map((item) => ({
-    productId: item.id,
-    quantity: item.quantity,
-  })),
-});
+          storeSlug,
+          customerName: customerName.trim(),
+          customerPhone: normalizedPhone,
+          deliveryType,
+          deliveryAddress:
+            deliveryType === 'delivery' ? customerAddress.trim() : '',
+          notes: customerNotes.trim(),
+          items: validItems.map((item) => ({
+            productId: item.id,
+            quantity: item.quantity,
+          })),
+        });
 
-if (!result.success) {
-  showToast(result.error, 'error');
-  return;
-}
+        if (!result.success) {
+          showToast(result.error, 'error');
+          return;
+        }
 
-trackPurchase({
-  transactionId: result.orderNumber,
-  items: validItems.map((item) => ({
-    item_id: item.id,
-    item_name: item.name,
-    price: item.price,
-    quantity: item.quantity,
-  })),
-  shipping: 0,
-  tax: 0,
-});
+        trackPurchase({
+          transactionId: result.orderNumber,
+          items: validItems.map((item) => ({
+            item_id: item.id,
+            item_name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+          })),
+          shipping: 0,
+          tax: 0,
+        });
 
-const message = buildWhatsAppMessage({
-  storeName,
-  storeSlug,
-  items: validItems,
-  orderNumber: result.orderNumber,
-  customerName: customerName.trim(),
-  customerPhone: normalizedPhone,
-  deliveryType,
-  deliveryAddress: customerAddress.trim(),
-  notes: customerNotes.trim(),
-});
+        const message = buildWhatsAppMessage({
+          storeName,
+          storeSlug,
+          items: validItems,
+          orderNumber: result.orderNumber,
+          customerName: customerName.trim(),
+          customerPhone: normalizedPhone,
+          deliveryType,
+          deliveryAddress: customerAddress.trim(),
+          notes: customerNotes.trim(),
+        });
 
         const whatsappUrl = getWhatsAppUrl(whatsappNumber, message);
 
@@ -364,8 +364,8 @@ const message = buildWhatsAppMessage({
                       Pedido #{checkoutResult.orderNumber} creado con éxito
                     </p>
                     <p className="mt-1 text-sm text-green-700">
-                      Ahora podés abrir WhatsApp para enviarlo al comercio o copiar
-                      el mensaje manualmente.
+                      Ahora podés abrir WhatsApp para enviarlo al comercio o
+                      copiar el mensaje manualmente.
                     </p>
                   </div>
 

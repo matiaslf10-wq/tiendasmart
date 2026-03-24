@@ -31,6 +31,11 @@ type TopProductItem = {
   revenue: number;
 };
 
+function toNumber(value: number | string | null | undefined) {
+  const parsed = Number(value ?? 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 function formatCurrency(value: number) {
   return new Intl.NumberFormat('es-AR', {
     style: 'currency',
@@ -39,13 +44,21 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
-function buildTopProducts(items: OrderItemRow[]): TopProductItem[] {
+function shortenLabel(value: string, maxLength = 26) {
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, maxLength - 1)}…`;
+}
+
+function buildGroupedProducts(items: OrderItemRow[]): TopProductItem[] {
   const grouped = new Map<string, TopProductItem>();
 
   for (const item of items) {
-    const productName = (item.product_name ?? 'Producto sin nombre').trim() || 'Producto sin nombre';
-    const quantity = Number(item.quantity ?? 0);
-    const revenue = Number(item.line_total ?? 0);
+    const productName =
+      (item.product_name ?? 'Producto sin nombre').trim() ||
+      'Producto sin nombre';
+
+    const quantity = toNumber(item.quantity);
+    const revenue = toNumber(item.line_total);
 
     const current = grouped.get(productName) ?? {
       product_name: productName,
@@ -59,51 +72,64 @@ function buildTopProducts(items: OrderItemRow[]): TopProductItem[] {
     grouped.set(productName, current);
   }
 
-  return Array.from(grouped.values())
-    .sort((a, b) => {
-      if (b.quantity !== a.quantity) {
-        return b.quantity - a.quantity;
-      }
-
-      return b.revenue - a.revenue;
-    })
-    .slice(0, 8);
+  return Array.from(grouped.values());
 }
 
 const quantityTooltipFormatter: Formatter<ValueType, NameType> = (value) => {
   if (typeof value === 'number') {
-    return `${value} unidades`;
+    return [`${value} unidades`, 'Cantidad'];
   }
 
   if (typeof value === 'string') {
-    return value;
+    return [value, 'Cantidad'];
   }
 
   if (Array.isArray(value)) {
-    return value.join(' - ');
+    return [value.join(' - '), 'Cantidad'];
   }
 
-  return '';
+  return ['', 'Cantidad'];
 };
 
 const revenueTooltipFormatter: Formatter<ValueType, NameType> = (value) => {
   if (typeof value === 'number') {
-    return formatCurrency(value);
+    return [formatCurrency(value), 'Facturación'];
   }
 
   if (typeof value === 'string') {
-    return value;
+    return [value, 'Facturación'];
   }
 
   if (Array.isArray(value)) {
-    return value.join(' - ');
+    return [value.join(' - '), 'Facturación'];
   }
 
-  return '';
+  return ['', 'Facturación'];
 };
 
 export default function OrdersTopProducts({ items }: Props) {
-  const topProducts = buildTopProducts(items);
+  const groupedProducts = buildGroupedProducts(items);
+
+  const topByQuantity = [...groupedProducts]
+    .sort((a, b) => {
+      if (b.quantity !== a.quantity) return b.quantity - a.quantity;
+      return b.revenue - a.revenue;
+    })
+    .slice(0, 8);
+
+  const topByRevenue = [...groupedProducts]
+    .sort((a, b) => {
+      if (b.revenue !== a.revenue) return b.revenue - a.revenue;
+      return b.quantity - a.quantity;
+    })
+    .slice(0, 8);
+
+  const summaryProducts = [...groupedProducts]
+    .sort((a, b) => {
+      if (b.revenue !== a.revenue) return b.revenue - a.revenue;
+      return b.quantity - a.quantity;
+    })
+    .slice(0, 8);
 
   return (
     <section className="space-y-6">
@@ -122,21 +148,26 @@ export default function OrdersTopProducts({ items }: Props) {
             Top por unidades
           </h3>
 
-          {topProducts.length === 0 ? (
+          {topByQuantity.length === 0 ? (
             <p className="text-sm text-gray-500">
               No hay productos vendidos para mostrar.
             </p>
           ) : (
             <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topProducts} layout="vertical" margin={{ left: 24 }}>
+                <BarChart
+                  data={topByQuantity}
+                  layout="vertical"
+                  margin={{ top: 8, right: 12, bottom: 8, left: 24 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis type="number" allowDecimals={false} />
                   <YAxis
                     type="category"
                     dataKey="product_name"
-                    width={170}
+                    width={180}
                     tick={{ fontSize: 12 }}
+                    tickFormatter={(value: string) => shortenLabel(value)}
                   />
                   <Tooltip formatter={quantityTooltipFormatter} />
                   <Bar dataKey="quantity" radius={[0, 8, 8, 0]} />
@@ -151,21 +182,34 @@ export default function OrdersTopProducts({ items }: Props) {
             Top por facturación
           </h3>
 
-          {topProducts.length === 0 ? (
+          {topByRevenue.length === 0 ? (
             <p className="text-sm text-gray-500">
               No hay productos vendidos para mostrar.
             </p>
           ) : (
             <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topProducts} layout="vertical" margin={{ left: 24 }}>
+                <BarChart
+                  data={topByRevenue}
+                  layout="vertical"
+                  margin={{ top: 8, right: 12, bottom: 8, left: 24 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" tickFormatter={(value: number) => `$${value}`} />
+                  <XAxis
+                    type="number"
+                    tickFormatter={(value: number) =>
+                      new Intl.NumberFormat('es-AR', {
+                        notation: 'compact',
+                        maximumFractionDigits: 1,
+                      }).format(value)
+                    }
+                  />
                   <YAxis
                     type="category"
                     dataKey="product_name"
-                    width={170}
+                    width={180}
                     tick={{ fontSize: 12 }}
+                    tickFormatter={(value: string) => shortenLabel(value)}
                   />
                   <Tooltip formatter={revenueTooltipFormatter} />
                   <Bar dataKey="revenue" radius={[0, 8, 8, 0]} />
@@ -176,19 +220,22 @@ export default function OrdersTopProducts({ items }: Props) {
         </div>
       </div>
 
-      {topProducts.length > 0 && (
+      {summaryProducts.length > 0 && (
         <div className="rounded-2xl border bg-white p-4">
           <h3 className="mb-4 text-base font-semibold text-gray-900">
             Resumen
           </h3>
 
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            {topProducts.map((product) => (
+            {summaryProducts.map((product) => (
               <div
                 key={product.product_name}
                 className="rounded-xl border border-gray-200 p-3"
               >
-                <p className="line-clamp-2 text-sm font-medium text-gray-900">
+                <p
+                  className="line-clamp-2 text-sm font-medium text-gray-900"
+                  title={product.product_name}
+                >
                   {product.product_name}
                 </p>
                 <p className="mt-2 text-xs text-gray-500">

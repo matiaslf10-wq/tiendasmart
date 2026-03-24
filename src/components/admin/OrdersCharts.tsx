@@ -57,7 +57,10 @@ export default function OrdersCharts({ orders }: Props) {
     const current = byDayMap.get(key) ?? { orders: 0, revenue: 0 };
 
     current.orders += 1;
-    current.revenue += toNumber(order.total);
+
+    if (normalizeStatus(order.status) !== 'cancelled') {
+      current.revenue += toNumber(order.total);
+    }
 
     byDayMap.set(key, current);
   }
@@ -111,7 +114,7 @@ export default function OrdersCharts({ orders }: Props) {
     (order) => normalizeStatus(order.status) === 'cancelled'
   ).length;
 
-  const totalOrders = orders.length || 1;
+  const totalOrders = orders.length;
 
   return (
     <section className="space-y-6">
@@ -122,7 +125,7 @@ export default function OrdersCharts({ orders }: Props) {
               Pedidos por día
             </h3>
             <p className="text-sm text-gray-500">
-              Evolución diaria del volumen de ventas.
+              Evolución diaria del volumen de pedidos.
             </p>
           </div>
 
@@ -161,7 +164,7 @@ export default function OrdersCharts({ orders }: Props) {
               Facturación por día
             </h3>
             <p className="text-sm text-gray-500">
-              Ingresos generados por jornada.
+              Ingresos por jornada, excluyendo pedidos cancelados.
             </p>
           </div>
 
@@ -170,7 +173,10 @@ export default function OrdersCharts({ orders }: Props) {
           ) : (
             <div className="space-y-3">
               {byDay.map((item) => {
-                const width = Math.max((item.revenue / maxRevenue) * 100, 6);
+                const width =
+                  item.revenue > 0
+                    ? Math.max((item.revenue / maxRevenue) * 100, 6)
+                    : 0;
 
                 return (
                   <div key={item.date} className="space-y-1">

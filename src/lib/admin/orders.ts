@@ -38,6 +38,18 @@ function startOfDay(date: Date) {
   return d;
 }
 
+export function normalizeOrderStatus(status: string | null | undefined): string {
+  const value = (status ?? '').toLowerCase().trim();
+
+  if (value === 'in_preparation') return 'preparing';
+  return value;
+}
+
+export function toNumber(value: number | string | null | undefined) {
+  const parsed = Number(value ?? 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 export function isWithinRange(dateString: string, range: RangeValue): boolean {
   if (range === 'all') return true;
 
@@ -99,13 +111,18 @@ export function filterOrders(params: {
 }) {
   const { orders, status, queryText, delivery, notes, range } = params;
 
+  const normalizedStatusFilter = normalizeOrderStatus(status);
+
   const rangeFiltered = orders.filter((order) =>
     isWithinRange(order.created_at, range)
   );
 
   const statusFiltered =
     status !== 'all'
-      ? rangeFiltered.filter((order) => order.status === status)
+      ? rangeFiltered.filter(
+          (order) =>
+            normalizeOrderStatus(order.status) === normalizedStatusFilter
+        )
       : rangeFiltered;
 
   const deliveryFiltered =
@@ -127,8 +144,8 @@ export function filterOrders(params: {
     : notesFiltered;
 
   const visibleOrders = [...searched].sort((a, b) => {
-    const aPending = a.status === 'pending' ? 1 : 0;
-    const bPending = b.status === 'pending' ? 1 : 0;
+    const aPending = normalizeOrderStatus(a.status) === 'pending' ? 1 : 0;
+    const bPending = normalizeOrderStatus(b.status) === 'pending' ? 1 : 0;
 
     if (aPending !== bPending) return bPending - aPending;
 
@@ -138,7 +155,9 @@ export function filterOrders(params: {
   return {
     rangeFilteredOrders: rangeFiltered,
     visibleOrders,
-    pendingOrdersCount: rangeFiltered.filter((order) => order.status === 'pending').length,
+    pendingOrdersCount: rangeFiltered.filter(
+      (order) => normalizeOrderStatus(order.status) === 'pending'
+    ).length,
   };
 }
 
@@ -168,9 +187,8 @@ export function getRangeLabel(range: RangeValue): string {
       return 'todo el historial';
   }
 }
-export function getRangeWindow(range: RangeValue, now = new Date()) {
-  const end = new Date(now);
 
+export function getRangeWindow(range: RangeValue, now = new Date()) {
   if (range === 'all') {
     return null;
   }

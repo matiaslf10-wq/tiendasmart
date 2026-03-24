@@ -1,15 +1,9 @@
 import {
   filterOrdersByWindow,
   getPreviousRangeWindow,
+  type Order,
   type RangeValue,
 } from '@/lib/admin/orders';
-
-type Order = {
-  status: string;
-  total: number | string | null;
-  delivery_type?: string | null;
-  created_at?: string | null;
-};
 
 type Props = {
   orders: Order[];
@@ -37,8 +31,18 @@ function toNumber(value: number | string | null | undefined) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function sumRevenue(orders: Order[]) {
-  return orders.reduce((acc, order) => acc + toNumber(order.total), 0);
+function sumRevenueExcludingCancelled(orders: Order[]) {
+  return orders.reduce((acc, order) => {
+    if (normalizeStatus(order.status) === 'cancelled') return acc;
+    return acc + toNumber(order.total);
+  }, 0);
+}
+
+function sumDeliveredRevenue(orders: Order[]) {
+  return orders.reduce((acc, order) => {
+    if (normalizeStatus(order.status) !== 'delivered') return acc;
+    return acc + toNumber(order.total);
+  }, 0);
 }
 
 function percentageDelta(current: number, previous: number) {
@@ -84,8 +88,17 @@ export default function OrdersStats({
     (order) => normalizeStatus(order.status) === 'cancelled'
   ).length;
 
-  const totalRevenue = sumRevenue(orders);
-  const averageTicket = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+  const nonCancelledOrders = orders.filter(
+    (order) => normalizeStatus(order.status) !== 'cancelled'
+  );
+
+  const totalRevenue = sumRevenueExcludingCancelled(orders);
+  const deliveredRevenue = sumDeliveredRevenue(orders);
+
+  const averageTicket =
+    nonCancelledOrders.length > 0
+      ? totalRevenue / nonCancelledOrders.length
+      : 0;
 
   const deliveryCount = orders.filter(
     (order) => order.delivery_type === 'delivery'
@@ -106,29 +119,47 @@ export default function OrdersStats({
   const pickupShare =
     totalOrders > 0 ? Math.round((pickupCount / totalOrders) * 100) : 0;
 
+  const completionRate =
+    totalOrders > 0 ? Math.round((delivered / totalOrders) * 100) : 0;
+
+  const cancellationRate =
+    totalOrders > 0 ? Math.round((cancelled / totalOrders) * 100) : 0;
+
   const comparableOrders = orders.filter(
     (order) => typeof order.created_at === 'string' && order.created_at.length > 0
   );
 
   const previousWindow = getPreviousRangeWindow(range);
   const previousOrders =
-    range === 'all' ? [] : filterOrdersByWindow(comparableOrders as any, previousWindow);
+    range === 'all' ? [] : filterOrdersByWindow(comparableOrders, previousWindow);
 
-  const previousRevenue = sumRevenue(previousOrders);
-  const previousOrderCount = previousOrders.length;
+  const previousNonCancelledOrders = previousOrders.filter(
+    (order) => normalizeStatus(order.status) !== 'cancelled'
+  );
+
+  const previousRevenue = sumRevenueExcludingCancelled(previousOrders);
+  const previousDeliveredRevenue = sumDeliveredRevenue(previousOrders);
+
   const previousAverageTicket =
-    previousOrderCount > 0 ? previousRevenue / previousOrderCount : 0;
+    previousNonCancelledOrders.length > 0
+      ? previousRevenue / previousNonCancelledOrders.length
+      : 0;
 
   const revenueDelta =
     range === 'all' ? null : percentageDelta(totalRevenue, previousRevenue);
 
   const ordersDelta =
-    range === 'all' ? null : percentageDelta(totalOrders, previousOrderCount);
+    range === 'all' ? null : percentageDelta(totalOrders, previousOrders.length);
 
   const avgTicketDelta =
     range === 'all'
       ? null
       : percentageDelta(averageTicket, previousAverageTicket);
+
+  const deliveredRevenueDelta =
+    range === 'all'
+      ? null
+      : percentageDelta(deliveredRevenue, previousDeliveredRevenue);
 
   return (
     <section className="space-y-4">
@@ -143,7 +174,7 @@ export default function OrdersStats({
         <Card
           label="Total vendido"
           value={formatCurrency(totalRevenue)}
-          hint="Facturación bruta del período"
+          hint="Facturación sin pedidos cancelados"
           delta={revenueDelta}
         />
         <Card
@@ -155,19 +186,40 @@ export default function OrdersStats({
         <Card
           label="Ticket promedio"
           value={formatCurrency(averageTicket)}
-          hint="Ingreso promedio por pedido"
+          hint="Promedio por pedido no cancelado"
           delta={avgTicketDelta}
         />
         <Card
-          label="Entregados"
-          value={delivered}
-          hint="Pedidos finalizados"
+          label="Vendido entregado"
+          value={formatCurrency(deliveredRevenue)}
+          hint="Facturación de pedidos entregados"
+          delta={deliveredRevenueDelta}
         />
 
         <Card label="Pendientes" value={pending} />
         <Card label="Confirmados" value={confirmed} />
         <Card label="En preparación" value={preparing} />
         <Card label="Listos" value={ready} />
+
+        <Card
+          label="Entregados"
+          value={delivered}
+          hint="Pedidos finalizados"
+        />
+        <Card
+          label="Tasa entregados"
+          value={`${completionRate}%`}
+          hint="Pedidos entregados sobre el total"
+        />
+        <Card
+          label="Cancelados"
+          value={cancelled}
+        />
+        <Card
+          label="Tasa cancelación"
+          value={`${cancellationRate}%`}
+          hint="Pedidos cancelados sobre el total"
+        />
 
         <Card
           label="Envíos"
@@ -179,7 +231,6 @@ export default function OrdersStats({
           value={`${pickupCount} (${pickupShare}%)`}
           hint="Pedidos para retirar"
         />
-        <Card label="Cancelados" value={cancelled} />
         <Card
           label="Otros tipos"
           value={otherDeliveryTypes}
@@ -208,10 +259,10 @@ function Card({
     typeof delta !== 'number'
       ? ''
       : delta > 0
-      ? 'text-emerald-600'
-      : delta < 0
-      ? 'text-rose-600'
-      : 'text-gray-500';
+        ? 'text-emerald-600'
+        : delta < 0
+          ? 'text-rose-600'
+          : 'text-gray-500';
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">

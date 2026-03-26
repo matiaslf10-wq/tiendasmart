@@ -157,9 +157,14 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
 
   const hasMeasurementId = Boolean(store.google_analytics_id);
   const hasPropertyId = Boolean(store.google_analytics_property_id);
-  const hasGa4Credentials = Boolean(
-    process.env.GA4_CLIENT_EMAIL && process.env.GA4_PRIVATE_KEY
-  );
+
+  const ga4ClientEmail = process.env.GA4_CLIENT_EMAIL;
+  const ga4PrivateKey = process.env.GA4_PRIVATE_KEY;
+
+  console.log('GA4_CLIENT_EMAIL loaded:', Boolean(ga4ClientEmail));
+  console.log('GA4_PRIVATE_KEY loaded:', Boolean(ga4PrivateKey));
+
+  const hasGa4Credentials = Boolean(ga4ClientEmail && ga4PrivateKey);
   const hasFullGa4Config =
     hasMeasurementId && hasPropertyId && hasGa4Credentials;
 

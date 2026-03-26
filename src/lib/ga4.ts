@@ -70,10 +70,16 @@ export async function getGa4Overview({
 
   const row = json.rows?.[0];
 
-  return {
-    activeUsers: Number(row?.metricValues?.[0]?.value ?? 0),
-    sessions: Number(row?.metricValues?.[1]?.value ?? 0),
-    screenPageViews: Number(row?.metricValues?.[2]?.value ?? 0),
-    purchaseEvents: 0,
-  };
+return {
+  activeUsers: getMetric('activeUsers'),
+  sessions: getMetric('sessions'),
+  screenPageViews: getMetric('screenPageViews'),
+  totalEventCount: getMetric('eventCount'),
+  viewItemEvents,
+  addToCartEvents,
+  beginCheckoutEvents,
+  purchaseEvents,
+  sendToWhatsAppEvents,
+  contactWhatsAppEvents,
+};
 }

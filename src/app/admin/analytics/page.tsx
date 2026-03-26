@@ -41,7 +41,40 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
         current="analytics"
         pendingOrdersCount={0}
       >
-        <div>Plan sin analytics</div>
+        <section className="rounded-3xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
+          <div className="space-y-3">
+            <p className="text-sm font-medium uppercase tracking-wide text-amber-700">
+              Función disponible en planes superiores
+            </p>
+
+            <h2 className="text-2xl font-bold text-amber-950">
+              Analytics avanzado no está incluido en tu plan
+            </h2>
+
+            <p className="max-w-2xl text-sm text-amber-900">
+              Tu tienda está usando el plan <strong>{store.plan}</strong>. Para
+              acceder a métricas avanzadas, comparativas y análisis comercial,
+              necesitás actualizar a <strong>Pro</strong> o{' '}
+              <strong>Intelligence</strong>.
+            </p>
+
+            <div className="flex flex-wrap gap-3 pt-2">
+              <Link
+                href="/admin/pedidos"
+                className="inline-flex items-center rounded-2xl bg-amber-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-amber-800"
+              >
+                Volver a Pedidos
+              </Link>
+
+              <Link
+                href="/admin"
+                className="inline-flex items-center rounded-2xl border border-amber-300 bg-white px-4 py-2 text-sm font-medium text-amber-900 transition hover:bg-amber-100"
+              >
+                Ir al panel
+              </Link>
+            </div>
+          </div>
+        </section>
       </AdminShell>
     );
   }
@@ -50,17 +83,10 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
   const resolvedSearchParams = await searchParams;
   const range: RangeValue = resolvedSearchParams.range ?? '30d';
 
-  // 🔥 CLAVE: SOLO usamos esta variable
   const ga4ServiceAccountJson = process.env.GA4_SERVICE_ACCOUNT_JSON;
-
-  console.log(
-    'GA4_SERVICE_ACCOUNT_JSON loaded:',
-    Boolean(ga4ServiceAccountJson)
-  );
-
   const hasGa4Credentials = Boolean(ga4ServiceAccountJson);
 
-  let ga4Data = null;
+  let ga4Data: Awaited<ReturnType<typeof getGa4Overview>> | null = null;
   let ga4Error: string | null = null;
 
   if (store.google_analytics_property_id && hasGa4Credentials) {
@@ -79,22 +105,59 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
     }
   }
 
-  const [{ data: ordersData }, { data: itemsData }] = await Promise.all([
-    supabase
-      .from('orders')
-      .select('*')
-      .eq('store_id', store.id),
+  const conversion = ga4Data
+    ? {
+        viewToCart:
+          ga4Data.viewItemEvents > 0
+            ? (ga4Data.addToCartEvents / ga4Data.viewItemEvents) * 100
+            : 0,
+
+        cartToCheckout:
+          ga4Data.addToCartEvents > 0
+            ? (ga4Data.beginCheckoutEvents / ga4Data.addToCartEvents) * 100
+            : 0,
+
+        checkoutToWhatsapp:
+          ga4Data.beginCheckoutEvents > 0
+            ? (ga4Data.sendToWhatsAppEvents / ga4Data.beginCheckoutEvents) * 100
+            : 0,
+
+        whatsappToPurchase:
+          ga4Data.sendToWhatsAppEvents > 0
+            ? (ga4Data.purchaseEvents / ga4Data.sendToWhatsAppEvents) * 100
+            : 0,
+      }
+    : null;
+
+  const [
+    { data: ordersData, error: ordersError },
+    { data: itemsData, error: itemsError },
+  ] = await Promise.all([
+    supabase.from('orders').select('*').eq('store_id', store.id),
     supabase
       .from('order_items')
       .select(
-        `product_name, quantity, line_total, orders!inner(created_at, store_id)`
+        'product_name, quantity, line_total, orders!inner(created_at, store_id)'
       )
       .eq('orders.store_id', store.id),
   ]);
 
+  if (ordersError) {
+    throw new Error(`Error cargando pedidos: ${ordersError.message}`);
+  }
+
+  if (itemsError) {
+    throw new Error(`Error cargando items de pedidos: ${itemsError.message}`);
+  }
+
   const allOrders = (ordersData ?? []) as Order[];
 
-  const allOrderItems = ((itemsData ?? []) as any[]).map((item) => ({
+  const allOrderItems = ((itemsData ?? []) as Array<{
+    product_name: string | null;
+    quantity: number | string | null;
+    line_total: number | string | null;
+    orders: { created_at: string; store_id: string }[];
+  }>).map((item) => ({
     product_name: item.product_name,
     quantity: item.quantity,
     line_total: item.line_total,
@@ -126,30 +189,160 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
       pendingOrdersCount={pendingOrdersCount}
     >
       <div className="space-y-6">
-
-        {/* STATUS GA4 */}
-        <div className="rounded-xl border p-4">
-          <p>
-            Credenciales backend:{' '}
-            {hasGa4Credentials ? 'Configuradas' : 'Faltan variables'}
-          </p>
-
-          {ga4Error && (
-            <p style={{ color: 'red' }}>
-              Error GA4: {ga4Error}
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="space-y-2">
+            <h2 className="text-lg font-semibold text-slate-900">
+              Rendimiento comercial
+            </h2>
+            <p className="text-sm text-slate-500">
+              Analizá ingresos, comportamiento de pedidos, tráfico y conversión
+              en el período seleccionado.
             </p>
-          )}
-        </div>
-
-        {/* DATA */}
-        {ga4Data && (
-          <div className="grid grid-cols-2 gap-4">
-            <div>Usuarios: {ga4Data.activeUsers}</div>
-            <div>Sesiones: {ga4Data.sessions}</div>
-            <div>Views: {ga4Data.screenPageViews}</div>
-            <div>Compras: {ga4Data.purchaseEvents}</div>
           </div>
-        )}
+        </section>
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="space-y-2">
+            <h2 className="text-lg font-semibold text-slate-900">
+              Estado de Google Analytics
+            </h2>
+
+            <p className="text-sm text-slate-600">
+              Credenciales backend:{' '}
+              <span className="font-medium">
+                {hasGa4Credentials ? 'Configuradas' : 'Faltan variables'}
+              </span>
+            </p>
+
+            {ga4Error ? (
+              <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
+                <p className="text-sm font-medium text-red-800">
+                  Error al consultar GA4
+                </p>
+                <p className="mt-1 break-words text-sm text-red-700">
+                  {ga4Error}
+                </p>
+              </div>
+            ) : null}
+          </div>
+        </section>
+
+        {ga4Data ? (
+          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <p className="text-sm text-slate-500">Usuarios activos</p>
+              <p className="mt-2 text-3xl font-bold text-slate-900">
+                {ga4Data.activeUsers}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <p className="text-sm text-slate-500">Sesiones</p>
+              <p className="mt-2 text-3xl font-bold text-slate-900">
+                {ga4Data.sessions}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <p className="text-sm text-slate-500">Views</p>
+              <p className="mt-2 text-3xl font-bold text-slate-900">
+                {ga4Data.screenPageViews}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <p className="text-sm text-slate-500">Purchases</p>
+              <p className="mt-2 text-3xl font-bold text-slate-900">
+                {ga4Data.purchaseEvents}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <p className="text-sm text-slate-500">View item</p>
+              <p className="mt-2 text-3xl font-bold text-slate-900">
+                {ga4Data.viewItemEvents}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <p className="text-sm text-slate-500">Add to cart</p>
+              <p className="mt-2 text-3xl font-bold text-slate-900">
+                {ga4Data.addToCartEvents}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <p className="text-sm text-slate-500">Begin checkout</p>
+              <p className="mt-2 text-3xl font-bold text-slate-900">
+                {ga4Data.beginCheckoutEvents}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <p className="text-sm text-slate-500">Enviar a WhatsApp</p>
+              <p className="mt-2 text-3xl font-bold text-slate-900">
+                {ga4Data.sendToWhatsAppEvents}
+              </p>
+            </div>
+          </section>
+        ) : null}
+
+        {ga4Data && conversion ? (
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 className="mb-4 text-lg font-semibold text-slate-900">
+              Funnel de conversión
+            </h3>
+
+            <div className="grid gap-4 text-center sm:grid-cols-2 xl:grid-cols-5">
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <p className="text-sm text-slate-500">Views</p>
+                <p className="mt-2 text-2xl font-bold text-slate-900">
+                  {ga4Data.viewItemEvents}
+                </p>
+              </div>
+
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <p className="text-sm text-slate-500">Add to cart</p>
+                <p className="mt-2 text-2xl font-bold text-slate-900">
+                  {ga4Data.addToCartEvents}
+                </p>
+                <p className="mt-1 text-xs text-slate-400">
+                  {conversion.viewToCart.toFixed(1)}%
+                </p>
+              </div>
+
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <p className="text-sm text-slate-500">Checkout</p>
+                <p className="mt-2 text-2xl font-bold text-slate-900">
+                  {ga4Data.beginCheckoutEvents}
+                </p>
+                <p className="mt-1 text-xs text-slate-400">
+                  {conversion.cartToCheckout.toFixed(1)}%
+                </p>
+              </div>
+
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <p className="text-sm text-slate-500">WhatsApp</p>
+                <p className="mt-2 text-2xl font-bold text-slate-900">
+                  {ga4Data.sendToWhatsAppEvents}
+                </p>
+                <p className="mt-1 text-xs text-slate-400">
+                  {conversion.checkoutToWhatsapp.toFixed(1)}%
+                </p>
+              </div>
+
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <p className="text-sm text-slate-500">Purchase</p>
+                <p className="mt-2 text-2xl font-bold text-slate-900">
+                  {ga4Data.purchaseEvents}
+                </p>
+                <p className="mt-1 text-xs text-slate-400">
+                  {conversion.whatsappToPurchase.toFixed(1)}%
+                </p>
+              </div>
+            </div>
+          </section>
+        ) : null}
 
         <OrdersRangeTabs
           basePath="/admin/analytics"

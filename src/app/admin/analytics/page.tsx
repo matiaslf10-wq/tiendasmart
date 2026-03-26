@@ -83,12 +83,14 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
 
   const range: RangeValue = resolvedSearchParams.range ?? '30d';
 
-  const [{ data: ordersData, error: ordersError }, { data: itemsData, error: itemsError }] =
-    await Promise.all([
-      supabase
-        .from('orders')
-        .select(
-          `
+  const [
+    { data: ordersData, error: ordersError },
+    { data: itemsData, error: itemsError },
+  ] = await Promise.all([
+    supabase
+      .from('orders')
+      .select(
+        `
           id,
           order_number,
           customer_name,
@@ -100,13 +102,13 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
           delivery_address,
           created_at
         `
-        )
-        .eq('store_id', store.id)
-        .order('created_at', { ascending: false }),
-      supabase
-        .from('order_items')
-        .select(
-          `
+      )
+      .eq('store_id', store.id)
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('order_items')
+      .select(
+        `
           product_name,
           quantity,
           line_total,
@@ -115,9 +117,9 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
             store_id
           )
         `
-        )
-        .eq('orders.store_id', store.id),
-    ]);
+      )
+      .eq('orders.store_id', store.id),
+  ]);
 
   if (ordersError) {
     throw new Error(`Error cargando pedidos: ${ordersError.message}`);
@@ -152,6 +154,10 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
 
   const rangeFilteredOrderItems = filterOrderItemsByRange(allOrderItems, range);
 
+  const hasMeasurementId = Boolean(store.google_analytics_id);
+  const hasPropertyId = Boolean(store.google_analytics_property_id);
+  const hasFullGa4Config = hasMeasurementId && hasPropertyId;
+
   return (
     <AdminShell
       title="Analytics"
@@ -172,6 +178,61 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
               Analizá ingresos, comportamiento de pedidos y productos con mejor
               desempeño en el período seleccionado.
             </p>
+          </div>
+        </section>
+
+        <section
+          className={`rounded-2xl border p-4 shadow-sm ${
+            hasFullGa4Config
+              ? 'border-emerald-200 bg-emerald-50'
+              : 'border-amber-200 bg-amber-50'
+          }`}
+        >
+          <div className="space-y-2">
+            <h2
+              className={`text-lg font-semibold ${
+                hasFullGa4Config ? 'text-emerald-900' : 'text-amber-950'
+              }`}
+            >
+              Integración con Google Analytics
+            </h2>
+
+            <p
+              className={`text-sm ${
+                hasFullGa4Config ? 'text-emerald-800' : 'text-amber-900'
+              }`}
+            >
+              {hasFullGa4Config
+                ? 'La tienda tiene configurado el Measurement ID y también el GA4 Property ID. Ya está lista para conectar métricas de tráfico y eventos desde Google Analytics.'
+                : 'Todavía falta completar la configuración de GA4 para poder mostrar métricas de tráfico y eventos en este panel.'}
+            </p>
+
+            <div className="grid gap-3 pt-2 sm:grid-cols-2">
+              <div className="rounded-2xl bg-white/80 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Measurement ID
+                </p>
+                <p className="mt-1 text-sm font-medium text-slate-900">
+                  {store.google_analytics_id || 'No configurado'}
+                </p>
+              </div>
+
+              <div className="rounded-2xl bg-white/80 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  GA4 Property ID
+                </p>
+                <p className="mt-1 text-sm font-medium text-slate-900">
+                  {store.google_analytics_property_id || 'No configurado'}
+                </p>
+              </div>
+            </div>
+
+            {!hasFullGa4Config ? (
+              <p className="pt-1 text-sm text-amber-900">
+                Completá ambos campos en el panel principal para habilitar la
+                lectura de métricas desde la Data API.
+              </p>
+            ) : null}
           </div>
         </section>
 

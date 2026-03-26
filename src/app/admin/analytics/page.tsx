@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import AdminShell from '@/components/admin/AdminShell';
 import Ga4Charts from '@/components/admin/Ga4Charts';
 import Ga4DailySeries from '@/components/admin/Ga4DailySeries';
+import Ga4TopProductsInsights from '@/components/admin/Ga4TopProductsInsights';
 import OrdersAnalyticsSection from '@/components/admin/OrdersAnalyticsSection';
 import OrdersRangeTabs from '@/components/admin/OrdersRangeTabs';
 import {
@@ -12,6 +13,7 @@ import {
   type OrderItemRow,
   type RangeValue,
 } from '@/lib/admin/orders';
+import { getTopProductsInsights } from '@/lib/admin/top-products';
 import { getGa4DailySeries, getGa4Overview } from '@/lib/ga4';
 import { hasFeature } from '@/lib/plans';
 import { getCurrentUserStore } from '@/lib/stores';
@@ -240,6 +242,19 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
   let ga4DailySeries: Awaited<ReturnType<typeof getGa4DailySeries>> = [];
   let ga4Error: string | null = null;
 
+  const [
+    { data: ordersData, error: ordersError },
+    { data: itemsData, error: itemsError },
+  ] = await Promise.all([
+    supabase.from('orders').select('*').eq('store_id', store.id),
+    supabase
+      .from('order_items')
+      .select(
+        'product_id, product_name, quantity, line_total, orders!inner(created_at, store_id)'
+      )
+      .eq('orders.store_id', store.id),
+  ]);
+
   if (store.google_analytics_property_id && hasGa4Credentials) {
     try {
       const [overview, dailySeries] = await Promise.all([
@@ -260,6 +275,30 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
         error instanceof Error ? error.message : 'Error desconocido GA4';
     }
   }
+
+  if (ordersError) {
+    throw new Error(`Error cargando pedidos: ${ordersError.message}`);
+  }
+
+  if (itemsError) {
+    throw new Error(`Error cargando items de pedidos: ${itemsError.message}`);
+  }
+
+  const allOrders = (ordersData ?? []) as Order[];
+
+  const allOrderItems = ((itemsData ?? []) as Array<{
+    product_id: string | null;
+    product_name: string | null;
+    quantity: number | string | null;
+    line_total: number | string | null;
+    orders: { created_at: string; store_id: string }[];
+  }>).map((item) => ({
+    product_id: item.product_id,
+    product_name: item.product_name,
+    quantity: item.quantity,
+    line_total: item.line_total,
+    orders: item.orders?.[0] ?? null,
+  })) as OrderItemRow[];
 
   const conversion = ga4Data
     ? {
@@ -293,41 +332,6 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
         })
       : [];
 
-  const [
-    { data: ordersData, error: ordersError },
-    { data: itemsData, error: itemsError },
-  ] = await Promise.all([
-    supabase.from('orders').select('*').eq('store_id', store.id),
-    supabase
-      .from('order_items')
-      .select(
-        'product_name, quantity, line_total, orders!inner(created_at, store_id)'
-      )
-      .eq('orders.store_id', store.id),
-  ]);
-
-  if (ordersError) {
-    throw new Error(`Error cargando pedidos: ${ordersError.message}`);
-  }
-
-  if (itemsError) {
-    throw new Error(`Error cargando items de pedidos: ${itemsError.message}`);
-  }
-
-  const allOrders = (ordersData ?? []) as Order[];
-
-  const allOrderItems = ((itemsData ?? []) as Array<{
-    product_name: string | null;
-    quantity: number | string | null;
-    line_total: number | string | null;
-    orders: { created_at: string; store_id: string }[];
-  }>).map((item) => ({
-    product_name: item.product_name,
-    quantity: item.quantity,
-    line_total: item.line_total,
-    orders: item.orders?.[0] ?? null,
-  })) as OrderItemRow[];
-
   const { rangeFilteredOrders, pendingOrdersCount } = filterOrders({
     orders: allOrders,
     status: 'all',
@@ -341,6 +345,16 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
     allOrderItems,
     range
   );
+
+  const topProductsInsights =
+    store.google_analytics_property_id && hasGa4Credentials
+      ? await getTopProductsInsights({
+          propertyId: store.google_analytics_property_id,
+          range,
+          orderItems: rangeFilteredOrderItems,
+          limit: 10,
+        })
+      : [];
 
   return (
     <AdminShell
@@ -516,6 +530,10 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
               ))}
             </div>
           </section>
+        ) : null}
+
+        {topProductsInsights.length > 0 ? (
+          <Ga4TopProductsInsights rows={topProductsInsights} />
         ) : null}
 
         <OrdersRangeTabs

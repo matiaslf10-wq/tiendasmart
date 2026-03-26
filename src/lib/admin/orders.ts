@@ -23,6 +23,7 @@ export type Order = {
 };
 
 export type OrderItemRow = {
+  product_id?: string | null;
   product_name: string | null;
   quantity: number | string | null;
   line_total: number | string | null;
@@ -35,6 +36,12 @@ export type OrderItemRow = {
 function startOfDay(date: Date) {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function startOfNextDay(date: Date) {
+  const d = startOfDay(date);
+  d.setDate(d.getDate() + 1);
   return d;
 }
 
@@ -60,8 +67,7 @@ export function isWithinRange(dateString: string, range: RangeValue): boolean {
 
   if (range === 'today') {
     const todayStart = startOfDay(now);
-    const tomorrowStart = new Date(todayStart);
-    tomorrowStart.setDate(todayStart.getDate() + 1);
+    const tomorrowStart = startOfNextDay(now);
 
     return date >= todayStart && date < tomorrowStart;
   }
@@ -69,20 +75,34 @@ export function isWithinRange(dateString: string, range: RangeValue): boolean {
   if (range === '7d') {
     const start = startOfDay(now);
     start.setDate(start.getDate() - 6);
-    return date >= start;
+
+    const endExclusive = startOfNextDay(now);
+
+    return date >= start && date < endExclusive;
   }
 
   if (range === '30d') {
     const start = startOfDay(now);
     start.setDate(start.getDate() - 29);
-    return date >= start;
+
+    const endExclusive = startOfNextDay(now);
+
+    return date >= start && date < endExclusive;
   }
 
   if (range === 'month') {
-    return (
-      date.getFullYear() === now.getFullYear() &&
-      date.getMonth() === now.getMonth()
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    const nextMonthStart = new Date(
+      now.getFullYear(),
+      now.getMonth() + 1,
+      1,
+      0,
+      0,
+      0,
+      0
     );
+
+    return date >= monthStart && date < nextMonthStart;
   }
 
   return true;
@@ -194,11 +214,8 @@ export function getRangeWindow(range: RangeValue, now = new Date()) {
   }
 
   if (range === 'today') {
-    const start = new Date(now);
-    start.setHours(0, 0, 0, 0);
-
-    const endExclusive = new Date(start);
-    endExclusive.setDate(endExclusive.getDate() + 1);
+    const start = startOfDay(now);
+    const endExclusive = startOfNextDay(now);
 
     return {
       start,
@@ -207,12 +224,10 @@ export function getRangeWindow(range: RangeValue, now = new Date()) {
   }
 
   if (range === '7d') {
-    const start = new Date(now);
-    start.setHours(0, 0, 0, 0);
+    const start = startOfDay(now);
     start.setDate(start.getDate() - 6);
 
-    const endExclusive = new Date(now);
-    endExclusive.setHours(23, 59, 59, 999);
+    const endExclusive = startOfNextDay(now);
 
     return {
       start,
@@ -221,12 +236,10 @@ export function getRangeWindow(range: RangeValue, now = new Date()) {
   }
 
   if (range === '30d') {
-    const start = new Date(now);
-    start.setHours(0, 0, 0, 0);
+    const start = startOfDay(now);
     start.setDate(start.getDate() - 29);
 
-    const endExclusive = new Date(now);
-    endExclusive.setHours(23, 59, 59, 999);
+    const endExclusive = startOfNextDay(now);
 
     return {
       start,

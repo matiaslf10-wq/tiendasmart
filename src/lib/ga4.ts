@@ -1,4 +1,5 @@
 import { GoogleAuth } from 'google-auth-library';
+import type { RangeValue } from '@/lib/admin/orders';
 
 type Ga4MetricValue = {
   name: string;
@@ -33,6 +34,19 @@ export type Ga4DailyPoint = {
   beginCheckoutEvents: number;
   purchaseEvents: number;
   sendToWhatsAppEvents: number;
+};
+
+export type Ga4TopProductRow = {
+  itemId: string;
+  itemName: string;
+  itemViewEvents: number;
+  addToCarts: number;
+  itemsAddedToCart: number;
+};
+
+type Ga4ReportRow = {
+  dimensionValues?: Array<{ value?: string }>;
+  metricValues?: Array<{ value?: string }>;
 };
 
 function getCredentials() {
@@ -93,6 +107,7 @@ async function runGa4Report(params: {
   dimensions?: Array<{ name: string }>;
   dimensionFilter?: unknown;
   orderBys?: unknown[];
+  limit?: string;
 }) {
   const token = await getAccessToken();
 
@@ -110,6 +125,7 @@ async function runGa4Report(params: {
         dimensions: params.dimensions,
         dimensionFilter: params.dimensionFilter,
         orderBys: params.orderBys,
+        limit: params.limit,
       }),
       cache: 'no-store',
     }
@@ -138,7 +154,7 @@ function parseMetricRows(
   }));
 }
 
-function getDateRange(range: 'today' | '7d' | '30d' | 'month' | 'all'): Ga4DateRange {
+function getDateRange(range: RangeValue): Ga4DateRange {
   return range === 'today'
     ? { startDate: 'today', endDate: 'today' }
     : range === '7d'
@@ -207,10 +223,7 @@ async function getDailyEventSeries(params: {
     orderBys: [{ dimension: { dimensionName: 'date' } }],
   });
 
-  const rows = (data?.rows ?? []) as Array<{
-    dimensionValues?: Array<{ value?: string }>;
-    metricValues?: Array<{ value?: string }>;
-  }>;
+  const rows = (data?.rows ?? []) as Ga4ReportRow[];
 
   return rows.map((row) => ({
     date: String(row.dimensionValues?.[0]?.value ?? ''),
@@ -220,7 +233,7 @@ async function getDailyEventSeries(params: {
 
 export async function getGa4Overview(params: {
   propertyId: string;
-  range: 'today' | '7d' | '30d' | 'month' | 'all';
+  range: RangeValue;
 }): Promise<Ga4Overview> {
   const dateRange = getDateRange(params.range);
 
@@ -301,59 +314,63 @@ export async function getGa4Overview(params: {
 
 export async function getGa4DailySeries(params: {
   propertyId: string;
-  range: 'today' | '7d' | '30d' | 'month' | 'all';
+  range: RangeValue;
 }): Promise<Ga4DailyPoint[]> {
   const dateRange = getDateRange(params.range);
 
-  const [trafficData, viewItemSeries, addToCartSeries, beginCheckoutSeries, purchaseSeries, whatsappSeries] =
-    await Promise.all([
-      runGa4Report({
-        propertyId: params.propertyId,
-        dateRanges: [dateRange],
-        dimensions: [{ name: 'date' }],
-        metrics: [
-          { name: 'activeUsers' },
-          { name: 'sessions' },
-          { name: 'screenPageViews' },
-        ],
-        orderBys: [{ dimension: { dimensionName: 'date' } }],
-      }),
-      getDailyEventSeries({
-        propertyId: params.propertyId,
-        eventName: 'view_item',
-        dateRange,
-      }),
-      getDailyEventSeries({
-        propertyId: params.propertyId,
-        eventName: 'add_to_cart',
-        dateRange,
-      }),
-      getDailyEventSeries({
-        propertyId: params.propertyId,
-        eventName: 'begin_checkout',
-        dateRange,
-      }),
-      getDailyEventSeries({
-        propertyId: params.propertyId,
-        eventName: 'purchase',
-        dateRange,
-      }),
-      getDailyEventSeries({
-        propertyId: params.propertyId,
-        eventName: 'send_to_whatsapp',
-        dateRange,
-      }),
-    ]);
+  const [
+    trafficData,
+    viewItemSeries,
+    addToCartSeries,
+    beginCheckoutSeries,
+    purchaseSeries,
+    whatsappSeries,
+  ] = await Promise.all([
+    runGa4Report({
+      propertyId: params.propertyId,
+      dateRanges: [dateRange],
+      dimensions: [{ name: 'date' }],
+      metrics: [
+        { name: 'activeUsers' },
+        { name: 'sessions' },
+        { name: 'screenPageViews' },
+      ],
+      orderBys: [{ dimension: { dimensionName: 'date' } }],
+    }),
+    getDailyEventSeries({
+      propertyId: params.propertyId,
+      eventName: 'view_item',
+      dateRange,
+    }),
+    getDailyEventSeries({
+      propertyId: params.propertyId,
+      eventName: 'add_to_cart',
+      dateRange,
+    }),
+    getDailyEventSeries({
+      propertyId: params.propertyId,
+      eventName: 'begin_checkout',
+      dateRange,
+    }),
+    getDailyEventSeries({
+      propertyId: params.propertyId,
+      eventName: 'purchase',
+      dateRange,
+    }),
+    getDailyEventSeries({
+      propertyId: params.propertyId,
+      eventName: 'send_to_whatsapp',
+      dateRange,
+    }),
+  ]);
 
-  const rows = (trafficData?.rows ?? []) as Array<{
-    dimensionValues?: Array<{ value?: string }>;
-    metricValues?: Array<{ value?: string }>;
-  }>;
+  const rows = (trafficData?.rows ?? []) as Ga4ReportRow[];
 
   const map = new Map<string, Ga4DailyPoint>();
 
   for (const row of rows) {
     const date = String(row.dimensionValues?.[0]?.value ?? '');
+
     map.set(date, {
       date,
       activeUsers: Number(row.metricValues?.[0]?.value ?? 0),
@@ -393,4 +410,56 @@ export async function getGa4DailySeries(params: {
   }
 
   return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+export async function getGa4TopProducts(params: {
+  propertyId: string;
+  range: RangeValue;
+  limit?: number;
+}): Promise<Ga4TopProductRow[]> {
+  const { propertyId, range, limit = 20 } = params;
+  const dateRange = getDateRange(range);
+
+  const report = await runGa4Report({
+    propertyId,
+    dateRanges: [dateRange],
+    dimensions: [{ name: 'itemId' }, { name: 'itemName' }],
+    metrics: [
+      { name: 'itemViewEvents' },
+      { name: 'addToCarts' },
+      { name: 'itemsAddedToCart' },
+    ],
+    orderBys: [
+      {
+        metric: {
+          metricName: 'itemViewEvents',
+        },
+        desc: true,
+      },
+    ],
+    limit: String(limit),
+  });
+
+  const rows = (report.rows ?? []) as Ga4ReportRow[];
+
+  return rows
+    .map((row) => {
+      const [itemId = '', itemName = 'Sin nombre'] =
+        row.dimensionValues?.map((dimension) => dimension.value ?? '') ?? [];
+
+      const [
+        itemViewEvents = '0',
+        addToCarts = '0',
+        itemsAddedToCart = '0',
+      ] = row.metricValues?.map((metric) => metric.value ?? '0') ?? [];
+
+      return {
+        itemId,
+        itemName,
+        itemViewEvents: Number(itemViewEvents) || 0,
+        addToCarts: Number(addToCarts) || 0,
+        itemsAddedToCart: Number(itemsAddedToCart) || 0,
+      };
+    })
+    .filter((row) => row.itemId || row.itemName);
 }

@@ -23,29 +23,37 @@ type Ga4DateRange = {
   endDate: string;
 };
 
-function getAccessTokenConfig() {
-  const clientEmailRaw = process.env.GA4_CLIENT_EMAIL;
-  const privateKeyRaw = process.env.GA4_PRIVATE_KEY;
+function getServiceAccountCredentials() {
+  const raw = process.env.GA4_SERVICE_ACCOUNT_JSON;
 
-  if (!clientEmailRaw || !privateKeyRaw) {
+  if (!raw) {
     throw new Error(
-      'Faltan GA4_CLIENT_EMAIL o GA4_PRIVATE_KEY en las variables de entorno.'
+      'Falta GA4_SERVICE_ACCOUNT_JSON en las variables de entorno.'
     );
   }
 
-  const clientEmail = clientEmailRaw
-    .trim()
-    .replace(/^"([\s\S]*)"$/, '$1')
-    .replace(/^'([\s\S]*)'$/, '$1');
+  let parsed: {
+    client_email?: string;
+    private_key?: string;
+  };
 
-  const privateKey = privateKeyRaw
-    .trim()
-    .replace(/^"([\s\S]*)"$/, '$1')
-    .replace(/^'([\s\S]*)'$/, '$1')
-    .replace(/\\n/g, '\n');
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error('GA4_SERVICE_ACCOUNT_JSON no contiene un JSON válido.');
+  }
+
+  const clientEmail = parsed.client_email?.trim();
+  const privateKey = parsed.private_key?.replace(/\\n/g, '\n');
+
+  if (!clientEmail || !privateKey) {
+    throw new Error(
+      'GA4_SERVICE_ACCOUNT_JSON no contiene client_email o private_key válidos.'
+    );
+  }
 
   if (!privateKey.includes('BEGIN PRIVATE KEY')) {
-    throw new Error('GA4_PRIVATE_KEY no tiene un formato PEM válido.');
+    throw new Error('La private_key del JSON no tiene formato PEM válido.');
   }
 
   return {
@@ -55,7 +63,7 @@ function getAccessTokenConfig() {
 }
 
 async function getAccessToken() {
-  const { clientEmail, privateKey } = getAccessTokenConfig();
+  const { clientEmail, privateKey } = getServiceAccountCredentials();
 
   const auth = new GoogleAuth({
     credentials: {

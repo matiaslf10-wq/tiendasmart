@@ -13,7 +13,10 @@ import {
   type OrderItemRow,
   type RangeValue,
 } from '@/lib/admin/orders';
-import { getTopProductsInsights } from '@/lib/admin/top-products';
+import {
+  getTopProductsInsights,
+  type TopProductInsightRow,
+} from '@/lib/admin/top-products';
 import { getGa4DailySeries, getGa4Overview } from '@/lib/ga4';
 import { hasFeature } from '@/lib/plans';
 import { getCurrentUserStore } from '@/lib/stores';
@@ -237,6 +240,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
 
   const ga4ServiceAccountJson = process.env.GA4_SERVICE_ACCOUNT_JSON;
   const hasGa4Credentials = Boolean(ga4ServiceAccountJson);
+  const ga4PropertyId = store.google_analytics_property_id ?? null;
 
   let ga4Data: Awaited<ReturnType<typeof getGa4Overview>> | null = null;
   let ga4DailySeries: Awaited<ReturnType<typeof getGa4DailySeries>> = [];
@@ -255,15 +259,15 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
       .eq('orders.store_id', store.id),
   ]);
 
-  if (store.google_analytics_property_id && hasGa4Credentials) {
+  if (ga4PropertyId && hasGa4Credentials) {
     try {
       const [overview, dailySeries] = await Promise.all([
         getGa4Overview({
-          propertyId: store.google_analytics_property_id,
+          propertyId: ga4PropertyId,
           range,
         }),
         getGa4DailySeries({
-          propertyId: store.google_analytics_property_id,
+          propertyId: ga4PropertyId,
           range,
         }),
       ]);
@@ -306,17 +310,14 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
           ga4Data.viewItemEvents > 0
             ? (ga4Data.addToCartEvents / ga4Data.viewItemEvents) * 100
             : 0,
-
         cartToCheckout:
           ga4Data.addToCartEvents > 0
             ? (ga4Data.beginCheckoutEvents / ga4Data.addToCartEvents) * 100
             : 0,
-
         checkoutToWhatsapp:
           ga4Data.beginCheckoutEvents > 0
             ? (ga4Data.sendToWhatsAppEvents / ga4Data.beginCheckoutEvents) * 100
             : 0,
-
         whatsappToPurchase:
           ga4Data.sendToWhatsAppEvents > 0
             ? (ga4Data.purchaseEvents / ga4Data.sendToWhatsAppEvents) * 100
@@ -346,15 +347,27 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
     range
   );
 
-  const topProductsInsights =
-    store.google_analytics_property_id && hasGa4Credentials
-      ? await getTopProductsInsights({
-          propertyId: store.google_analytics_property_id,
-          range,
-          orderItems: rangeFilteredOrderItems,
-          limit: 10,
-        })
-      : [];
+  let topProductsInsights: TopProductInsightRow[] = [];
+
+  if (ga4PropertyId && hasGa4Credentials) {
+    try {
+      topProductsInsights = await getTopProductsInsights({
+        propertyId: ga4PropertyId,
+        range,
+        orderItems: rangeFilteredOrderItems,
+        limit: 10,
+      });
+    } catch (error) {
+      const details =
+        error instanceof Error
+          ? error.message
+          : 'Error desconocido GA4 top products';
+
+      ga4Error = ga4Error
+        ? `${ga4Error} | Top productos: ${details}`
+        : `Top productos: ${details}`;
+    }
+  }
 
   return (
     <AdminShell
@@ -389,6 +402,13 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
               Credenciales backend:{' '}
               <span className="font-medium">
                 {hasGa4Credentials ? 'Configuradas' : 'Faltan variables'}
+              </span>
+            </p>
+
+            <p className="text-sm text-slate-600">
+              Property ID:{' '}
+              <span className="font-medium">
+                {ga4PropertyId ? 'Configurado' : 'No configurado'}
               </span>
             </p>
 

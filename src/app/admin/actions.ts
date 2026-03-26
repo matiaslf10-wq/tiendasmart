@@ -6,6 +6,16 @@ import { createClient } from '@/lib/supabase/server';
 import { hasFeature } from '@/lib/plans';
 import { uploadProductImage } from '@/lib/storage';
 
+function normalizeGa4PropertyId(value: FormDataEntryValue | null) {
+  const raw = String(value ?? '').trim();
+
+  if (!raw) return null;
+
+  const normalized = raw.replace(/\D/g, '');
+
+  return normalized || null;
+}
+
 async function getAuthorizedStore() {
   const membership = await getCurrentUserStore();
 
@@ -72,6 +82,9 @@ export async function updateStoreSettings(formData: FormData) {
   )
     .trim()
     .toUpperCase();
+  const googleAnalyticsPropertyIdInput = normalizeGa4PropertyId(
+    formData.get('google_analytics_property_id')
+  );
 
   if (!name) {
     throw new Error('El nombre es obligatorio');
@@ -138,6 +151,7 @@ export async function updateStoreSettings(formData: FormData) {
       logo_url: finalLogoUrl,
       cover_url: finalCoverUrl,
       google_analytics_id: googleAnalyticsIdInput || null,
+      google_analytics_property_id: googleAnalyticsPropertyIdInput,
     })
     .eq('id', store.id);
 

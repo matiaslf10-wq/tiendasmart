@@ -35,13 +35,13 @@ function getAccessTokenConfig() {
 
   const clientEmail = clientEmailRaw
     .trim()
-    .replace(/^"(.*)"$/s, '$1')
-    .replace(/^'(.*)'$/s, '$1');
+    .replace(/^"([\s\S]*)"$/, '$1')
+    .replace(/^'([\s\S]*)'$/, '$1');
 
   const privateKey = privateKeyRaw
     .trim()
-    .replace(/^"(.*)"$/s, '$1')
-    .replace(/^'(.*)'$/s, '$1')
+    .replace(/^"([\s\S]*)"$/, '$1')
+    .replace(/^'([\s\S]*)'$/, '$1')
     .replace(/\\n/g, '\n');
 
   if (!privateKey.includes('BEGIN PRIVATE KEY')) {

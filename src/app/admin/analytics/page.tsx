@@ -21,6 +21,154 @@ type PageProps = {
   }>;
 };
 
+type Insight = {
+  title: string;
+  description: string;
+  tone: 'neutral' | 'warning' | 'success';
+};
+
+function formatPercent(value: number) {
+  return `${value.toFixed(1)}%`;
+}
+
+function buildInsights(params: {
+  ga4Data: Awaited<ReturnType<typeof getGa4Overview>>;
+  conversion: {
+    viewToCart: number;
+    cartToCheckout: number;
+    checkoutToWhatsapp: number;
+    whatsappToPurchase: number;
+  };
+}): Insight[] {
+  const { ga4Data, conversion } = params;
+  const insights: Insight[] = [];
+
+  if (ga4Data.viewItemEvents >= 20 && conversion.viewToCart < 8) {
+    insights.push({
+      title: 'Mucho interés, poco agregado al carrito',
+      description:
+        'Los productos reciben vistas, pero pocas personas los agregan al carrito. Conviene revisar precio, fotos, descripción y claridad del stock.',
+      tone: 'warning',
+    });
+  }
+
+  if (ga4Data.addToCartEvents >= 10 && conversion.cartToCheckout < 40) {
+    insights.push({
+      title: 'Caída entre carrito y checkout',
+      description:
+        'La gente agrega productos, pero una parte importante no inicia checkout. Puede ayudar simplificar el proceso, mostrar costos antes y reforzar confianza.',
+      tone: 'warning',
+    });
+  }
+
+  if (
+    ga4Data.beginCheckoutEvents >= 10 &&
+    conversion.checkoutToWhatsapp < 60
+  ) {
+    insights.push({
+      title: 'Checkout con baja derivación a WhatsApp',
+      description:
+        'Hay intención de compra, pero no todos llegan a WhatsApp. Revisá si el botón está visible, si el mensaje se entiende y si el flujo es claro.',
+      tone: 'warning',
+    });
+  }
+
+  if (
+    ga4Data.sendToWhatsAppEvents >= 5 &&
+    conversion.whatsappToPurchase < 35
+  ) {
+    insights.push({
+      title: 'WhatsApp no está cerrando suficientes ventas',
+      description:
+        'Hay conversaciones iniciadas, pero pocas terminan en compra. Puede mejorar el tiempo de respuesta, el guion de atención y la claridad del cierre.',
+      tone: 'warning',
+    });
+  }
+
+  if (
+    ga4Data.viewItemEvents > 0 &&
+    conversion.viewToCart >= 12 &&
+    conversion.cartToCheckout >= 50
+  ) {
+    insights.push({
+      title: 'Buen rendimiento del embudo superior',
+      description:
+        'La tienda está convirtiendo bien desde vistas hacia carrito y checkout. Hay una base sólida para escalar tráfico.',
+      tone: 'success',
+    });
+  }
+
+  if (ga4Data.purchaseEvents > 0 && conversion.whatsappToPurchase >= 45) {
+    insights.push({
+      title: 'Buen cierre comercial por WhatsApp',
+      description:
+        'Las conversaciones que llegan a WhatsApp están cerrando bien. Vale la pena sostener ese canal y medir tiempos de respuesta.',
+      tone: 'success',
+    });
+  }
+
+  if (insights.length === 0) {
+    insights.push({
+      title: 'Todavía no hay suficiente volumen para detectar patrones claros',
+      description:
+        'Seguimos mostrando métricas y funnel, pero conviene acumular más tráfico o más eventos para sacar conclusiones más firmes.',
+      tone: 'neutral',
+    });
+  }
+
+  return insights;
+}
+
+function MetricCard({
+  label,
+  value,
+  helpText,
+}: {
+  label: string;
+  value: number | string;
+  helpText?: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <p className="text-sm text-slate-500">{label}</p>
+      <p className="mt-2 text-3xl font-bold text-slate-900">{value}</p>
+      {helpText ? (
+        <p className="mt-2 text-xs text-slate-400">{helpText}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function InsightCard({ insight }: { insight: Insight }) {
+  const toneClasses =
+    insight.tone === 'warning'
+      ? 'border-amber-200 bg-amber-50'
+      : insight.tone === 'success'
+      ? 'border-emerald-200 bg-emerald-50'
+      : 'border-slate-200 bg-slate-50';
+
+  const titleClasses =
+    insight.tone === 'warning'
+      ? 'text-amber-950'
+      : insight.tone === 'success'
+      ? 'text-emerald-950'
+      : 'text-slate-900';
+
+  const bodyClasses =
+    insight.tone === 'warning'
+      ? 'text-amber-900'
+      : insight.tone === 'success'
+      ? 'text-emerald-900'
+      : 'text-slate-600';
+
+  return (
+    <div className={`rounded-2xl border p-4 ${toneClasses}`}>
+      <p className={`text-sm font-semibold ${titleClasses}`}>{insight.title}</p>
+      <p className={`mt-2 text-sm ${bodyClasses}`}>{insight.description}</p>
+    </div>
+  );
+}
+
 export default async function AnalyticsPage({ searchParams }: PageProps) {
   const membership = await getCurrentUserStore();
 
@@ -129,6 +277,14 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
       }
     : null;
 
+  const insights =
+    ga4Data && conversion
+      ? buildInsights({
+          ga4Data,
+          conversion,
+        })
+      : [];
+
   const [
     { data: ordersData, error: ordersError },
     { data: itemsData, error: itemsError },
@@ -229,61 +385,46 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
 
         {ga4Data ? (
           <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <p className="text-sm text-slate-500">Usuarios activos</p>
-              <p className="mt-2 text-3xl font-bold text-slate-900">
-                {ga4Data.activeUsers}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <p className="text-sm text-slate-500">Sesiones</p>
-              <p className="mt-2 text-3xl font-bold text-slate-900">
-                {ga4Data.sessions}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <p className="text-sm text-slate-500">Views</p>
-              <p className="mt-2 text-3xl font-bold text-slate-900">
-                {ga4Data.screenPageViews}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <p className="text-sm text-slate-500">Purchases</p>
-              <p className="mt-2 text-3xl font-bold text-slate-900">
-                {ga4Data.purchaseEvents}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <p className="text-sm text-slate-500">View item</p>
-              <p className="mt-2 text-3xl font-bold text-slate-900">
-                {ga4Data.viewItemEvents}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <p className="text-sm text-slate-500">Add to cart</p>
-              <p className="mt-2 text-3xl font-bold text-slate-900">
-                {ga4Data.addToCartEvents}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <p className="text-sm text-slate-500">Begin checkout</p>
-              <p className="mt-2 text-3xl font-bold text-slate-900">
-                {ga4Data.beginCheckoutEvents}
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <p className="text-sm text-slate-500">Enviar a WhatsApp</p>
-              <p className="mt-2 text-3xl font-bold text-slate-900">
-                {ga4Data.sendToWhatsAppEvents}
-              </p>
-            </div>
+            <MetricCard
+              label="Usuarios activos"
+              value={ga4Data.activeUsers}
+              helpText="Personas activas en el período"
+            />
+            <MetricCard
+              label="Sesiones"
+              value={ga4Data.sessions}
+              helpText="Cantidad total de sesiones"
+            />
+            <MetricCard
+              label="Views"
+              value={ga4Data.screenPageViews}
+              helpText="Vistas de páginas y pantallas"
+            />
+            <MetricCard
+              label="Purchases"
+              value={ga4Data.purchaseEvents}
+              helpText="Compras detectadas por GA4"
+            />
+            <MetricCard
+              label="View item"
+              value={ga4Data.viewItemEvents}
+              helpText="Visualizaciones de producto"
+            />
+            <MetricCard
+              label="Add to cart"
+              value={ga4Data.addToCartEvents}
+              helpText="Agregados al carrito"
+            />
+            <MetricCard
+              label="Begin checkout"
+              value={ga4Data.beginCheckoutEvents}
+              helpText="Inicio de checkout"
+            />
+            <MetricCard
+              label="Enviar a WhatsApp"
+              value={ga4Data.sendToWhatsAppEvents}
+              helpText="Derivaciones al canal de venta"
+            />
           </section>
         ) : null}
 
@@ -307,7 +448,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
                   {ga4Data.addToCartEvents}
                 </p>
                 <p className="mt-1 text-xs text-slate-400">
-                  {conversion.viewToCart.toFixed(1)}%
+                  {formatPercent(conversion.viewToCart)}
                 </p>
               </div>
 
@@ -317,7 +458,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
                   {ga4Data.beginCheckoutEvents}
                 </p>
                 <p className="mt-1 text-xs text-slate-400">
-                  {conversion.cartToCheckout.toFixed(1)}%
+                  {formatPercent(conversion.cartToCheckout)}
                 </p>
               </div>
 
@@ -327,7 +468,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
                   {ga4Data.sendToWhatsAppEvents}
                 </p>
                 <p className="mt-1 text-xs text-slate-400">
-                  {conversion.checkoutToWhatsapp.toFixed(1)}%
+                  {formatPercent(conversion.checkoutToWhatsapp)}
                 </p>
               </div>
 
@@ -337,9 +478,26 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
                   {ga4Data.purchaseEvents}
                 </p>
                 <p className="mt-1 text-xs text-slate-400">
-                  {conversion.whatsappToPurchase.toFixed(1)}%
+                  {formatPercent(conversion.whatsappToPurchase)}
                 </p>
               </div>
+            </div>
+          </section>
+        ) : null}
+
+        {insights.length > 0 ? (
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 className="mb-4 text-lg font-semibold text-slate-900">
+              Insights automáticos
+            </h3>
+
+            <div className="grid gap-4 xl:grid-cols-2">
+              {insights.map((insight) => (
+                <InsightCard
+                  key={`${insight.title}-${insight.description}`}
+                  insight={insight}
+                />
+              ))}
             </div>
           </section>
         ) : null}

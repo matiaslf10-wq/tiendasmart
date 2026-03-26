@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import AdminShell from '@/components/admin/AdminShell';
 import Ga4Charts from '@/components/admin/Ga4Charts';
+import Ga4DailySeries from '@/components/admin/Ga4DailySeries';
 import OrdersAnalyticsSection from '@/components/admin/OrdersAnalyticsSection';
 import OrdersRangeTabs from '@/components/admin/OrdersRangeTabs';
 import {
@@ -11,7 +12,7 @@ import {
   type OrderItemRow,
   type RangeValue,
 } from '@/lib/admin/orders';
-import { getGa4Overview } from '@/lib/ga4';
+import { getGa4DailySeries, getGa4Overview } from '@/lib/ga4';
 import { hasFeature } from '@/lib/plans';
 import { getCurrentUserStore } from '@/lib/stores';
 import { createClient } from '@/lib/supabase/server';
@@ -236,14 +237,24 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
   const hasGa4Credentials = Boolean(ga4ServiceAccountJson);
 
   let ga4Data: Awaited<ReturnType<typeof getGa4Overview>> | null = null;
+  let ga4DailySeries: Awaited<ReturnType<typeof getGa4DailySeries>> = [];
   let ga4Error: string | null = null;
 
   if (store.google_analytics_property_id && hasGa4Credentials) {
     try {
-      ga4Data = await getGa4Overview({
-        propertyId: store.google_analytics_property_id,
-        range,
-      });
+      const [overview, dailySeries] = await Promise.all([
+        getGa4Overview({
+          propertyId: store.google_analytics_property_id,
+          range,
+        }),
+        getGa4DailySeries({
+          propertyId: store.google_analytics_property_id,
+          range,
+        }),
+      ]);
+
+      ga4Data = overview;
+      ga4DailySeries = dailySeries;
     } catch (error) {
       ga4Error =
         error instanceof Error ? error.message : 'Error desconocido GA4';
@@ -484,6 +495,10 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
 
         {ga4Data && conversion ? (
           <Ga4Charts ga4Data={ga4Data} conversion={conversion} />
+        ) : null}
+
+        {ga4DailySeries.length > 0 ? (
+          <Ga4DailySeries points={ga4DailySeries} />
         ) : null}
 
         {insights.length > 0 ? (

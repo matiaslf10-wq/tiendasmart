@@ -5,7 +5,7 @@ type Ga4MetricValue = {
   value: number;
 };
 
-type Ga4Overview = {
+export type Ga4Overview = {
   activeUsers: number;
   sessions: number;
   screenPageViews: number;
@@ -21,6 +21,18 @@ type Ga4Overview = {
 type Ga4DateRange = {
   startDate: string;
   endDate: string;
+};
+
+export type Ga4DailyPoint = {
+  date: string;
+  activeUsers: number;
+  sessions: number;
+  screenPageViews: number;
+  viewItemEvents: number;
+  addToCartEvents: number;
+  beginCheckoutEvents: number;
+  purchaseEvents: number;
+  sendToWhatsAppEvents: number;
 };
 
 function getCredentials() {
@@ -80,6 +92,7 @@ async function runGa4Report(params: {
   metrics: Array<{ name: string }>;
   dimensions?: Array<{ name: string }>;
   dimensionFilter?: unknown;
+  orderBys?: unknown[];
 }) {
   const token = await getAccessToken();
 
@@ -96,6 +109,7 @@ async function runGa4Report(params: {
         metrics: params.metrics,
         dimensions: params.dimensions,
         dimensionFilter: params.dimensionFilter,
+        orderBys: params.orderBys,
       }),
       cache: 'no-store',
     }
@@ -122,6 +136,18 @@ function parseMetricRows(
     name,
     value: Number(row?.metricValues?.[index]?.value ?? 0),
   }));
+}
+
+function getDateRange(range: 'today' | '7d' | '30d' | 'month' | 'all'): Ga4DateRange {
+  return range === 'today'
+    ? { startDate: 'today', endDate: 'today' }
+    : range === '7d'
+    ? { startDate: '7daysAgo', endDate: 'today' }
+    : range === '30d'
+    ? { startDate: '30daysAgo', endDate: 'today' }
+    : range === 'month'
+    ? { startDate: '28daysAgo', endDate: 'today' }
+    : { startDate: '365daysAgo', endDate: 'today' };
 }
 
 async function getEventCountByName(params: {
@@ -154,20 +180,49 @@ async function getEventCountByName(params: {
   return Number(data?.rows?.[0]?.metricValues?.[0]?.value ?? 0);
 }
 
+async function getDailyEventSeries(params: {
+  propertyId: string;
+  eventName:
+    | 'view_item'
+    | 'add_to_cart'
+    | 'begin_checkout'
+    | 'purchase'
+    | 'send_to_whatsapp';
+  dateRange: Ga4DateRange;
+}) {
+  const data = await runGa4Report({
+    propertyId: params.propertyId,
+    dateRanges: [params.dateRange],
+    metrics: [{ name: 'eventCount' }],
+    dimensions: [{ name: 'date' }, { name: 'eventName' }],
+    dimensionFilter: {
+      filter: {
+        fieldName: 'eventName',
+        stringFilter: {
+          matchType: 'EXACT',
+          value: params.eventName,
+        },
+      },
+    },
+    orderBys: [{ dimension: { dimensionName: 'date' } }],
+  });
+
+  const rows = (data?.rows ?? []) as Array<{
+    dimensionValues?: Array<{ value?: string }>;
+    metricValues?: Array<{ value?: string }>;
+  }>;
+
+  return rows.map((row) => ({
+    date: String(row.dimensionValues?.[0]?.value ?? ''),
+    value: Number(row.metricValues?.[0]?.value ?? 0),
+  }));
+}
+
 export async function getGa4Overview(params: {
   propertyId: string;
   range: 'today' | '7d' | '30d' | 'month' | 'all';
 }): Promise<Ga4Overview> {
-  const dateRange =
-    params.range === 'today'
-      ? { startDate: 'today', endDate: 'today' }
-      : params.range === '7d'
-      ? { startDate: '7daysAgo', endDate: 'today' }
-      : params.range === '30d'
-      ? { startDate: '30daysAgo', endDate: 'today' }
-      : params.range === 'month'
-      ? { startDate: '28daysAgo', endDate: 'today' }
-      : { startDate: '365daysAgo', endDate: 'today' };
+  const dateRange = getDateRange(params.range);
 
   const overviewData = await runGa4Report({
     propertyId: params.propertyId,
@@ -242,4 +297,100 @@ export async function getGa4Overview(params: {
     sendToWhatsAppEvents,
     contactWhatsAppEvents,
   };
+}
+
+export async function getGa4DailySeries(params: {
+  propertyId: string;
+  range: 'today' | '7d' | '30d' | 'month' | 'all';
+}): Promise<Ga4DailyPoint[]> {
+  const dateRange = getDateRange(params.range);
+
+  const [trafficData, viewItemSeries, addToCartSeries, beginCheckoutSeries, purchaseSeries, whatsappSeries] =
+    await Promise.all([
+      runGa4Report({
+        propertyId: params.propertyId,
+        dateRanges: [dateRange],
+        dimensions: [{ name: 'date' }],
+        metrics: [
+          { name: 'activeUsers' },
+          { name: 'sessions' },
+          { name: 'screenPageViews' },
+        ],
+        orderBys: [{ dimension: { dimensionName: 'date' } }],
+      }),
+      getDailyEventSeries({
+        propertyId: params.propertyId,
+        eventName: 'view_item',
+        dateRange,
+      }),
+      getDailyEventSeries({
+        propertyId: params.propertyId,
+        eventName: 'add_to_cart',
+        dateRange,
+      }),
+      getDailyEventSeries({
+        propertyId: params.propertyId,
+        eventName: 'begin_checkout',
+        dateRange,
+      }),
+      getDailyEventSeries({
+        propertyId: params.propertyId,
+        eventName: 'purchase',
+        dateRange,
+      }),
+      getDailyEventSeries({
+        propertyId: params.propertyId,
+        eventName: 'send_to_whatsapp',
+        dateRange,
+      }),
+    ]);
+
+  const rows = (trafficData?.rows ?? []) as Array<{
+    dimensionValues?: Array<{ value?: string }>;
+    metricValues?: Array<{ value?: string }>;
+  }>;
+
+  const map = new Map<string, Ga4DailyPoint>();
+
+  for (const row of rows) {
+    const date = String(row.dimensionValues?.[0]?.value ?? '');
+    map.set(date, {
+      date,
+      activeUsers: Number(row.metricValues?.[0]?.value ?? 0),
+      sessions: Number(row.metricValues?.[1]?.value ?? 0),
+      screenPageViews: Number(row.metricValues?.[2]?.value ?? 0),
+      viewItemEvents: 0,
+      addToCartEvents: 0,
+      beginCheckoutEvents: 0,
+      purchaseEvents: 0,
+      sendToWhatsAppEvents: 0,
+    });
+  }
+
+  for (const point of viewItemSeries) {
+    const current = map.get(point.date);
+    if (current) current.viewItemEvents = point.value;
+  }
+
+  for (const point of addToCartSeries) {
+    const current = map.get(point.date);
+    if (current) current.addToCartEvents = point.value;
+  }
+
+  for (const point of beginCheckoutSeries) {
+    const current = map.get(point.date);
+    if (current) current.beginCheckoutEvents = point.value;
+  }
+
+  for (const point of purchaseSeries) {
+    const current = map.get(point.date);
+    if (current) current.purchaseEvents = point.value;
+  }
+
+  for (const point of whatsappSeries) {
+    const current = map.get(point.date);
+    if (current) current.sendToWhatsAppEvents = point.value;
+  }
+
+  return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
 }

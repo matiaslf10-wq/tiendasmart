@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import AdminShell from '@/components/admin/AdminShell';
+import Ga4Charts from '@/components/admin/Ga4Charts';
 import OrdersAnalyticsSection from '@/components/admin/OrdersAnalyticsSection';
 import OrdersRangeTabs from '@/components/admin/OrdersRangeTabs';
 import {
@@ -243,13 +244,9 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
         propertyId: store.google_analytics_property_id,
         range,
       });
-
-      console.log('GA4 DATA:', ga4Data);
     } catch (error) {
       ga4Error =
         error instanceof Error ? error.message : 'Error desconocido GA4';
-
-      console.error('GA4 ERROR:', ga4Error);
     }
   }
 
@@ -483,6 +480,10 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
               </div>
             </div>
           </section>
+        ) : null}
+
+        {ga4Data && conversion ? (
+          <Ga4Charts ga4Data={ga4Data} conversion={conversion} />
         ) : null}
 
         {insights.length > 0 ? (

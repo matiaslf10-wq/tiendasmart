@@ -1,3 +1,5 @@
+import { GoogleAuth } from 'google-auth-library';
+
 type Ga4MetricValue = {
   name: string;
   value: number;
@@ -22,103 +24,56 @@ type Ga4DateRange = {
 };
 
 function getAccessTokenConfig() {
-  const clientEmail = process.env.GA4_CLIENT_EMAIL;
-  const privateKey = process.env.GA4_PRIVATE_KEY;
+  const clientEmailRaw = process.env.GA4_CLIENT_EMAIL;
+  const privateKeyRaw = process.env.GA4_PRIVATE_KEY;
 
-  if (!clientEmail || !privateKey) {
+  if (!clientEmailRaw || !privateKeyRaw) {
     throw new Error(
       'Faltan GA4_CLIENT_EMAIL o GA4_PRIVATE_KEY en las variables de entorno.'
     );
   }
 
+  const clientEmail = clientEmailRaw
+    .trim()
+    .replace(/^"(.*)"$/s, '$1')
+    .replace(/^'(.*)'$/s, '$1');
+
+  const privateKey = privateKeyRaw
+    .trim()
+    .replace(/^"(.*)"$/s, '$1')
+    .replace(/^'(.*)'$/s, '$1')
+    .replace(/\\n/g, '\n');
+
+  if (!privateKey.includes('BEGIN PRIVATE KEY')) {
+    throw new Error('GA4_PRIVATE_KEY no tiene un formato PEM válido.');
+  }
+
   return {
     clientEmail,
-    privateKey: privateKey.replace(/\\n/g, '\n'),
+    privateKey,
   };
-}
-
-async function createJwt() {
-  const { clientEmail, privateKey } = getAccessTokenConfig();
-
-  const now = Math.floor(Date.now() / 1000);
-
-  const header = {
-    alg: 'RS256',
-    typ: 'JWT',
-  };
-
-  const payload = {
-    iss: clientEmail,
-    scope: 'https://www.googleapis.com/auth/analytics.readonly',
-    aud: 'https://oauth2.googleapis.com/token',
-    exp: now + 3600,
-    iat: now,
-  };
-
-  const encoder = new TextEncoder();
-
-  const base64UrlEncode = (input: string | Uint8Array) => {
-    const bytes =
-      typeof input === 'string' ? encoder.encode(input) : input;
-
-    let binary = '';
-    for (const byte of bytes) {
-      binary += String.fromCharCode(byte);
-    }
-
-    return Buffer.from(binary, 'binary')
-      .toString('base64')
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=+$/g, '');
-  };
-
-  const unsignedToken = `${base64UrlEncode(JSON.stringify(header))}.${base64UrlEncode(
-    JSON.stringify(payload)
-  )}`;
-
-  const crypto = await import('crypto');
-
-  const signer = crypto.createSign('RSA-SHA256');
-  signer.update(unsignedToken);
-  signer.end();
-
-  const signature = signer.sign(privateKey);
-
-  const signedToken = `${unsignedToken}.${signature
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/g, '')}`;
-
-  return signedToken;
 }
 
 async function getAccessToken() {
-  const assertion = await createJwt();
+  const { clientEmail, privateKey } = getAccessTokenConfig();
 
-  const response = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
+  const auth = new GoogleAuth({
+    credentials: {
+      client_email: clientEmail,
+      private_key: privateKey,
     },
-    body: new URLSearchParams({
-      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion,
-    }),
-    cache: 'no-store',
+    scopes: ['https://www.googleapis.com/auth/analytics.readonly'],
   });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`No se pudo obtener access token de Google: ${errorText}`);
+  const client = await auth.getClient();
+  const accessTokenResponse = await client.getAccessToken();
+  const token = accessTokenResponse.token;
+
+  if (!token) {
+    throw new Error('No se pudo obtener el access token de Google.');
   }
 
-  const data = (await response.json()) as {
-    access_token: string;
-  };
-
-  return data.access_token;
+  return token;
 }
 
 async function runGa4Report(params: {

@@ -10,6 +10,7 @@ import {
   type OrderItemRow,
   type RangeValue,
 } from '@/lib/admin/orders';
+import { getGa4Overview } from '@/lib/ga4';
 import { hasFeature } from '@/lib/plans';
 import { getCurrentUserStore } from '@/lib/stores';
 import { createClient } from '@/lib/supabase/server';
@@ -156,7 +157,32 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
 
   const hasMeasurementId = Boolean(store.google_analytics_id);
   const hasPropertyId = Boolean(store.google_analytics_property_id);
-  const hasFullGa4Config = hasMeasurementId && hasPropertyId;
+  const hasGa4Credentials = Boolean(
+    process.env.GA4_CLIENT_EMAIL && process.env.GA4_PRIVATE_KEY
+  );
+  const hasFullGa4Config =
+    hasMeasurementId && hasPropertyId && hasGa4Credentials;
+
+  let ga4Data: Awaited<ReturnType<typeof getGa4Overview>> | null = null;
+  let ga4Error: string | null = null;
+
+  if (hasPropertyId && hasGa4Credentials) {
+    try {
+      ga4Data = await getGa4Overview({
+        propertyId: store.google_analytics_property_id as string,
+        range,
+      });
+
+      console.log('GA4 DATA:', ga4Data);
+    } catch (error) {
+      ga4Error =
+        error instanceof Error ? error.message : 'Error desconocido en GA4';
+
+      console.error('GA4 ERROR:', ga4Error);
+    }
+  } else {
+    console.log('GA4 DATA: null (faltan credenciales o property id)');
+  }
 
   return (
     <AdminShell
@@ -203,11 +229,11 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
               }`}
             >
               {hasFullGa4Config
-                ? 'La tienda tiene configurado el Measurement ID y también el GA4 Property ID. Ya está lista para conectar métricas de tráfico y eventos desde Google Analytics.'
+                ? 'La tienda tiene configurado Measurement ID, Property ID y credenciales del backend. Estamos probando la lectura real desde GA4.'
                 : 'Todavía falta completar la configuración de GA4 para poder mostrar métricas de tráfico y eventos en este panel.'}
             </p>
 
-            <div className="grid gap-3 pt-2 sm:grid-cols-2">
+            <div className="grid gap-3 pt-2 sm:grid-cols-3">
               <div className="rounded-2xl bg-white/80 p-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
                   Measurement ID
@@ -225,13 +251,75 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
                   {store.google_analytics_property_id || 'No configurado'}
                 </p>
               </div>
+
+              <div className="rounded-2xl bg-white/80 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Credenciales backend
+                </p>
+                <p className="mt-1 text-sm font-medium text-slate-900">
+                  {hasGa4Credentials ? 'Configuradas' : 'Faltan variables'}
+                </p>
+              </div>
             </div>
 
-            {!hasFullGa4Config ? (
-              <p className="pt-1 text-sm text-amber-900">
-                Completá ambos campos en el panel principal para habilitar la
-                lectura de métricas desde la Data API.
-              </p>
+            {ga4Error ? (
+              <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
+                <p className="text-sm font-medium text-red-800">
+                  Error al consultar GA4
+                </p>
+                <p className="mt-1 break-words text-sm text-red-700">
+                  {ga4Error}
+                </p>
+              </div>
+            ) : null}
+
+            {ga4Data ? (
+              <div className="grid gap-3 pt-2 sm:grid-cols-2 xl:grid-cols-5">
+                <div className="rounded-2xl bg-white p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Usuarios activos
+                  </p>
+                  <p className="mt-1 text-2xl font-bold text-slate-900">
+                    {ga4Data.activeUsers}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl bg-white p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Sesiones
+                  </p>
+                  <p className="mt-1 text-2xl font-bold text-slate-900">
+                    {ga4Data.sessions}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl bg-white p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Vistas
+                  </p>
+                  <p className="mt-1 text-2xl font-bold text-slate-900">
+                    {ga4Data.screenPageViews}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl bg-white p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    View item
+                  </p>
+                  <p className="mt-1 text-2xl font-bold text-slate-900">
+                    {ga4Data.viewItemEvents}
+                  </p>
+                </div>
+
+                <div className="rounded-2xl bg-white p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Purchases
+                  </p>
+                  <p className="mt-1 text-2xl font-bold text-slate-900">
+                    {ga4Data.purchaseEvents}
+                  </p>
+                </div>
+              </div>
             ) : null}
           </div>
         </section>

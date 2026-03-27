@@ -157,344 +157,241 @@ function parseUploadedUrls(formData: FormData, prefix: string, maxCount: number)
 }
 
 export async function createProduct(formData: FormData) {
-  const { store } = await getAuthorizedStore();
-  const supabase = await createClient();
+  try {
+    const { store } = await getAuthorizedStore();
+    const supabase = await createClient();
 
-  const name = String(formData.get('name') || '').trim();
-  const description = String(formData.get('description') || '').trim();
-  const priceRaw = String(formData.get('price') || '0').trim();
-  const coverIndexRaw = String(formData.get('cover_index') || '0').trim();
-  const categoryIdRaw = String(formData.get('category_id') || '').trim();
+    const name = String(formData.get('name') || '').trim();
+    const description = String(formData.get('description') || '').trim();
+    const priceRaw = String(formData.get('price') || '0').trim();
+    const coverIndexRaw = String(formData.get('cover_index') || '0').trim();
+    const categoryIdRaw = String(formData.get('category_id') || '').trim();
 
-  const trackStock = parseCheckbox(formData.get('track_stock'));
-  const stockQuantity = parseNonNegativeInt(formData.get('stock_quantity'));
-  const allowBackorder = trackStock
-    ? parseCheckbox(formData.get('allow_backorder'))
-    : false;
+    const trackStock = parseCheckbox(formData.get('track_stock'));
+    const stockQuantity = parseNonNegativeInt(formData.get('stock_quantity'));
+    const allowBackorder = trackStock
+      ? parseCheckbox(formData.get('allow_backorder'))
+      : false;
 
-  const price = Number(priceRaw);
-  const coverIndex = Number(coverIndexRaw);
-  const categoryId = categoryIdRaw || null;
+    const price = Number(priceRaw);
+    const coverIndex = Number(coverIndexRaw);
+    const categoryId = categoryIdRaw || null;
 
-  if (!name) {
-    throw new Error('El nombre es obligatorio');
-  }
-
-  if (Number.isNaN(price) || price < 0) {
-    throw new Error('El precio no es válido');
-  }
-
-  if (categoryId) {
-    const category = await ensureCategoryBelongsToStore(categoryId, store.id);
-
-    if (!category.is_active) {
-      throw new Error('La categoría seleccionada está inactiva');
-    }
-  }
-
-  const slug = await generateUniqueProductSlug(name, store.id);
-
-  const { data: insertedProducts, error } = await supabase
-    .from('products')
-    .insert({
-      store_id: store.id,
-      name,
-      slug,
-      description: description || null,
-      price,
-      is_active: true,
-      image_url: null,
-      category_id: categoryId,
-      track_stock: trackStock,
-      stock_quantity: trackStock ? stockQuantity : 0,
-      allow_backorder: allowBackorder,
-    })
-    .select('id, slug');
-
-  if (error || !insertedProducts || insertedProducts.length === 0) {
-    throw new Error(error?.message || 'No se pudo crear el producto');
-  }
-
-  const productId = insertedProducts[0].id;
-  const productSlug = insertedProducts[0].slug;
-  const uploadedUrls = parseUploadedUrls(formData, 'image_url', 5);
-
-  if (uploadedUrls.length > 0) {
-    const safeCoverIndex = Number.isNaN(coverIndex)
-      ? 0
-      : Math.min(Math.max(coverIndex, 0), uploadedUrls.length - 1);
-
-    const rows = uploadedUrls.map((url, index) => ({
-      product_id: productId,
-      image_url: url,
-      sort_order: index,
-      is_cover: index === safeCoverIndex,
-    }));
-
-    const { error: imagesError } = await supabase
-      .from('product_images')
-      .insert(rows);
-
-    if (imagesError) {
-      throw new Error(imagesError.message);
+    if (!name) {
+      throw new Error('El nombre es obligatorio');
     }
 
-    const { error: updateProductError } = await supabase
+    if (Number.isNaN(price) || price < 0) {
+      throw new Error('El precio no es válido');
+    }
+
+    if (categoryId) {
+      const category = await ensureCategoryBelongsToStore(categoryId, store.id);
+
+      if (!category.is_active) {
+        throw new Error('La categoría seleccionada está inactiva');
+      }
+    }
+
+    const slug = await generateUniqueProductSlug(name, store.id);
+
+    const { data: insertedProducts, error } = await supabase
+      .from('products')
+      .insert({
+        store_id: store.id,
+        name,
+        slug,
+        description: description || null,
+        price,
+        is_active: true,
+        image_url: null,
+        category_id: categoryId,
+        track_stock: trackStock,
+        stock_quantity: trackStock ? stockQuantity : 0,
+        allow_backorder: allowBackorder,
+      })
+      .select('id, slug');
+
+    if (error || !insertedProducts || insertedProducts.length === 0) {
+      throw new Error(error?.message || 'No se pudo crear el producto');
+    }
+
+    const productId = insertedProducts[0].id;
+    const productSlug = insertedProducts[0].slug;
+    const uploadedUrls = parseUploadedUrls(formData, 'image_url', 5);
+
+    if (uploadedUrls.length > 0) {
+      const safeCoverIndex = Number.isNaN(coverIndex)
+        ? 0
+        : Math.min(Math.max(coverIndex, 0), uploadedUrls.length - 1);
+
+      const rows = uploadedUrls.map((url, index) => ({
+        product_id: productId,
+        image_url: url,
+        sort_order: index,
+        is_cover: index === safeCoverIndex,
+      }));
+
+      const { error: imagesError } = await supabase
+        .from('product_images')
+        .insert(rows);
+
+      if (imagesError) {
+        throw new Error(imagesError.message);
+      }
+
+      const { error: updateProductError } = await supabase
+        .from('products')
+        .update({
+          image_url: uploadedUrls[safeCoverIndex],
+        })
+        .eq('id', productId)
+        .eq('store_id', store.id);
+
+      if (updateProductError) {
+        throw new Error(updateProductError.message);
+      }
+    }
+
+    revalidateProductPaths(store.slug, productSlug);
+    redirect('/admin/productos?success=created');
+  } catch (error) {
+    console.error('Error creando producto:', error);
+    redirect('/admin/productos?error=create');
+  }
+}
+
+export async function updateProduct(formData: FormData) {
+  try {
+    const { store } = await getAuthorizedStore();
+    const supabase = await createClient();
+
+    const productId = String(formData.get('product_id') || '').trim();
+    const name = String(formData.get('name') || '').trim();
+    const description = String(formData.get('description') || '').trim();
+    const priceRaw = String(formData.get('price') || '0').trim();
+    const coverImageId = String(formData.get('cover_image_id') || '').trim();
+    const categoryIdRaw = String(formData.get('category_id') || '').trim();
+
+    const trackStock = parseCheckbox(formData.get('track_stock'));
+    const stockQuantity = parseNonNegativeInt(formData.get('stock_quantity'));
+    const allowBackorder = trackStock
+      ? parseCheckbox(formData.get('allow_backorder'))
+      : false;
+
+    const price = Number(priceRaw);
+    const categoryId = categoryIdRaw || null;
+
+    if (!productId) {
+      throw new Error('Falta el producto');
+    }
+
+    const existingProduct = await ensureProductBelongsToStore(productId, store.id);
+    const previousSlug = existingProduct.slug;
+
+    if (!name) {
+      throw new Error('El nombre es obligatorio');
+    }
+
+    if (Number.isNaN(price) || price < 0) {
+      throw new Error('El precio no es válido');
+    }
+
+    if (categoryId) {
+      const category = await ensureCategoryBelongsToStore(categoryId, store.id);
+
+      if (!category.is_active) {
+        throw new Error('La categoría seleccionada está inactiva');
+      }
+    }
+
+    const newSlug = await generateUniqueProductSlug(name, store.id, productId);
+
+    const { error } = await supabase
       .from('products')
       .update({
-        image_url: uploadedUrls[safeCoverIndex],
+        name,
+        slug: newSlug,
+        description: description || null,
+        price,
+        category_id: categoryId,
+        track_stock: trackStock,
+        stock_quantity: trackStock ? stockQuantity : 0,
+        allow_backorder: allowBackorder,
       })
       .eq('id', productId)
       .eq('store_id', store.id);
 
-    if (updateProductError) {
-      throw new Error(updateProductError.message);
+    if (error) {
+      throw new Error(error.message);
     }
-  }
 
-  revalidateProductPaths(store.slug, productSlug);
-  redirect('/admin/productos?success=created');
-}
-
-export async function updateProduct(formData: FormData) {
-  const { store } = await getAuthorizedStore();
-  const supabase = await createClient();
-
-  const productId = String(formData.get('product_id') || '').trim();
-  const name = String(formData.get('name') || '').trim();
-  const description = String(formData.get('description') || '').trim();
-  const priceRaw = String(formData.get('price') || '0').trim();
-  const coverImageId = String(formData.get('cover_image_id') || '').trim();
-  const categoryIdRaw = String(formData.get('category_id') || '').trim();
-
-  const trackStock = parseCheckbox(formData.get('track_stock'));
-  const stockQuantity = parseNonNegativeInt(formData.get('stock_quantity'));
-  const allowBackorder = trackStock
-    ? parseCheckbox(formData.get('allow_backorder'))
-    : false;
-
-  const price = Number(priceRaw);
-  const categoryId = categoryIdRaw || null;
-
-  if (!productId) {
-    throw new Error('Falta el producto');
-  }
-
-  const existingProduct = await ensureProductBelongsToStore(productId, store.id);
-  const previousSlug = existingProduct.slug;
-
-  if (!name) {
-    throw new Error('El nombre es obligatorio');
-  }
-
-  if (Number.isNaN(price) || price < 0) {
-    throw new Error('El precio no es válido');
-  }
-
-  if (categoryId) {
-    const category = await ensureCategoryBelongsToStore(categoryId, store.id);
-
-    if (!category.is_active) {
-      throw new Error('La categoría seleccionada está inactiva');
-    }
-  }
-
-  const newSlug = await generateUniqueProductSlug(name, store.id, productId);
-
-  const { error } = await supabase
-    .from('products')
-    .update({
-      name,
-      slug: newSlug,
-      description: description || null,
-      price,
-      category_id: categoryId,
-      track_stock: trackStock,
-      stock_quantity: trackStock ? stockQuantity : 0,
-      allow_backorder: allowBackorder,
-    })
-    .eq('id', productId)
-    .eq('store_id', store.id);
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  const existingImagesResponse = await supabase
-    .from('product_images')
-    .select('id, image_url')
-    .eq('product_id', productId)
-    .order('sort_order', { ascending: true });
-
-  if (existingImagesResponse.error) {
-    throw new Error(existingImagesResponse.error.message);
-  }
-
-  const existingImages = existingImagesResponse.data || [];
-  const currentCount = existingImages.length;
-  const remainingSlots = Math.max(0, 5 - currentCount);
-
-  const newUrls = parseUploadedUrls(formData, 'new_image_url', remainingSlots);
-
-  if (newUrls.length > 0) {
-    const rows = newUrls.map((url, index) => ({
-      product_id: productId,
-      image_url: url,
-      sort_order: currentCount + index,
-      is_cover: false,
-    }));
-
-    const { error: insertImagesError } = await supabase
+    const existingImagesResponse = await supabase
       .from('product_images')
-      .insert(rows);
+      .select('id, image_url')
+      .eq('product_id', productId)
+      .order('sort_order', { ascending: true });
 
-    if (insertImagesError) {
-      throw new Error(insertImagesError.message);
-    }
-  }
-
-  const { data: allImagesAfterInsert, error: allImagesError } = await supabase
-    .from('product_images')
-    .select('id, image_url, sort_order')
-    .eq('product_id', productId)
-    .order('sort_order', { ascending: true });
-
-  if (allImagesError) {
-    throw new Error(allImagesError.message);
-  }
-
-  const finalImages = allImagesAfterInsert || [];
-
-  if (finalImages.length === 0) {
-    const { error: clearProductImageError } = await supabase
-      .from('products')
-      .update({ image_url: null })
-      .eq('id', productId)
-      .eq('store_id', store.id);
-
-    if (clearProductImageError) {
-      throw new Error(clearProductImageError.message);
+    if (existingImagesResponse.error) {
+      throw new Error(existingImagesResponse.error.message);
     }
 
-    revalidateProductPaths(store.slug, previousSlug);
-    if (previousSlug !== newSlug) {
-      revalidateProductPaths(store.slug, newSlug);
+    const existingImages = existingImagesResponse.data || [];
+    const currentCount = existingImages.length;
+    const remainingSlots = Math.max(0, 5 - currentCount);
+
+    const newUrls = parseUploadedUrls(formData, 'new_image_url', remainingSlots);
+
+    if (newUrls.length > 0) {
+      const rows = newUrls.map((url, index) => ({
+        product_id: productId,
+        image_url: url,
+        sort_order: currentCount + index,
+        is_cover: false,
+      }));
+
+      const { error: insertImagesError } = await supabase
+        .from('product_images')
+        .insert(rows);
+
+      if (insertImagesError) {
+        throw new Error(insertImagesError.message);
+      }
     }
 
-    redirect('/admin/productos?success=updated');
-  }
+    const { data: allImagesAfterInsert, error: allImagesError } = await supabase
+      .from('product_images')
+      .select('id, image_url, sort_order')
+      .eq('product_id', productId)
+      .order('sort_order', { ascending: true });
 
-  const chosenCover =
-    finalImages.find((img) => img.id === coverImageId) || finalImages[0];
-
-  const { error: resetCoverError } = await supabase
-    .from('product_images')
-    .update({ is_cover: false })
-    .eq('product_id', productId);
-
-  if (resetCoverError) {
-    throw new Error(resetCoverError.message);
-  }
-
-  const { error: setCoverError } = await supabase
-    .from('product_images')
-    .update({ is_cover: true })
-    .eq('id', chosenCover.id)
-    .eq('product_id', productId);
-
-  if (setCoverError) {
-    throw new Error(setCoverError.message);
-  }
-
-  const { error: updateProductCoverError } = await supabase
-    .from('products')
-    .update({
-      image_url: chosenCover.image_url,
-    })
-    .eq('id', productId)
-    .eq('store_id', store.id);
-
-  if (updateProductCoverError) {
-    throw new Error(updateProductCoverError.message);
-  }
-
-  revalidateProductPaths(store.slug, previousSlug);
-  if (previousSlug !== newSlug) {
-    revalidateProductPaths(store.slug, newSlug);
-  }
-
-  redirect('/admin/productos?success=updated');
-}
-
-export async function deleteProductImage(formData: FormData) {
-  const { store } = await getAuthorizedStore();
-  const supabase = await createClient();
-
-  const productId = String(formData.get('product_id') || '').trim();
-  const imageId = String(formData.get('image_id') || '').trim();
-
-  if (!productId || !imageId) {
-    throw new Error('Faltan datos');
-  }
-
-  const product = await ensureProductBelongsToStore(productId, store.id);
-
-  const { data: imageToDelete, error: imageToDeleteError } = await supabase
-    .from('product_images')
-    .select('id, image_url, is_cover')
-    .eq('id', imageId)
-    .eq('product_id', productId)
-    .maybeSingle();
-
-  if (imageToDeleteError) {
-    throw new Error(imageToDeleteError.message);
-  }
-
-  if (!imageToDelete) {
-    throw new Error('La imagen no existe');
-  }
-
-  const { error: deleteError } = await supabase
-    .from('product_images')
-    .delete()
-    .eq('id', imageId)
-    .eq('product_id', productId);
-
-  if (deleteError) {
-    throw new Error(deleteError.message);
-  }
-
-  const { data: remaining, error: remainingError } = await supabase
-    .from('product_images')
-    .select('id, image_url, is_cover, sort_order')
-    .eq('product_id', productId)
-    .order('sort_order', { ascending: true });
-
-  if (remainingError) {
-    throw new Error(remainingError.message);
-  }
-
-  const remainingImages = remaining || [];
-
-  if (remainingImages.length === 0) {
-    const { error: clearProductImageError } = await supabase
-      .from('products')
-      .update({ image_url: null })
-      .eq('id', productId)
-      .eq('store_id', store.id);
-
-    if (clearProductImageError) {
-      throw new Error(clearProductImageError.message);
+    if (allImagesError) {
+      throw new Error(allImagesError.message);
     }
 
-    revalidateProductPaths(store.slug, product.slug);
-    redirect('/admin/productos?success=image-deleted');
-  }
+    const finalImages = allImagesAfterInsert || [];
 
-  let newCover = remainingImages.find((img) => img.is_cover) || null;
+    if (finalImages.length === 0) {
+      const { error: clearProductImageError } = await supabase
+        .from('products')
+        .update({ image_url: null })
+        .eq('id', productId)
+        .eq('store_id', store.id);
 
-  if (!newCover) {
-    newCover = remainingImages[0];
+      if (clearProductImageError) {
+        throw new Error(clearProductImageError.message);
+      }
+
+      revalidateProductPaths(store.slug, previousSlug);
+      if (previousSlug !== newSlug) {
+        revalidateProductPaths(store.slug, newSlug);
+      }
+
+      redirect('/admin/productos?success=updated');
+    }
+
+    const chosenCover =
+      finalImages.find((img) => img.id === coverImageId) || finalImages[0];
 
     const { error: resetCoverError } = await supabase
       .from('product_images')
@@ -508,53 +405,177 @@ export async function deleteProductImage(formData: FormData) {
     const { error: setCoverError } = await supabase
       .from('product_images')
       .update({ is_cover: true })
-      .eq('id', newCover.id)
+      .eq('id', chosenCover.id)
       .eq('product_id', productId);
 
     if (setCoverError) {
       throw new Error(setCoverError.message);
     }
+
+    const { error: updateProductCoverError } = await supabase
+      .from('products')
+      .update({
+        image_url: chosenCover.image_url,
+      })
+      .eq('id', productId)
+      .eq('store_id', store.id);
+
+    if (updateProductCoverError) {
+      throw new Error(updateProductCoverError.message);
+    }
+
+    revalidateProductPaths(store.slug, previousSlug);
+    if (previousSlug !== newSlug) {
+      revalidateProductPaths(store.slug, newSlug);
+    }
+
+    redirect('/admin/productos?success=updated');
+  } catch (error) {
+    console.error('Error actualizando producto:', error);
+    redirect('/admin/productos?error=update');
   }
+}
 
-  const { error: updateProductError } = await supabase
-    .from('products')
-    .update({ image_url: newCover.image_url })
-    .eq('id', productId)
-    .eq('store_id', store.id);
+export async function deleteProductImage(formData: FormData) {
+  try {
+    const { store } = await getAuthorizedStore();
+    const supabase = await createClient();
 
-  if (updateProductError) {
-    throw new Error(updateProductError.message);
+    const productId = String(formData.get('product_id') || '').trim();
+    const imageId = String(formData.get('image_id') || '').trim();
+
+    if (!productId || !imageId) {
+      throw new Error('Faltan datos');
+    }
+
+    const product = await ensureProductBelongsToStore(productId, store.id);
+
+    const { data: imageToDelete, error: imageToDeleteError } = await supabase
+      .from('product_images')
+      .select('id, image_url, is_cover')
+      .eq('id', imageId)
+      .eq('product_id', productId)
+      .maybeSingle();
+
+    if (imageToDeleteError) {
+      throw new Error(imageToDeleteError.message);
+    }
+
+    if (!imageToDelete) {
+      throw new Error('La imagen no existe');
+    }
+
+    const { error: deleteError } = await supabase
+      .from('product_images')
+      .delete()
+      .eq('id', imageId)
+      .eq('product_id', productId);
+
+    if (deleteError) {
+      throw new Error(deleteError.message);
+    }
+
+    const { data: remaining, error: remainingError } = await supabase
+      .from('product_images')
+      .select('id, image_url, is_cover, sort_order')
+      .eq('product_id', productId)
+      .order('sort_order', { ascending: true });
+
+    if (remainingError) {
+      throw new Error(remainingError.message);
+    }
+
+    const remainingImages = remaining || [];
+
+    if (remainingImages.length === 0) {
+      const { error: clearProductImageError } = await supabase
+        .from('products')
+        .update({ image_url: null })
+        .eq('id', productId)
+        .eq('store_id', store.id);
+
+      if (clearProductImageError) {
+        throw new Error(clearProductImageError.message);
+      }
+
+      revalidateProductPaths(store.slug, product.slug);
+      redirect('/admin/productos?success=image-deleted');
+    }
+
+    let newCover = remainingImages.find((img) => img.is_cover) || null;
+
+    if (!newCover) {
+      newCover = remainingImages[0];
+
+      const { error: resetCoverError } = await supabase
+        .from('product_images')
+        .update({ is_cover: false })
+        .eq('product_id', productId);
+
+      if (resetCoverError) {
+        throw new Error(resetCoverError.message);
+      }
+
+      const { error: setCoverError } = await supabase
+        .from('product_images')
+        .update({ is_cover: true })
+        .eq('id', newCover.id)
+        .eq('product_id', productId);
+
+      if (setCoverError) {
+        throw new Error(setCoverError.message);
+      }
+    }
+
+    const { error: updateProductError } = await supabase
+      .from('products')
+      .update({ image_url: newCover.image_url })
+      .eq('id', productId)
+      .eq('store_id', store.id);
+
+    if (updateProductError) {
+      throw new Error(updateProductError.message);
+    }
+
+    revalidateProductPaths(store.slug, product.slug);
+    redirect('/admin/productos?success=image-deleted');
+  } catch (error) {
+    console.error('Error eliminando imagen de producto:', error);
+    redirect('/admin/productos?error=delete-image');
   }
-
-  revalidateProductPaths(store.slug, product.slug);
-  redirect('/admin/productos?success=image-deleted');
 }
 
 export async function toggleProductActive(formData: FormData) {
-  const { store } = await getAuthorizedStore();
-  const supabase = await createClient();
+  try {
+    const { store } = await getAuthorizedStore();
+    const supabase = await createClient();
 
-  const productId = String(formData.get('product_id') || '').trim();
-  const currentValue = String(formData.get('current_value') || '').trim() === 'true';
+    const productId = String(formData.get('product_id') || '').trim();
+    const currentValue =
+      String(formData.get('current_value') || '').trim() === 'true';
 
-  if (!productId) {
-    throw new Error('Falta el producto');
+    if (!productId) {
+      throw new Error('Falta el producto');
+    }
+
+    const product = await ensureProductBelongsToStore(productId, store.id);
+
+    const { error } = await supabase
+      .from('products')
+      .update({
+        is_active: !currentValue,
+      })
+      .eq('id', productId)
+      .eq('store_id', store.id);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    revalidateProductPaths(store.slug, product.slug);
+    redirect('/admin/productos?success=status-updated');
+  } catch (error) {
+    console.error('Error cambiando estado de producto:', error);
+    redirect('/admin/productos?error=toggle-status');
   }
-
-  const product = await ensureProductBelongsToStore(productId, store.id);
-
-  const { error } = await supabase
-    .from('products')
-    .update({
-      is_active: !currentValue,
-    })
-    .eq('id', productId)
-    .eq('store_id', store.id);
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  revalidateProductPaths(store.slug, product.slug);
-  redirect('/admin/productos?success=status-updated');
 }

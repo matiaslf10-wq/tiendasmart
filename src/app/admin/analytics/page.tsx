@@ -338,14 +338,6 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
   const resolvedSearchParams = await searchParams;
   const range: RangeValue = resolvedSearchParams.range ?? '30d';
 
-  const analyticsApiKey =
-    store.analytics_api_key ?? (await ensureAnalyticsApiKey()).apiKey;
-
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? '';
-  const publicAnalyticsUrl = appUrl
-    ? `${appUrl}/api/public/analytics/orders-detailed?range=${range}&api_key=${analyticsApiKey}`
-    : `/api/public/analytics/orders-detailed?range=${range}&api_key=${analyticsApiKey}`;
-
   if (!hasFeature(store.plan, 'advanced_analytics')) {
     return (
       <AdminShell
@@ -394,6 +386,14 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
       </AdminShell>
     );
   }
+
+  const analyticsApiKey =
+    store.analytics_api_key ?? (await ensureAnalyticsApiKey()).apiKey;
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? '';
+  const publicAnalyticsUrl = appUrl
+    ? `${appUrl}/api/public/analytics/orders-detailed?range=${range}&api_key=${analyticsApiKey}`
+    : `/api/public/analytics/orders-detailed?range=${range}&api_key=${analyticsApiKey}`;
 
   const supabase = await createClient();
 

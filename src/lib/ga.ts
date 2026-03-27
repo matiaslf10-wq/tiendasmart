@@ -73,9 +73,11 @@ export function trackBeginCheckout(items: GAItem[]) {
 }
 
 export function trackPurchase(params: {
-  orderNumber: string | number;
+  orderNumber?: string | number | null;
+  transactionId?: string | number | null;
   items: GAItem[];
   value?: number;
+  store_slug?: string;
 }) {
   const value =
     params.value ??
@@ -85,17 +87,22 @@ export function trackPurchase(params: {
     );
 
   trackEvent('purchase', {
-    transaction_id: String(params.orderNumber),
+    transaction_id: String(
+      params.transactionId ?? params.orderNumber ?? ''
+    ),
     currency: 'ARS',
     value,
+    store_slug: params.store_slug,
     items: params.items,
   });
 }
 
 export function trackSendToWhatsApp(params: {
   orderNumber?: string | number | null;
+  transactionId?: string | number | null;
   items: GAItem[];
   value?: number;
+  store_slug?: string;
 }) {
   const value =
     params.value ??
@@ -107,7 +114,15 @@ export function trackSendToWhatsApp(params: {
   trackEvent('send_to_whatsapp', {
     currency: 'ARS',
     value,
-    order_number: params.orderNumber ? String(params.orderNumber) : undefined,
+    transaction_id:
+      params.transactionId != null
+        ? String(params.transactionId)
+        : params.orderNumber != null
+          ? String(params.orderNumber)
+          : undefined,
+    order_number:
+      params.orderNumber != null ? String(params.orderNumber) : undefined,
+    store_slug: params.store_slug,
     items: params.items,
   });
 }

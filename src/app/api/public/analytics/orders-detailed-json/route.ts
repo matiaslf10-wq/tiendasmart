@@ -135,13 +135,33 @@ type AnalyticsDetailedJsonRow = {
   total_pedido: number;
 };
 
+type AnalyticsDetailedJsonResponse = {
+  store: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+  range: RangeValue;
+  generated_at: string;
+  row_count: number;
+  rows: AnalyticsDetailedJsonRow[];
+};
+
 export async function GET(request: NextRequest) {
   const apiKey =
     request.headers.get('x-api-key') ??
     request.nextUrl.searchParams.get('api_key');
 
   if (!apiKey) {
-    return NextResponse.json({ error: 'Falta API key' }, { status: 401 });
+    return NextResponse.json(
+      { error: 'Falta API key' },
+      {
+        status: 401,
+        headers: {
+          'Cache-Control': 'no-store',
+        },
+      }
+    );
   }
 
   const rangeParam = request.nextUrl.searchParams.get('range');
@@ -158,7 +178,15 @@ export async function GET(request: NextRequest) {
   const store = storeData as PublicStoreRow | null;
 
   if (storeError || !store || !store.is_active) {
-    return NextResponse.json({ error: 'API key inválida' }, { status: 401 });
+    return NextResponse.json(
+      { error: 'API key inválida' },
+      {
+        status: 401,
+        headers: {
+          'Cache-Control': 'no-store',
+        },
+      }
+    );
   }
 
   const { data: ordersData, error: ordersError } = await supabase
@@ -184,7 +212,12 @@ export async function GET(request: NextRequest) {
         error: 'No se pudieron cargar los pedidos',
         details: ordersError.message,
       },
-      { status: 500 }
+      {
+        status: 500,
+        headers: {
+          'Cache-Control': 'no-store',
+        },
+      }
     );
   }
 
@@ -204,7 +237,7 @@ export async function GET(request: NextRequest) {
     .filter((value): value is string => Boolean(value));
 
   if (orderIds.length === 0) {
-    return NextResponse.json({
+    const emptyResponse: AnalyticsDetailedJsonResponse = {
       store: {
         id: store.id,
         name: store.name,
@@ -214,6 +247,12 @@ export async function GET(request: NextRequest) {
       generated_at: new Date().toISOString(),
       row_count: 0,
       rows: [],
+    };
+
+    return NextResponse.json(emptyResponse, {
+      headers: {
+        'Cache-Control': 'no-store',
+      },
     });
   }
 
@@ -245,7 +284,12 @@ export async function GET(request: NextRequest) {
         error: 'No se pudieron cargar los ítems de los pedidos',
         details: itemsError.message,
       },
-      { status: 500 }
+      {
+        status: 500,
+        headers: {
+          'Cache-Control': 'no-store',
+        },
+      }
     );
   }
 
@@ -279,15 +323,20 @@ export async function GET(request: NextRequest) {
           error: 'No se pudieron cargar las categorías de productos',
           details: productsError.message,
         },
-        { status: 500 }
+        {
+          status: 500,
+          headers: {
+            'Cache-Control': 'no-store',
+          },
+        }
       );
     }
 
     categoryByProductId = new Map(
       ((productsData ?? []) as ProductRow[]).map((product) => {
         const categoryName = Array.isArray(product.categories)
-          ? (product.categories[0]?.name ?? '')
-          : (product.categories?.name ?? '');
+          ? product.categories[0]?.name ?? ''
+          : product.categories?.name ?? '';
 
         return [product.id, categoryName];
       })
@@ -307,7 +356,7 @@ export async function GET(request: NextRequest) {
     const precioUnitario = cantidad > 0 ? subtotalItem / cantidad : 0;
     const totalPedido = Number(relatedOrder.total ?? 0);
     const categoria = item.product_id
-      ? (categoryByProductId.get(item.product_id) ?? '')
+      ? categoryByProductId.get(item.product_id) ?? ''
       : '';
 
     return [
@@ -333,7 +382,7 @@ export async function GET(request: NextRequest) {
     ];
   });
 
-  return NextResponse.json({
+  const response: AnalyticsDetailedJsonResponse = {
     store: {
       id: store.id,
       name: store.name,
@@ -343,5 +392,11 @@ export async function GET(request: NextRequest) {
     generated_at: new Date().toISOString(),
     row_count: rows.length,
     rows,
+  };
+
+  return NextResponse.json(response, {
+    headers: {
+      'Cache-Control': 'no-store',
+    },
   });
 }

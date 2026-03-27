@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useFormStatus } from 'react-dom';
 import {
   updateCategory,
   toggleCategoryActive,
@@ -16,11 +17,25 @@ type Category = {
   sort_order: number;
 };
 
+function SubmitButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="w-fit rounded-xl bg-black px-5 py-3 text-white disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      {pending ? 'Guardando cambios...' : 'Guardar cambios'}
+    </button>
+  );
+}
+
 export default function CategoryEditForm({ category }: { category: Category }) {
   const [open, setOpen] = useState(false);
 
   return (
-    <article className="rounded-2xl border p-4 space-y-3">
+    <article className="space-y-3 rounded-2xl border p-4">
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div className="space-y-2">
           <h3 className="text-lg font-semibold">{category.name}</h3>
@@ -123,12 +138,7 @@ export default function CategoryEditForm({ category }: { category: Category }) {
               />
             </label>
 
-            <button
-              type="submit"
-              className="w-fit rounded-xl bg-black px-5 py-3 text-white"
-            >
-              Guardar cambios
-            </button>
+            <SubmitButton />
           </form>
         </div>
       )}

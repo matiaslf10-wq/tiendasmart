@@ -29,6 +29,10 @@ import { getGa4DailySeries, getGa4Overview } from '@/lib/ga4';
 import { hasFeature } from '@/lib/plans';
 import { getCurrentUserStore } from '@/lib/stores';
 import { createClient } from '@/lib/supabase/server';
+import {
+  ensureAnalyticsApiKey,
+  regenerateAnalyticsApiKeyAction,
+} from './actions';
 
 type PageProps = {
   searchParams: Promise<{
@@ -298,22 +302,22 @@ function InsightCard({ insight }: { insight: Insight }) {
     insight.tone === 'warning'
       ? 'border-amber-200 bg-amber-50'
       : insight.tone === 'success'
-      ? 'border-emerald-200 bg-emerald-50'
-      : 'border-slate-200 bg-slate-50';
+        ? 'border-emerald-200 bg-emerald-50'
+        : 'border-slate-200 bg-slate-50';
 
   const titleClasses =
     insight.tone === 'warning'
       ? 'text-amber-950'
       : insight.tone === 'success'
-      ? 'text-emerald-950'
-      : 'text-slate-900';
+        ? 'text-emerald-950'
+        : 'text-slate-900';
 
   const bodyClasses =
     insight.tone === 'warning'
       ? 'text-amber-900'
       : insight.tone === 'success'
-      ? 'text-emerald-900'
-      : 'text-slate-600';
+        ? 'text-emerald-900'
+        : 'text-slate-600';
 
   return (
     <div className={`rounded-2xl border p-4 ${toneClasses}`}>
@@ -331,6 +335,16 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
   }
 
   const store = membership.stores;
+  const resolvedSearchParams = await searchParams;
+  const range: RangeValue = resolvedSearchParams.range ?? '30d';
+
+  const analyticsApiKey =
+    store.analytics_api_key ?? (await ensureAnalyticsApiKey()).apiKey;
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? '';
+  const publicAnalyticsUrl = appUrl
+    ? `${appUrl}/api/public/analytics/orders-detailed?range=${range}&api_key=${analyticsApiKey}`
+    : `/api/public/analytics/orders-detailed?range=${range}&api_key=${analyticsApiKey}`;
 
   if (!hasFeature(store.plan, 'advanced_analytics')) {
     return (
@@ -382,8 +396,6 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
   }
 
   const supabase = await createClient();
-  const resolvedSearchParams = await searchParams;
-  const range: RangeValue = resolvedSearchParams.range ?? '30d';
 
   const ga4ServiceAccountJson = process.env.GA4_SERVICE_ACCOUNT_JSON;
   const hasGa4Credentials = Boolean(ga4ServiceAccountJson);
@@ -542,15 +554,55 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
                 Rendimiento comercial
               </h2>
               <p className="text-sm text-slate-500">
-                Analizá ingresos, comportamiento de pedidos, tráfico y conversión
-                en el período seleccionado.
+                Analizá ingresos, comportamiento de pedidos, tráfico y
+                conversión en el período seleccionado.
               </p>
             </div>
 
             <div className="flex flex-wrap gap-3">
-  <ExportOrdersButton range={range} />
-  <ExportOrdersDetailedButton range={range} />
-</div>
+              <ExportOrdersButton range={range} />
+              <ExportOrdersDetailedButton range={range} />
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="space-y-3">
+            <h2 className="text-lg font-semibold text-slate-900">
+              Conexión para Power BI y Excel
+            </h2>
+
+            <p className="text-sm text-slate-600">
+              Usá esta URL para importar datos desde Power BI Desktop o desde
+              Excel con Power Query.
+            </p>
+
+            <div className="rounded-2xl bg-slate-50 p-3">
+              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">
+                API key
+              </p>
+              <code className="break-all text-sm text-slate-900">
+                {analyticsApiKey}
+              </code>
+            </div>
+
+            <div className="rounded-2xl bg-slate-50 p-3">
+              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">
+                URL pública de analytics
+              </p>
+              <code className="break-all text-sm text-slate-900">
+                {publicAnalyticsUrl}
+              </code>
+            </div>
+
+            <form action={regenerateAnalyticsApiKeyAction}>
+              <button
+                type="submit"
+                className="inline-flex items-center rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-900 shadow-sm transition hover:bg-slate-50"
+              >
+                Regenerar API key
+              </button>
+            </form>
           </div>
         </section>
 

@@ -173,12 +173,12 @@ export async function updateStoreSettings(formData: FormData) {
     revalidatePath(`/${normalizedSlug}`);
     revalidatePath(`/_sites/${store.slug}`);
     revalidatePath(`/_sites/${normalizedSlug}`);
-
-    redirect('/admin?saved=1');
   } catch (error) {
     console.error('Error actualizando la tienda:', error);
     redirect('/admin?error=1');
   }
+
+  redirect('/admin?saved=1');
 }
 
 export async function createProduct(formData: FormData) {

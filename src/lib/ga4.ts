@@ -39,7 +39,6 @@ export type Ga4DailyPoint = {
 export type Ga4TopProductRow = {
   itemId: string;
   itemName: string;
-  itemViewEvents: number;
   itemsAddedToCart: number;
   itemsPurchased: number;
   itemRevenue: number;
@@ -426,7 +425,6 @@ export async function getGa4TopProducts(params: {
     dateRanges: [dateRange],
     dimensions: [{ name: 'itemId' }, { name: 'itemName' }],
     metrics: [
-      { name: 'itemViewEvents' },
       { name: 'itemsAddedToCart' },
       { name: 'itemsPurchased' },
       { name: 'itemRevenue' },
@@ -434,7 +432,13 @@ export async function getGa4TopProducts(params: {
     orderBys: [
       {
         metric: {
-          metricName: 'itemViewEvents',
+          metricName: 'itemsPurchased',
+        },
+        desc: true,
+      },
+      {
+        metric: {
+          metricName: 'itemsAddedToCart',
         },
         desc: true,
       },
@@ -450,7 +454,6 @@ export async function getGa4TopProducts(params: {
         row.dimensionValues?.map((dimension) => dimension.value ?? '') ?? [];
 
       const [
-        itemViewEvents = '0',
         itemsAddedToCart = '0',
         itemsPurchased = '0',
         itemRevenue = '0',
@@ -459,7 +462,6 @@ export async function getGa4TopProducts(params: {
       return {
         itemId,
         itemName,
-        itemViewEvents: Number(itemViewEvents) || 0,
         itemsAddedToCart: Number(itemsAddedToCart) || 0,
         itemsPurchased: Number(itemsPurchased) || 0,
         itemRevenue: Number(itemRevenue) || 0,

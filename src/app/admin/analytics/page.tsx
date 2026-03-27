@@ -26,6 +26,7 @@ import { getGa4DailySeries, getGa4Overview } from '@/lib/ga4';
 import { hasFeature } from '@/lib/plans';
 import { getCurrentUserStore } from '@/lib/stores';
 import { createClient } from '@/lib/supabase/server';
+import Ga4TopProductsPlaceholder from '@/components/admin/Ga4TopProductsPlaceholder';
 
 type PageProps = {
   searchParams: Promise<{
@@ -707,8 +708,15 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
         ) : null}
 
         {topProductsInsights.length > 0 ? (
-          <Ga4TopProductsInsights rows={topProductsInsights} />
-        ) : null}
+  <Ga4TopProductsInsights rows={topProductsInsights} />
+) : (
+  <Ga4TopProductsPlaceholder
+    hasGa4Credentials={hasGa4Credentials}
+    hasPropertyId={Boolean(ga4PropertyId)}
+    hasOrdersData={rangeFilteredOrderItems.length > 0}
+    ga4Error={ga4Error}
+  />
+)}
 
         <OrdersRangeTabs
           basePath="/admin/analytics"

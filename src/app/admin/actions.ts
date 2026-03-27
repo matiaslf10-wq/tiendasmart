@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 import { getCurrentUserStore } from '@/lib/stores';
 import { createClient } from '@/lib/supabase/server';
 import { hasFeature } from '@/lib/plans';
@@ -58,117 +59,126 @@ async function ensureProductBelongsToStore(productId: string, storeId: string) {
 }
 
 export async function updateStoreSettings(formData: FormData) {
-  const membership = await getCurrentUserStore();
+  try {
+    const membership = await getCurrentUserStore();
 
-  if (!membership || !membership.stores) {
-    throw new Error('No autorizado');
-  }
+    if (!membership || !membership.stores) {
+      throw new Error('No autorizado');
+    }
 
-  const store = membership.stores;
+    const store = membership.stores;
 
-  if (membership.role !== 'owner' && membership.role !== 'admin') {
-    throw new Error('No tenés permisos para gestionar la tienda');
-  }
+    if (membership.role !== 'owner' && membership.role !== 'admin') {
+      throw new Error('No tenés permisos para gestionar la tienda');
+    }
 
-  const supabase = await createClient();
+    const supabase = await createClient();
 
-  const name = String(formData.get('name') || '').trim();
-  const slugInput = String(formData.get('slug') || '').trim().toLowerCase();
-  const whatsappNumber = String(formData.get('whatsapp_number') || '').trim();
-  const logoUrlInput = String(formData.get('logo_url') || '').trim();
-  const coverUrlInput = String(formData.get('cover_url') || '').trim();
-  const googleAnalyticsIdInput = String(
-    formData.get('google_analytics_id') || ''
-  )
-    .trim()
-    .toUpperCase();
-  const googleAnalyticsPropertyIdInput = normalizeGa4PropertyId(
-    formData.get('google_analytics_property_id')
-  );
-
-  if (!name) {
-    throw new Error('El nombre es obligatorio');
-  }
-
-  if (!slugInput) {
-    throw new Error('El slug es obligatorio');
-  }
-
-  const normalizedSlug = slugInput
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9-]/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
-
-  if (!normalizedSlug) {
-    throw new Error('El slug no es válido');
-  }
-
-  const { data: slugInUse, error: slugCheckError } = await supabase
-    .from('stores')
-    .select('id')
-    .eq('slug', normalizedSlug)
-    .neq('id', store.id)
-    .maybeSingle();
-
-  if (slugCheckError) {
-    throw new Error(slugCheckError.message);
-  }
-
-  if (slugInUse) {
-    throw new Error('Ese slug ya está en uso');
-  }
-
-  if (
-    googleAnalyticsIdInput &&
-    !/^G-[A-Z0-9]+$/.test(googleAnalyticsIdInput)
-  ) {
-    throw new Error(
-      'El ID de Google Analytics no es válido. Debe tener formato G-XXXXXXXXXX.'
+    const name = String(formData.get('name') || '').trim();
+    const slugInput = String(formData.get('slug') || '')
+      .trim()
+      .toLowerCase();
+    const whatsappNumber = String(formData.get('whatsapp_number') || '').trim();
+    const logoUrlInput = String(formData.get('logo_url') || '').trim();
+    const coverUrlInput = String(formData.get('cover_url') || '').trim();
+    const googleAnalyticsIdInput = String(
+      formData.get('google_analytics_id') || ''
+    )
+      .trim()
+      .toUpperCase();
+    const googleAnalyticsPropertyIdInput = normalizeGa4PropertyId(
+      formData.get('google_analytics_property_id')
     );
+
+    if (!name) {
+      throw new Error('El nombre es obligatorio');
+    }
+
+    if (!slugInput) {
+      throw new Error('El slug es obligatorio');
+    }
+
+    const normalizedSlug = slugInput
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9-]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+
+    if (!normalizedSlug) {
+      throw new Error('El slug no es válido');
+    }
+
+    const { data: slugInUse, error: slugCheckError } = await supabase
+      .from('stores')
+      .select('id')
+      .eq('slug', normalizedSlug)
+      .neq('id', store.id)
+      .maybeSingle();
+
+    if (slugCheckError) {
+      throw new Error(slugCheckError.message);
+    }
+
+    if (slugInUse) {
+      throw new Error('Ese slug ya está en uso');
+    }
+
+    if (
+      googleAnalyticsIdInput &&
+      !/^G-[A-Z0-9]+$/.test(googleAnalyticsIdInput)
+    ) {
+      throw new Error(
+        'El ID de Google Analytics no es válido. Debe tener formato G-XXXXXXXXXX.'
+      );
+    }
+
+    let finalLogoUrl: string | null = logoUrlInput || null;
+    let finalCoverUrl: string | null = coverUrlInput || null;
+
+    const logoFile = formData.get('logo_file') as File | null;
+    if (logoFile && logoFile.size > 0) {
+      finalLogoUrl = await uploadProductImage(logoFile);
+    }
+
+    const coverFile = formData.get('cover_file') as File | null;
+    if (coverFile && coverFile.size > 0) {
+      finalCoverUrl = await uploadProductImage(coverFile);
+    }
+
+    const { error: updateError } = await supabase
+      .from('stores')
+      .update({
+        name,
+        slug: normalizedSlug,
+        whatsapp_number: whatsappNumber || null,
+        logo_url: finalLogoUrl,
+        cover_url: finalCoverUrl,
+        google_analytics_id: googleAnalyticsIdInput || null,
+        google_analytics_property_id: googleAnalyticsPropertyIdInput,
+      })
+      .eq('id', store.id);
+
+    if (updateError) {
+      console.error(updateError);
+      throw new Error(updateError.message);
+    }
+
+    revalidatePath('/admin');
+    revalidatePath('/admin/productos');
+    revalidatePath('/admin/categorias');
+    revalidatePath('/admin/pedidos');
+    revalidatePath('/admin/analytics');
+    revalidatePath(`/${store.slug}`);
+    revalidatePath(`/${normalizedSlug}`);
+    revalidatePath(`/_sites/${store.slug}`);
+    revalidatePath(`/_sites/${normalizedSlug}`);
+
+    redirect('/admin?saved=1');
+  } catch (error) {
+    console.error('Error actualizando la tienda:', error);
+    redirect('/admin?error=1');
   }
-
-  let finalLogoUrl: string | null = logoUrlInput || null;
-  let finalCoverUrl: string | null = coverUrlInput || null;
-
-  const logoFile = formData.get('logo_file') as File | null;
-  if (logoFile && logoFile.size > 0) {
-    finalLogoUrl = await uploadProductImage(logoFile);
-  }
-
-  const coverFile = formData.get('cover_file') as File | null;
-  if (coverFile && coverFile.size > 0) {
-    finalCoverUrl = await uploadProductImage(coverFile);
-  }
-
-  const { error: updateError } = await supabase
-    .from('stores')
-    .update({
-      name,
-      slug: normalizedSlug,
-      whatsapp_number: whatsappNumber || null,
-      logo_url: finalLogoUrl,
-      cover_url: finalCoverUrl,
-      google_analytics_id: googleAnalyticsIdInput || null,
-      google_analytics_property_id: googleAnalyticsPropertyIdInput,
-    })
-    .eq('id', store.id);
-
-  if (updateError) {
-    console.error(updateError);
-    throw new Error(updateError.message);
-  }
-
-  revalidatePath('/admin');
-  revalidatePath('/admin/productos');
-  revalidatePath('/admin/categorias');
-  revalidatePath('/admin/pedidos');
-  revalidatePath('/admin/analytics');
-  revalidatePath(`/${store.slug}`);
-  revalidatePath(`/${normalizedSlug}`);
-  revalidatePath(`/_sites/${store.slug}`);
-  revalidatePath(`/_sites/${normalizedSlug}`);
 }
 
 export async function createProduct(formData: FormData) {

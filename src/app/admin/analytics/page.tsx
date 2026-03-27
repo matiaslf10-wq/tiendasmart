@@ -566,14 +566,14 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="space-y-3">
             <h2 className="text-lg font-semibold text-slate-900">
               Conexión para Power BI y Excel
             </h2>
 
             <p className="text-sm text-slate-600">
-              Usá esta URL para importar datos desde Power BI Desktop o desde
+              Usá estas URLs para importar datos desde Power BI Desktop o desde
               Excel con Power Query.
             </p>
 
@@ -588,10 +588,19 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
 
             <div className="rounded-2xl bg-slate-50 p-3">
               <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">
-                URL pública de analytics
+                URL CSV para Excel
               </p>
               <code className="break-all text-sm text-slate-900">
                 {publicAnalyticsUrl}
+              </code>
+            </div>
+
+            <div className="rounded-2xl bg-slate-50 p-3">
+              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">
+                URL JSON para Power BI
+              </p>
+              <code className="break-all text-sm text-slate-900">
+                {publicAnalyticsJsonUrl}
               </code>
             </div>
 

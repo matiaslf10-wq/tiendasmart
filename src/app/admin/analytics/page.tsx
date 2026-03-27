@@ -4,9 +4,11 @@ import AdminShell from '@/components/admin/AdminShell';
 import ExecutiveSummary, {
   type ExecutiveSummaryItem,
 } from '@/components/admin/ExecutiveSummary';
+import ExportOrdersButton from '@/components/admin/ExportOrdersButton';
 import Ga4Charts from '@/components/admin/Ga4Charts';
 import Ga4DailySeries from '@/components/admin/Ga4DailySeries';
 import Ga4TopProductsInsights from '@/components/admin/Ga4TopProductsInsights';
+import Ga4TopProductsPlaceholder from '@/components/admin/Ga4TopProductsPlaceholder';
 import OrdersAnalyticsSection from '@/components/admin/OrdersAnalyticsSection';
 import OrdersRangeTabs from '@/components/admin/OrdersRangeTabs';
 import {
@@ -26,7 +28,6 @@ import { getGa4DailySeries, getGa4Overview } from '@/lib/ga4';
 import { hasFeature } from '@/lib/plans';
 import { getCurrentUserStore } from '@/lib/stores';
 import { createClient } from '@/lib/supabase/server';
-import Ga4TopProductsPlaceholder from '@/components/admin/Ga4TopProductsPlaceholder';
 
 type PageProps = {
   searchParams: Promise<{
@@ -534,14 +535,18 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
     >
       <div className="space-y-6">
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="space-y-2">
-            <h2 className="text-lg font-semibold text-slate-900">
-              Rendimiento comercial
-            </h2>
-            <p className="text-sm text-slate-500">
-              Analizá ingresos, comportamiento de pedidos, tráfico y conversión
-              en el período seleccionado.
-            </p>
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="space-y-2">
+              <h2 className="text-lg font-semibold text-slate-900">
+                Rendimiento comercial
+              </h2>
+              <p className="text-sm text-slate-500">
+                Analizá ingresos, comportamiento de pedidos, tráfico y conversión
+                en el período seleccionado.
+              </p>
+            </div>
+
+            <ExportOrdersButton range={range} />
           </div>
         </section>
 
@@ -708,15 +713,15 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
         ) : null}
 
         {topProductsInsights.length > 0 ? (
-  <Ga4TopProductsInsights rows={topProductsInsights} />
-) : (
-  <Ga4TopProductsPlaceholder
-    hasGa4Credentials={hasGa4Credentials}
-    hasPropertyId={Boolean(ga4PropertyId)}
-    hasOrdersData={rangeFilteredOrderItems.length > 0}
-    ga4Error={ga4Error}
-  />
-)}
+          <Ga4TopProductsInsights rows={topProductsInsights} />
+        ) : (
+          <Ga4TopProductsPlaceholder
+            hasGa4Credentials={hasGa4Credentials}
+            hasPropertyId={Boolean(ga4PropertyId)}
+            hasOrdersData={rangeFilteredOrderItems.length > 0}
+            ga4Error={ga4Error}
+          />
+        )}
 
         <OrdersRangeTabs
           basePath="/admin/analytics"

@@ -4,11 +4,13 @@ import { getCurrentUserStore } from '@/lib/stores';
 import { filterOrders, type Order, type RangeValue } from '@/lib/admin/orders';
 
 function isValidRange(value: string | null): value is RangeValue {
-  return value === 'today' ||
+  return (
+    value === 'today' ||
     value === '7d' ||
     value === '30d' ||
     value === 'month' ||
-    value === 'all';
+    value === 'all'
+  );
 }
 
 function formatDate(value: string) {
@@ -34,7 +36,6 @@ function normalizeStatus(status: string) {
     case 'pending':
       return 'Pendiente';
     case 'preparing':
-      return 'En preparación';
     case 'in_preparation':
       return 'En preparación';
     case 'completed':
@@ -59,8 +60,7 @@ function normalizeDeliveryType(deliveryType: string | null) {
 
 function escapeCsvValue(value: unknown) {
   const stringValue = String(value ?? '');
-  const escaped = stringValue.replace(/"/g, '""');
-  return `"${escaped}"`;
+  return `"${stringValue.replace(/"/g, '""')}"`;
 }
 
 function buildCsv(rows: Array<Array<unknown>>) {
@@ -99,13 +99,24 @@ export async function GET(request: NextRequest) {
 
   if (error) {
     return NextResponse.json(
-      { error: 'No se pudo exportar la información', details: error.message },
+      {
+        error: 'No se pudo exportar la información',
+        details: error.message,
+      },
       { status: 500 }
     );
   }
 
-  const orders = ((data ?? []) as Order[]);
-  const filteredOrders = filterOrders(orders, range);
+  const orders = (data ?? []) as Order[];
+
+  const { rangeFilteredOrders } = filterOrders({
+    orders,
+    status: 'all',
+    queryText: '',
+    delivery: 'all',
+    notes: 'all',
+    range,
+  });
 
   const headerRow = [
     'Fecha',
@@ -119,7 +130,7 @@ export async function GET(request: NextRequest) {
     'Notas',
   ];
 
-  const dataRows = filteredOrders.map((order) => [
+  const dataRows = rangeFilteredOrders.map((order) => [
     formatDate(order.created_at),
     order.order_number ?? '',
     order.customer_name ?? '',
@@ -132,8 +143,6 @@ export async function GET(request: NextRequest) {
   ]);
 
   const csvContent = buildCsv([headerRow, ...dataRows]);
-
-  // BOM UTF-8 para Excel
   const csvWithBom = `\uFEFF${csvContent}`;
 
   const today = new Intl.DateTimeFormat('sv-SE').format(new Date());

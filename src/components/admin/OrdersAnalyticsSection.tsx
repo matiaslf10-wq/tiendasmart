@@ -1,10 +1,12 @@
 import OrdersCharts from '@/components/admin/OrdersCharts';
+import OrdersPeriodComparison from '@/components/admin/OrdersPeriodComparison';
 import OrdersStats from '@/components/admin/OrdersStats';
 import OrdersTopProducts from '@/components/admin/OrdersTopProducts';
 import {
   getRangeLabel,
   type Order,
   type OrderItemRow,
+  type OrdersPeriodComparison as OrdersPeriodComparisonType,
   type RangeValue,
 } from '@/lib/admin/orders';
 
@@ -12,12 +14,14 @@ type OrdersAnalyticsSectionProps = {
   orders: Order[];
   items: OrderItemRow[];
   range: RangeValue;
+  comparison: OrdersPeriodComparisonType | null;
 };
 
 export default function OrdersAnalyticsSection({
   orders,
   items,
   range,
+  comparison,
 }: OrdersAnalyticsSectionProps) {
   const rangeLabel = getRangeLabel(range);
 
@@ -37,6 +41,9 @@ export default function OrdersAnalyticsSection({
       />
 
       <OrdersCharts orders={orders} />
+
+      <OrdersPeriodComparison comparison={comparison} />
+
       <OrdersTopProducts items={items} />
     </section>
   );

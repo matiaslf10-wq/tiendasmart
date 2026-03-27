@@ -9,6 +9,7 @@ import OrdersRangeTabs from '@/components/admin/OrdersRangeTabs';
 import {
   filterOrderItemsByRange,
   filterOrders,
+  getOrdersComparison,
   type Order,
   type OrderItemRow,
   type RangeValue,
@@ -347,6 +348,8 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
     range
   );
 
+  const comparison = getOrdersComparison(allOrders, allOrderItems, range);
+
   let topProductsInsights: TopProductInsightRow[] = [];
 
   if (ga4PropertyId && hasGa4Credentials) {
@@ -569,6 +572,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
           orders={rangeFilteredOrders}
           items={rangeFilteredOrderItems}
           range={range}
+          comparison={comparison}
         />
       </div>
     </AdminShell>

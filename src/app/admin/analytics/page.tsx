@@ -391,10 +391,13 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
     store.analytics_api_key ?? (await ensureAnalyticsApiKey()).apiKey;
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? '';
-  const publicAnalyticsUrl = appUrl
+    const publicAnalyticsUrl = appUrl
     ? `${appUrl}/api/public/analytics/orders-detailed?range=${range}&api_key=${analyticsApiKey}`
     : `/api/public/analytics/orders-detailed?range=${range}&api_key=${analyticsApiKey}`;
 
+  const publicAnalyticsJsonUrl = appUrl
+    ? `${appUrl}/api/public/analytics/orders-detailed-json?range=${range}&api_key=${analyticsApiKey}`
+    : `/api/public/analytics/orders-detailed-json?range=${range}&api_key=${analyticsApiKey}`;
   const supabase = await createClient();
 
   const ga4ServiceAccountJson = process.env.GA4_SERVICE_ACCOUNT_JSON;

@@ -111,3 +111,13 @@ export function trackSendToWhatsApp(params: {
     items: params.items,
   });
 }
+
+export function trackContactWhatsApp(params?: {
+  productId?: string;
+  productName?: string;
+}) {
+  trackEvent('contact_whatsapp', {
+    product_id: params?.productId,
+    product_name: params?.productName,
+  });
+}

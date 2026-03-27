@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useFormStatus } from 'react-dom';
 import { createProduct } from '@/app/admin/productos/actions';
 import { uploadProductImageFromClient } from '@/lib/storage-client';
 
@@ -31,6 +32,27 @@ function createEmptySlot(): UploadSlot {
     isUploading: false,
     error: null,
   };
+}
+
+function SubmitButton({ disabledByUploads }: { disabledByUploads: boolean }) {
+  const { pending } = useFormStatus();
+
+  const disabled = pending || disabledByUploads;
+  const label = disabledByUploads
+    ? 'Esperá a que terminen de subir las imágenes'
+    : pending
+    ? 'Creando producto...'
+    : 'Crear producto';
+
+  return (
+    <button
+      type="submit"
+      disabled={disabled}
+      className="w-fit rounded-xl bg-black px-5 py-3 text-white disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      {label}
+    </button>
+  );
 }
 
 export default function ProductCreateForm({
@@ -69,7 +91,8 @@ export default function ProductCreateForm({
       next[index] = createEmptySlot();
 
       const currentCoverStillExists =
-        next[selectedCoverIndex]?.previewUrl || next[selectedCoverIndex]?.uploadedUrl;
+        next[selectedCoverIndex]?.previewUrl ||
+        next[selectedCoverIndex]?.uploadedUrl;
 
       if (!currentCoverStillExists) {
         const firstFilledIndex = next.findIndex(
@@ -254,7 +277,8 @@ export default function ProductCreateForm({
         </label>
 
         <p className="text-xs text-gray-500">
-          Si no activás el control de stock, el producto se podrá comprar sin límite.
+          Si no activás el control de stock, el producto se podrá comprar sin
+          límite.
         </p>
       </div>
 
@@ -360,13 +384,7 @@ export default function ProductCreateForm({
         )}
       </div>
 
-      <button
-        type="submit"
-        disabled={hasUploadingFiles}
-        className="w-fit rounded-xl bg-black px-5 py-3 text-white disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {hasUploadingFiles ? 'Esperá a que terminen de subir las imágenes' : 'Crear producto'}
-      </button>
+      <SubmitButton disabledByUploads={hasUploadingFiles} />
     </form>
   );
 }

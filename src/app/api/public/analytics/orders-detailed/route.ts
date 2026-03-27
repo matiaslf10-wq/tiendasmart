@@ -110,9 +110,10 @@ type ExportOrderItemRow = {
     | null;
 };
 
-type ProductCategoryRow = {
+type ProductRow = {
   id: string;
-  categories:
+  category_id?: string | null;
+  categories?:
     | {
         name: string | null;
       }
@@ -128,10 +129,7 @@ export async function GET(request: NextRequest) {
     request.nextUrl.searchParams.get('api_key');
 
   if (!apiKey) {
-    return NextResponse.json(
-      { error: 'Falta API key' },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: 'Falta API key' }, { status: 401 });
   }
 
   const rangeParam = request.nextUrl.searchParams.get('range');
@@ -146,10 +144,7 @@ export async function GET(request: NextRequest) {
     .single();
 
   if (storeError || !store || !store.is_active) {
-    return NextResponse.json(
-      { error: 'API key inválida' },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: 'API key inválida' }, { status: 401 });
   }
 
   const { data: ordersData, error: ordersError } = await supabase
@@ -190,7 +185,9 @@ export async function GET(request: NextRequest) {
     range,
   });
 
-  const orderIds = rangeFilteredOrders.map((order) => order.id).filter(Boolean);
+  const orderIds = rangeFilteredOrders
+    .map((order) => order.id)
+    .filter((value): value is string => Boolean(value));
 
   const headerRow = [
     'Tienda',
@@ -275,6 +272,7 @@ export async function GET(request: NextRequest) {
       .from('products')
       .select(`
         id,
+        category_id,
         categories (
           name
         )
@@ -292,12 +290,12 @@ export async function GET(request: NextRequest) {
     }
 
     categoryByProductId = new Map(
-      ((productsData ?? []) as ProductCategoryRow[]).map((product) => {
-        const category = Array.isArray(product.categories)
-          ? product.categories[0]?.name ?? ''
-          : product.categories?.name ?? '';
+      ((productsData ?? []) as ProductRow[]).map((product) => {
+        const categoryName = Array.isArray(product.categories)
+          ? (product.categories[0]?.name ?? '')
+          : (product.categories?.name ?? '');
 
-        return [product.id, category];
+        return [product.id, categoryName];
       })
     );
   }
@@ -315,7 +313,7 @@ export async function GET(request: NextRequest) {
       const lineTotal = Number(item.line_total ?? 0);
       const unitPrice = quantity > 0 ? lineTotal / quantity : 0;
       const categoryName = item.product_id
-        ? categoryByProductId.get(item.product_id) ?? ''
+        ? (categoryByProductId.get(item.product_id) ?? '')
         : '';
 
       return [[

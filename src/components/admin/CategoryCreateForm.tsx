@@ -1,6 +1,21 @@
 'use client';
 
+import { useFormStatus } from 'react-dom';
 import { createCategory } from '@/app/admin/categorias/actions';
+
+function SubmitButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="w-fit rounded-xl bg-black px-5 py-3 text-white disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      {pending ? 'Creando categoría...' : 'Crear categoría'}
+    </button>
+  );
+}
 
 export default function CategoryCreateForm() {
   return (
@@ -50,12 +65,7 @@ export default function CategoryCreateForm() {
         />
       </label>
 
-      <button
-        type="submit"
-        className="w-fit rounded-xl bg-black px-5 py-3 text-white"
-      >
-        Crear categoría
-      </button>
+      <SubmitButton />
     </form>
   );
 }

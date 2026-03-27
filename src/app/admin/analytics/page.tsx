@@ -1,6 +1,9 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import AdminShell from '@/components/admin/AdminShell';
+import ExecutiveSummary, {
+  type ExecutiveSummaryItem,
+} from '@/components/admin/ExecutiveSummary';
 import Ga4Charts from '@/components/admin/Ga4Charts';
 import Ga4DailySeries from '@/components/admin/Ga4DailySeries';
 import Ga4TopProductsInsights from '@/components/admin/Ga4TopProductsInsights';
@@ -12,6 +15,7 @@ import {
   getOrdersComparison,
   type Order,
   type OrderItemRow,
+  type OrdersPeriodComparison,
   type RangeValue,
 } from '@/lib/admin/orders';
 import {
@@ -37,6 +41,11 @@ type Insight = {
 
 function formatPercent(value: number) {
   return `${value.toFixed(1)}%`;
+}
+
+function formatDelta(value: number | null) {
+  if (value === null) return 'nuevo';
+  return `${value > 0 ? '+' : ''}${value.toFixed(1)}%`;
 }
 
 function buildInsights(params: {
@@ -125,6 +134,140 @@ function buildInsights(params: {
   }
 
   return insights;
+}
+
+function buildExecutiveSummary(params: {
+  comparison: OrdersPeriodComparison | null;
+  ga4Data: Awaited<ReturnType<typeof getGa4Overview>> | null;
+  conversion: {
+    viewToCart: number;
+    cartToCheckout: number;
+    checkoutToWhatsapp: number;
+    whatsappToPurchase: number;
+  } | null;
+}): ExecutiveSummaryItem[] {
+  const { comparison, ga4Data, conversion } = params;
+  const summary: ExecutiveSummaryItem[] = [];
+
+  if (comparison) {
+    const revenueDelta = comparison.revenue.diffPercent;
+    const ordersDelta = comparison.orders.diffPercent;
+    const ticketDelta = comparison.averageTicket.diffPercent;
+
+    if (comparison.revenue.current === 0 && comparison.orders.current === 0) {
+      summary.push({
+        title: 'Sin ventas en el período seleccionado',
+        description:
+          'No se registran pedidos en este rango. Conviene revisar adquisición de tráfico, visibilidad de productos y activación comercial.',
+        tone: 'warning',
+      });
+    } else if (
+      comparison.revenue.trend === 'up' &&
+      comparison.orders.trend === 'up'
+    ) {
+      summary.push({
+        title: 'Crecimiento comercial frente al período anterior',
+        description: `La facturación creció ${formatDelta(
+          revenueDelta
+        )} y los pedidos subieron ${formatDelta(
+          ordersDelta
+        )}. El período muestra una mejora general del rendimiento comercial.`,
+        tone: 'success',
+      });
+    } else if (
+      comparison.revenue.trend === 'up' &&
+      comparison.orders.trend !== 'up'
+    ) {
+      summary.push({
+        title: 'Mejor facturación con menos volumen de pedidos',
+        description: `La facturación avanzó ${formatDelta(
+          revenueDelta
+        )}, pero los pedidos no crecieron al mismo ritmo. Esto sugiere tickets más altos o una mejor mezcla de productos.`,
+        tone: 'neutral',
+      });
+    } else if (
+      comparison.revenue.trend === 'down' &&
+      comparison.orders.trend === 'down'
+    ) {
+      summary.push({
+        title: 'Caída comercial frente al período anterior',
+        description: `La facturación cayó ${formatDelta(
+          revenueDelta
+        )} y los pedidos bajaron ${formatDelta(
+          ordersDelta
+        )}. Conviene revisar demanda, surtido, difusión y ejecución comercial.`,
+        tone: 'warning',
+      });
+    }
+
+    if (ticketDelta !== null && comparison.averageTicket.trend === 'up') {
+      summary.push({
+        title: 'Suba del ticket promedio',
+        description: `El ticket promedio mejoró ${formatDelta(
+          ticketDelta
+        )}. Puede estar empujado por precios, combos, upselling o compras más grandes por pedido.`,
+        tone: 'success',
+      });
+    } else if (
+      ticketDelta !== null &&
+      comparison.averageTicket.trend === 'down'
+    ) {
+      summary.push({
+        title: 'Baja del ticket promedio',
+        description: `El ticket promedio cayó ${formatDelta(
+          ticketDelta
+        )}. Conviene revisar estrategia de precios, combos y productos de mayor valor.`,
+        tone: 'warning',
+      });
+    }
+  }
+
+  if (ga4Data && conversion) {
+    if (ga4Data.viewItemEvents > 0 && conversion.viewToCart < 8) {
+      summary.push({
+        title: 'Hay interés en productos, pero cuesta llevarlo al carrito',
+        description:
+          'La tienda está generando vistas, aunque pocas llegan a agregado al carrito. El foco debería estar en ficha de producto, precio, fotos y claridad de propuesta.',
+        tone: 'warning',
+      });
+    }
+
+    if (
+      ga4Data.addToCartEvents > 0 &&
+      conversion.cartToCheckout >= 50 &&
+      conversion.checkoutToWhatsapp >= 60
+    ) {
+      summary.push({
+        title: 'El proceso de compra muestra buena tracción',
+        description:
+          'Una proporción sana de usuarios avanza desde carrito a checkout y luego a WhatsApp. El flujo comercial está bien encaminado.',
+        tone: 'success',
+      });
+    }
+
+    if (
+      ga4Data.sendToWhatsAppEvents > 0 &&
+      conversion.whatsappToPurchase < 35
+    ) {
+      summary.push({
+        title: 'La oportunidad está en el cierre por WhatsApp',
+        description:
+          'El embudo logra derivar conversaciones, pero muchas no terminan en compra. La principal mejora parece estar en respuesta, seguimiento y cierre comercial.',
+        tone: 'warning',
+      });
+    }
+  }
+
+  if (summary.length === 0) {
+    summary.push({
+      title: 'Rendimiento estable, todavía sin señales fuertes',
+      description:
+        'El panel ya muestra comportamiento comercial y operativo, pero todavía no aparecen patrones suficientemente marcados como para sacar una conclusión dominante.',
+      tone: 'neutral',
+    });
+  }
+
+  return summary.slice(0, 4);
 }
 
 function MetricCard({
@@ -350,6 +493,12 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
 
   const comparison = getOrdersComparison(allOrders, allOrderItems, range);
 
+  const executiveSummary = buildExecutiveSummary({
+    comparison,
+    ga4Data,
+    conversion,
+  });
+
   let topProductsInsights: TopProductInsightRow[] = [];
 
   if (ga4PropertyId && hasGa4Credentials) {
@@ -537,6 +686,8 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
         {ga4DailySeries.length > 0 ? (
           <Ga4DailySeries points={ga4DailySeries} />
         ) : null}
+
+        <ExecutiveSummary items={executiveSummary} />
 
         {insights.length > 0 ? (
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

@@ -8,29 +8,13 @@ export type GAItem = {
 
 declare global {
   interface Window {
-    dataLayer?: unknown[];
+    dataLayer: unknown[];
     gtag?: (...args: unknown[]) => void;
   }
 }
 
 function canTrack() {
   return typeof window !== 'undefined' && typeof window.gtag === 'function';
-}
-
-function toNumber(value: number | string | null | undefined) {
-  const parsed = Number(value ?? 0);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function normalizeQuantity(quantity: number | string | null | undefined) {
-  const parsed = Number(quantity ?? 1);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
-}
-
-function getItemsValue(items: GAItem[]) {
-  return items.reduce((acc, item) => {
-    return acc + toNumber(item.price) * normalizeQuantity(item.quantity);
-  }, 0);
 }
 
 export function trackEvent(
@@ -45,123 +29,85 @@ export function trackEvent(
 export function trackViewItem(item: GAItem) {
   trackEvent('view_item', {
     currency: 'ARS',
-    value: toNumber(item.price),
-    items: [
-      {
-        ...item,
-        price: toNumber(item.price),
-        quantity: normalizeQuantity(item.quantity),
-      },
-    ],
+    value: item.price ?? 0,
+    product_id: item.item_id,
+    product_name: item.item_name,
+    items: [item],
   });
 }
 
 export function trackAddToCart(item: GAItem) {
-  const normalizedItem = {
-    ...item,
-    price: toNumber(item.price),
-    quantity: normalizeQuantity(item.quantity),
-  };
-
   trackEvent('add_to_cart', {
     currency: 'ARS',
-    value: normalizedItem.price * normalizedItem.quantity,
-    items: [normalizedItem],
+    value: (item.price ?? 0) * (item.quantity ?? 1),
+    product_id: item.item_id,
+    product_name: item.item_name,
+    items: [item],
   });
 }
 
 export function trackViewCart(items: GAItem[]) {
-  const normalizedItems = items.map((item) => ({
-    ...item,
-    price: toNumber(item.price),
-    quantity: normalizeQuantity(item.quantity),
-  }));
+  const value = items.reduce(
+    (sum, item) => sum + (item.price ?? 0) * (item.quantity ?? 1),
+    0
+  );
 
   trackEvent('view_cart', {
     currency: 'ARS',
-    value: getItemsValue(normalizedItems),
-    items: normalizedItems,
+    value,
+    items,
   });
 }
 
 export function trackBeginCheckout(items: GAItem[]) {
-  const normalizedItems = items.map((item) => ({
-    ...item,
-    price: toNumber(item.price),
-    quantity: normalizeQuantity(item.quantity),
-  }));
+  const value = items.reduce(
+    (sum, item) => sum + (item.price ?? 0) * (item.quantity ?? 1),
+    0
+  );
 
   trackEvent('begin_checkout', {
     currency: 'ARS',
-    value: getItemsValue(normalizedItems),
-    items: normalizedItems,
+    value,
+    items,
   });
 }
 
 export function trackPurchase(params: {
-  transactionId: string | number;
+  orderNumber: string | number;
   items: GAItem[];
-  shipping?: number;
-  tax?: number;
+  value?: number;
 }) {
-  const { transactionId, items, shipping = 0, tax = 0 } = params;
-
-  const normalizedItems = items.map((item) => ({
-    ...item,
-    price: toNumber(item.price),
-    quantity: normalizeQuantity(item.quantity),
-  }));
-
-  const itemsValue = getItemsValue(normalizedItems);
+  const value =
+    params.value ??
+    params.items.reduce(
+      (sum, item) => sum + (item.price ?? 0) * (item.quantity ?? 1),
+      0
+    );
 
   trackEvent('purchase', {
-    transaction_id: String(transactionId),
+    transaction_id: String(params.orderNumber),
     currency: 'ARS',
-    value: itemsValue + toNumber(shipping) + toNumber(tax),
-    shipping: toNumber(shipping),
-    tax: toNumber(tax),
-    items: normalizedItems,
-  });
-}
-
-export function trackContactWhatsApp(params: {
-  source: 'product' | 'cart' | 'store';
-  item?: GAItem;
-  store_slug?: string;
-}) {
-  trackEvent('contact_whatsapp', {
-    source: params.source,
-    store_slug: params.store_slug,
-    items: params.item
-      ? [
-          {
-            ...params.item,
-            price: toNumber(params.item.price),
-            quantity: normalizeQuantity(params.item.quantity),
-          },
-        ]
-      : undefined,
+    value,
+    items: params.items,
   });
 }
 
 export function trackSendToWhatsApp(params: {
-  transactionId?: string | number;
+  orderNumber?: string | number | null;
   items: GAItem[];
-  store_slug?: string;
+  value?: number;
 }) {
-  const normalizedItems = params.items.map((item) => ({
-    ...item,
-    price: toNumber(item.price),
-    quantity: normalizeQuantity(item.quantity),
-  }));
+  const value =
+    params.value ??
+    params.items.reduce(
+      (sum, item) => sum + (item.price ?? 0) * (item.quantity ?? 1),
+      0
+    );
 
   trackEvent('send_to_whatsapp', {
-    transaction_id: params.transactionId
-      ? String(params.transactionId)
-      : undefined,
     currency: 'ARS',
-    value: getItemsValue(normalizedItems),
-    store_slug: params.store_slug,
-    items: normalizedItems,
+    value,
+    order_number: params.orderNumber ? String(params.orderNumber) : undefined,
+    items: params.items,
   });
 }

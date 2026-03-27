@@ -45,11 +45,11 @@ function buildInsight(row: {
   cartToPurchaseRate: number | null;
   viewToPurchaseRate: number | null;
 }): Pick<TopProductInsightRow, 'insightTitle' | 'insightText' | 'tone'> {
-  if (row.addToCartEvents >= 10 && row.purchasedUnits === 0) {
+  if (row.views >= 20 && row.purchasedUnits === 0) {
     return {
-      insightTitle: 'Se agrega, pero no cierra',
+      insightTitle: 'Mucho interés, cero cierre',
       insightText:
-        'Este producto llega al carrito, pero no se transforma en venta. Revisá precio final, fotos, stock o fricción en el cierre.',
+        'Este producto recibe atención pero no está cerrando ventas. Revisá precio, fotos, descripción o stock.',
       tone: 'warning',
     };
   }
@@ -67,7 +67,7 @@ function buildInsight(row: {
     };
   }
 
-  if (row.purchasedUnits >= 2 && (row.cartToPurchaseRate ?? 0) >= 0.3) {
+  if ((row.viewToPurchaseRate ?? 0) >= 0.05 && row.purchasedUnits >= 2) {
     return {
       insightTitle: 'Producto fuerte',
       insightText:
@@ -76,11 +76,11 @@ function buildInsight(row: {
     };
   }
 
-  if (row.purchasedUnits > 0 && row.addToCartEvents < 10) {
+  if (row.purchasedUnits > 0 && row.views < 10) {
     return {
       insightTitle: 'Nicho eficiente',
       insightText:
-        'No tiene gran volumen, pero cuando aparece suele rendir bien. Puede servir para venta cruzada o bundles.',
+        'No tiene gran volumen, pero cuando lo ven suele rendir bien. Puede servir para venta cruzada.',
       tone: 'success',
     };
   }
@@ -89,7 +89,7 @@ function buildInsight(row: {
     insightTitle: 'Señal estable',
     insightText:
       'Todavía no hay una señal comercial fuerte. Seguimos juntando datos para decidir mejor.',
-    tone: 'neutral',
+      tone: 'neutral',
   };
 }
 
@@ -161,24 +161,22 @@ export async function getTopProductsInsights(params: {
 
     const sales = salesMap.get(key);
 
-    const gaAddedUnits = toSafeNumber(ga.itemsAddedToCart);
-    const gaPurchasedUnits = toSafeNumber(ga.itemsPurchased);
-    const gaRevenue = toSafeNumber(ga.itemRevenue);
-
-    const purchasedUnits = sales?.purchasedUnits ?? gaPurchasedUnits;
-    const revenue = sales?.revenue ?? gaRevenue;
+    const views = toSafeNumber(ga.itemViewEvents);
+    const addToCartEvents = toSafeNumber(ga.addToCartEvents);
+    const purchasedUnits = sales?.purchasedUnits ?? 0;
+    const revenue = sales?.revenue ?? 0;
 
     const rowBase = {
       itemId: normalizedItemId || sales?.itemId || '',
       itemName: normalizedItemName || sales?.itemName || 'Producto',
-      views: 0,
-      addToCartEvents: gaAddedUnits,
-      addedUnits: gaAddedUnits,
+      views,
+      addToCartEvents,
+      addedUnits: addToCartEvents,
       purchasedUnits,
       revenue,
-      viewToCartRate: null,
-      cartToPurchaseRate: percent(purchasedUnits, gaAddedUnits),
-      viewToPurchaseRate: null,
+      viewToCartRate: percent(addToCartEvents, views),
+      cartToPurchaseRate: percent(purchasedUnits, addToCartEvents),
+      viewToPurchaseRate: percent(purchasedUnits, views),
     };
 
     const insight = buildInsight(rowBase);
@@ -218,12 +216,14 @@ export async function getTopProductsInsights(params: {
       const scoreA =
         a.revenue * 100 +
         a.purchasedUnits * 20 +
-        a.addToCartEvents * 10;
+        a.addToCartEvents * 10 +
+        a.views;
 
       const scoreB =
         b.revenue * 100 +
         b.purchasedUnits * 20 +
-        b.addToCartEvents * 10;
+        b.addToCartEvents * 10 +
+        b.views;
 
       return scoreB - scoreA;
     })

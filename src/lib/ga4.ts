@@ -39,9 +39,8 @@ export type Ga4DailyPoint = {
 export type Ga4TopProductRow = {
   itemId: string;
   itemName: string;
-  itemsAddedToCart: number;
-  itemsPurchased: number;
-  itemRevenue: number;
+  itemViewEvents: number;
+  addToCartEvents: number;
 };
 
 type Ga4ReportRow = {
@@ -231,6 +230,74 @@ async function getDailyEventSeries(params: {
   }));
 }
 
+async function getProductEventSeries(params: {
+  propertyId: string;
+  eventName: 'view_item' | 'add_to_cart';
+  range: RangeValue;
+  limit?: number;
+}) {
+  const dateRange = getDateRange(params.range);
+
+  const report = await runGa4Report({
+    propertyId: params.propertyId,
+    dateRanges: [dateRange],
+    dimensions: [
+      { name: 'customEvent:product_id' },
+      { name: 'customEvent:product_name' },
+    ],
+    metrics: [{ name: 'eventCount' }],
+    dimensionFilter: {
+      andGroup: {
+        expressions: [
+          {
+            filter: {
+              fieldName: 'eventName',
+              stringFilter: {
+                matchType: 'EXACT',
+                value: params.eventName,
+              },
+            },
+          },
+          {
+            filter: {
+              fieldName: 'customEvent:product_id',
+              stringFilter: {
+                matchType: 'FULL_REGEXP',
+                value: '.+',
+              },
+            },
+          },
+        ],
+      },
+    },
+    orderBys: [
+      {
+        metric: {
+          metricName: 'eventCount',
+        },
+        desc: true,
+      },
+    ],
+    limit: String(params.limit ?? 50),
+  });
+
+  const rows = (report.rows ?? []) as Ga4ReportRow[];
+
+  return rows.map((row) => {
+    const [itemId = '', itemName = 'Sin nombre'] =
+      row.dimensionValues?.map((dimension) => dimension.value ?? '') ?? [];
+
+    const [eventCount = '0'] =
+      row.metricValues?.map((metric) => metric.value ?? '0') ?? [];
+
+    return {
+      itemId,
+      itemName,
+      eventCount: Number(eventCount) || 0,
+    };
+  });
+}
+
 export async function getGa4Overview(params: {
   propertyId: string;
   range: RangeValue;
@@ -417,55 +484,59 @@ export async function getGa4TopProducts(params: {
   range: RangeValue;
   limit?: number;
 }): Promise<Ga4TopProductRow[]> {
-  const { propertyId, range, limit = 20 } = params;
-  const dateRange = getDateRange(range);
+  const limit = Math.max(params.limit ?? 20, 20);
 
-  const report = await runGa4Report({
-    propertyId,
-    dateRanges: [dateRange],
-    dimensions: [{ name: 'itemId' }, { name: 'itemName' }],
-    metrics: [
-      { name: 'itemsAddedToCart' },
-      { name: 'itemsPurchased' },
-      { name: 'itemRevenue' },
-    ],
-    orderBys: [
-      {
-        metric: {
-          metricName: 'itemsPurchased',
-        },
-        desc: true,
-      },
-      {
-        metric: {
-          metricName: 'itemsAddedToCart',
-        },
-        desc: true,
-      },
-    ],
-    limit: String(limit),
-  });
+  const [viewRows, cartRows] = await Promise.all([
+    getProductEventSeries({
+      propertyId: params.propertyId,
+      eventName: 'view_item',
+      range: params.range,
+      limit,
+    }),
+    getProductEventSeries({
+      propertyId: params.propertyId,
+      eventName: 'add_to_cart',
+      range: params.range,
+      limit,
+    }),
+  ]);
 
-  const rows = (report.rows ?? []) as Ga4ReportRow[];
+  const merged = new Map<string, Ga4TopProductRow>();
 
-  return rows
-    .map((row) => {
-      const [itemId = '', itemName = 'Sin nombre'] =
-        row.dimensionValues?.map((dimension) => dimension.value ?? '') ?? [];
+  for (const row of viewRows) {
+    const key = row.itemId || row.itemName;
 
-      const [
-        itemsAddedToCart = '0',
-        itemsPurchased = '0',
-        itemRevenue = '0',
-      ] = row.metricValues?.map((metric) => metric.value ?? '0') ?? [];
+    merged.set(key, {
+      itemId: row.itemId,
+      itemName: row.itemName,
+      itemViewEvents: row.eventCount,
+      addToCartEvents: 0,
+    });
+  }
 
-      return {
-        itemId,
-        itemName,
-        itemsAddedToCart: Number(itemsAddedToCart) || 0,
-        itemsPurchased: Number(itemsPurchased) || 0,
-        itemRevenue: Number(itemRevenue) || 0,
-      };
+  for (const row of cartRows) {
+    const key = row.itemId || row.itemName;
+    const current = merged.get(key);
+
+    if (current) {
+      current.addToCartEvents = row.eventCount;
+      if (!current.itemName && row.itemName) current.itemName = row.itemName;
+      if (!current.itemId && row.itemId) current.itemId = row.itemId;
+    } else {
+      merged.set(key, {
+        itemId: row.itemId,
+        itemName: row.itemName,
+        itemViewEvents: 0,
+        addToCartEvents: row.eventCount,
+      });
+    }
+  }
+
+  return Array.from(merged.values())
+    .sort((a, b) => {
+      const scoreA = a.itemViewEvents * 10 + a.addToCartEvents * 20;
+      const scoreB = b.itemViewEvents * 10 + b.addToCartEvents * 20;
+      return scoreB - scoreA;
     })
-    .filter((row) => row.itemId || row.itemName);
+    .slice(0, params.limit ?? 20);
 }

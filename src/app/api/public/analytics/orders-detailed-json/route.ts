@@ -107,6 +107,14 @@ type ProductRow = {
     | null;
 };
 
+type PublicStoreRow = {
+  id: string;
+  name: string;
+  slug: string;
+  analytics_api_key: string | null;
+  is_active: boolean;
+};
+
 type AnalyticsDetailedJsonRow = {
   tienda: string;
   fecha: string;
@@ -141,11 +149,13 @@ export async function GET(request: NextRequest) {
 
   const supabase = await createClient();
 
-  const { data: store, error: storeError } = await supabase
+  const { data: storeData, error: storeError } = await supabase
     .from('stores')
     .select('id, name, slug, analytics_api_key, is_active')
     .eq('analytics_api_key', apiKey)
     .single();
+
+  const store = storeData as PublicStoreRow | null;
 
   if (storeError || !store || !store.is_active) {
     return NextResponse.json({ error: 'API key inválida' }, { status: 401 });
@@ -239,9 +249,11 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  const normalizedItems = (itemsData ?? []) as ExportOrderItemRow[];
+
   const productIds = Array.from(
     new Set(
-      ((itemsData ?? []) as ExportOrderItemRow[])
+      normalizedItems
         .map((item) => item.product_id)
         .filter((value): value is string => Boolean(value))
     )
@@ -282,46 +294,44 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const rows: AnalyticsDetailedJsonRow[] = ((itemsData ?? []) as ExportOrderItemRow[]).flatMap(
-    (item) => {
-      const relatedOrder = Array.isArray(item.orders)
-        ? item.orders[0]
-        : item.orders;
+  const rows: AnalyticsDetailedJsonRow[] = normalizedItems.flatMap((item) => {
+    const relatedOrder = Array.isArray(item.orders)
+      ? item.orders[0]
+      : item.orders;
 
-      if (!relatedOrder) return [];
+    if (!relatedOrder) return [];
 
-      const { fecha, hora } = getDateParts(relatedOrder.created_at);
-      const cantidad = Number(item.quantity ?? 0);
-      const subtotalItem = Number(item.line_total ?? 0);
-      const precioUnitario = cantidad > 0 ? subtotalItem / cantidad : 0;
-      const totalPedido = Number(relatedOrder.total ?? 0);
-      const categoria = item.product_id
-        ? (categoryByProductId.get(item.product_id) ?? '')
-        : '';
+    const { fecha, hora } = getDateParts(relatedOrder.created_at);
+    const cantidad = Number(item.quantity ?? 0);
+    const subtotalItem = Number(item.line_total ?? 0);
+    const precioUnitario = cantidad > 0 ? subtotalItem / cantidad : 0;
+    const totalPedido = Number(relatedOrder.total ?? 0);
+    const categoria = item.product_id
+      ? (categoryByProductId.get(item.product_id) ?? '')
+      : '';
 
-      return [
-        {
-          tienda: store.name,
-          fecha,
-          hora,
-          pedido: relatedOrder.order_number ?? null,
-          cliente: relatedOrder.customer_name ?? '',
-          telefono: relatedOrder.customer_phone ?? '',
-          estado: normalizeStatus(relatedOrder.status ?? ''),
-          tipo: normalizeDeliveryType(relatedOrder.delivery_type ?? ''),
-          direccion: relatedOrder.delivery_address ?? '',
-          notas: relatedOrder.notes ?? '',
-          product_id: item.product_id ?? '',
-          producto: item.product_name ?? '',
-          categoria,
-          cantidad,
-          precio_unitario: precioUnitario,
-          subtotal_item: subtotalItem,
-          total_pedido: totalPedido,
-        },
-      ];
-    }
-  );
+    return [
+      {
+        tienda: store.name,
+        fecha,
+        hora,
+        pedido: relatedOrder.order_number ?? null,
+        cliente: relatedOrder.customer_name ?? '',
+        telefono: relatedOrder.customer_phone ?? '',
+        estado: normalizeStatus(relatedOrder.status ?? ''),
+        tipo: normalizeDeliveryType(relatedOrder.delivery_type ?? ''),
+        direccion: relatedOrder.delivery_address ?? '',
+        notas: relatedOrder.notes ?? '',
+        product_id: item.product_id ?? '',
+        producto: item.product_name ?? '',
+        categoria,
+        cantidad,
+        precio_unitario: precioUnitario,
+        subtotal_item: subtotalItem,
+        total_pedido: totalPedido,
+      },
+    ];
+  });
 
   return NextResponse.json({
     store: {

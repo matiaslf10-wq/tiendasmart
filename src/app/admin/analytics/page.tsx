@@ -5,6 +5,7 @@ import ExecutiveSummary, {
   type ExecutiveSummaryItem,
 } from '@/components/admin/ExecutiveSummary';
 import ExportOrdersButton from '@/components/admin/ExportOrdersButton';
+import ExportOrdersDetailedButton from '@/components/admin/ExportOrdersDetailedButton';
 import Ga4Charts from '@/components/admin/Ga4Charts';
 import Ga4DailySeries from '@/components/admin/Ga4DailySeries';
 import Ga4TopProductsInsights from '@/components/admin/Ga4TopProductsInsights';
@@ -546,7 +547,10 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
               </p>
             </div>
 
-            <ExportOrdersButton range={range} />
+            <div className="flex flex-wrap gap-3">
+  <ExportOrdersButton range={range} />
+  <ExportOrdersDetailedButton range={range} />
+</div>
           </div>
         </section>
 

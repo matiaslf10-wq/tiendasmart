@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useFormStatus } from 'react-dom';
 import {
   updateProduct,
   toggleProductActive,
@@ -60,6 +61,27 @@ function createEmptySlot(): UploadSlot {
     isUploading: false,
     error: null,
   };
+}
+
+function SubmitButton({ disabledByUploads }: { disabledByUploads: boolean }) {
+  const { pending } = useFormStatus();
+
+  const disabled = pending || disabledByUploads;
+  const label = disabledByUploads
+    ? 'Esperá a que terminen de subir las imágenes'
+    : pending
+    ? 'Guardando cambios...'
+    : 'Guardar cambios';
+
+  return (
+    <button
+      type="submit"
+      disabled={disabled}
+      className="w-fit rounded-xl bg-black px-5 py-3 text-white disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      {label}
+    </button>
+  );
 }
 
 export default function ProductEditForm({
@@ -524,15 +546,7 @@ export default function ProductEditForm({
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={hasUploadingFiles}
-              className="w-fit rounded-xl bg-black px-5 py-3 text-white disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {hasUploadingFiles
-                ? 'Esperá a que terminen de subir las imágenes'
-                : 'Guardar cambios'}
-            </button>
+            <SubmitButton disabledByUploads={hasUploadingFiles} />
           </form>
         </div>
       )}

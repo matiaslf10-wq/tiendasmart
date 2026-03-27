@@ -5,7 +5,14 @@ import AdminStatCard from '@/components/admin/AdminStatCard';
 import { createClient } from '@/lib/supabase/server';
 import { updateStoreSettings } from './actions';
 
-export default async function AdminPage() {
+type AdminPageProps = {
+  searchParams?: Promise<{
+    saved?: string;
+    error?: string;
+  }>;
+};
+
+export default async function AdminPage({ searchParams }: AdminPageProps) {
   const membership = await getCurrentUserStore();
 
   if (!membership || !membership.stores) {
@@ -16,6 +23,13 @@ export default async function AdminPage() {
       </main>
     );
   }
+
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const wasSaved = resolvedSearchParams?.saved === '1';
+  const errorMessage =
+    resolvedSearchParams?.error === '1'
+      ? 'No se pudieron guardar los cambios.'
+      : null;
 
   const store = membership.stores;
   const supabase = await createClient();
@@ -139,6 +153,22 @@ export default async function AdminPage() {
 
         <div className="space-y-4 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
           <h2 className="text-xl font-semibold">Configuración de la tienda</h2>
+
+          {wasSaved ? (
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+              <p className="text-sm font-medium text-emerald-800">
+                Los datos fueron guardados correctamente.
+              </p>
+            </div>
+          ) : null}
+
+          {errorMessage ? (
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
+              <p className="text-sm font-medium text-red-800">
+                {errorMessage}
+              </p>
+            </div>
+          ) : null}
 
           <form action={updateStoreSettings} className="grid max-w-2xl gap-4">
             <label className="block space-y-2">

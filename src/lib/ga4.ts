@@ -48,6 +48,19 @@ type Ga4ReportRow = {
   metricValues?: Array<{ value?: string }>;
 };
 
+type Ga4MetadataResponse = {
+  dimensions?: Array<{
+    apiName?: string;
+    uiName?: string;
+    customDefinition?: boolean;
+  }>;
+  metrics?: Array<{
+    apiName?: string;
+    uiName?: string;
+    customDefinition?: boolean;
+  }>;
+};
+
 function getCredentials() {
   const raw = process.env.GA4_SERVICE_ACCOUNT_JSON;
 
@@ -137,6 +150,45 @@ async function runGa4Report(params: {
   }
 
   return json;
+}
+
+export async function getGa4Metadata(
+  propertyId: string
+): Promise<Ga4MetadataResponse> {
+  const token = await getAccessToken();
+
+  const res = await fetch(
+    `https://analyticsdata.googleapis.com/v1alpha/properties/${propertyId}/metadata`,
+    {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      cache: 'no-store',
+    }
+  );
+
+  const json = await res.json();
+
+  if (!res.ok) {
+    throw new Error(JSON.stringify(json));
+  }
+
+  return json as Ga4MetadataResponse;
+}
+
+export async function hasGa4ProductCustomDimensions(propertyId: string) {
+  const metadata = await getGa4Metadata(propertyId);
+
+  const dimensionNames = new Set(
+    (metadata.dimensions ?? []).map((dimension) => dimension.apiName ?? '')
+  );
+
+  return {
+    hasProductId: dimensionNames.has('customEvent:product_id'),
+    hasProductName: dimensionNames.has('customEvent:product_name'),
+  };
 }
 
 function parseMetricRows(
@@ -237,6 +289,12 @@ async function getProductEventSeries(params: {
   limit?: number;
 }) {
   const dateRange = getDateRange(params.range);
+
+  const dims = await hasGa4ProductCustomDimensions(params.propertyId);
+
+  if (!dims.hasProductId || !dims.hasProductName) {
+    return [];
+  }
 
   const report = await runGa4Report({
     propertyId: params.propertyId,
@@ -486,6 +544,12 @@ export async function getGa4TopProducts(params: {
 }): Promise<Ga4TopProductRow[]> {
   const limit = Math.max(params.limit ?? 20, 20);
 
+  const dims = await hasGa4ProductCustomDimensions(params.propertyId);
+
+  if (!dims.hasProductId || !dims.hasProductName) {
+    return [];
+  }
+
   const [viewRows, cartRows] = await Promise.all([
     getProductEventSeries({
       propertyId: params.propertyId,
@@ -506,6 +570,8 @@ export async function getGa4TopProducts(params: {
   for (const row of viewRows) {
     const key = row.itemId || row.itemName;
 
+    if (!key) continue;
+
     merged.set(key, {
       itemId: row.itemId,
       itemName: row.itemName,
@@ -516,6 +582,9 @@ export async function getGa4TopProducts(params: {
 
   for (const row of cartRows) {
     const key = row.itemId || row.itemName;
+
+    if (!key) continue;
+
     const current = merged.get(key);
 
     if (current) {

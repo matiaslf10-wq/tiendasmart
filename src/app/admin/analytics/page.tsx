@@ -33,6 +33,7 @@ import {
   ensureAnalyticsApiKey,
   regenerateAnalyticsApiKeyAction,
 } from './actions';
+import CopyToClipboardButton from '@/components/admin/CopyToClipboardButton';
 
 type PageProps = {
   searchParams: Promise<{
@@ -553,23 +554,72 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
     >
       <div className="space-y-6">
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="space-y-2">
-              <h2 className="text-lg font-semibold text-slate-900">
-                Rendimiento comercial
-              </h2>
-              <p className="text-sm text-slate-500">
-                Analizá ingresos, comportamiento de pedidos, tráfico y
-                conversión en el período seleccionado.
-              </p>
-            </div>
+  <div className="space-y-4">
+    <h2 className="text-lg font-semibold text-slate-900">
+      Conexión para Power BI y Excel
+    </h2>
 
-            <div className="flex flex-wrap gap-3">
-              <ExportOrdersButton range={range} />
-              <ExportOrdersDetailedButton range={range} />
-            </div>
-          </div>
-        </section>
+    <p className="text-sm text-slate-600">
+      Usá estas URLs para importar datos desde Power BI Desktop o desde Excel
+      con Power Query.
+    </p>
+
+    {/* API KEY */}
+    <div className="rounded-2xl bg-slate-50 p-3 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+          API key
+        </p>
+
+        <CopyToClipboardButton value={analyticsApiKey} />
+      </div>
+
+      <code className="block break-all text-sm text-slate-900">
+        {analyticsApiKey}
+      </code>
+    </div>
+
+    {/* CSV */}
+    <div className="rounded-2xl bg-slate-50 p-3 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+          URL CSV (Excel)
+        </p>
+
+        <CopyToClipboardButton value={publicAnalyticsUrl} />
+      </div>
+
+      <code className="block break-all text-sm text-slate-900">
+        {publicAnalyticsUrl}
+      </code>
+    </div>
+
+    {/* JSON */}
+    <div className="rounded-2xl bg-slate-50 p-3 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+          URL JSON (Power BI)
+        </p>
+
+        <CopyToClipboardButton value={publicAnalyticsJsonUrl} />
+      </div>
+
+      <code className="block break-all text-sm text-slate-900">
+        {publicAnalyticsJsonUrl}
+      </code>
+    </div>
+
+    {/* BOTÓN REGENERAR */}
+    <form action={regenerateAnalyticsApiKeyAction}>
+      <button
+        type="submit"
+        className="inline-flex items-center rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-900 shadow-sm transition hover:bg-slate-50"
+      >
+        Regenerar API key
+      </button>
+    </form>
+  </div>
+</section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="space-y-3">

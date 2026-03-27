@@ -13,14 +13,25 @@ function isValidRange(value: string | null): value is RangeValue {
   );
 }
 
-function formatDate(value: string) {
+function getDateParts(value: string) {
   try {
-    return new Intl.DateTimeFormat('es-AR', {
-      dateStyle: 'short',
-      timeStyle: 'short',
-    }).format(new Date(value));
+    const date = new Date(value);
+
+    const fecha = new Intl.DateTimeFormat('es-AR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    }).format(date);
+
+    const hora = new Intl.DateTimeFormat('es-AR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(date);
+
+    return { fecha, hora };
   } catch {
-    return value;
+    return { fecha: value, hora: '' };
   }
 }
 
@@ -43,7 +54,7 @@ function normalizeStatus(status: string) {
     case 'cancelled':
       return 'Cancelado';
     default:
-      return status;
+      return status || '';
   }
 }
 
@@ -68,10 +79,10 @@ function buildCsv(rows: Array<Array<unknown>>) {
 }
 
 type ExportOrderItemRow = {
-  quantity: number | string | null;
-  unit_price?: number | string | null;
-  line_total: number | string | null;
+  product_id: string | null;
   product_name: string | null;
+  quantity: number | string | null;
+  line_total: number | string | null;
   orders:
     | {
         id: string;
@@ -96,6 +107,19 @@ type ExportOrderItemRow = {
         delivery_address: string | null;
         notes: string | null;
         created_at: string;
+      }[]
+    | null;
+};
+
+type ProductCategoryRow = {
+  id: string;
+  name: string;
+  categories:
+    | {
+        name: string | null;
+      }
+    | {
+        name: string | null;
       }[]
     | null;
 };
@@ -153,23 +177,27 @@ export async function GET(request: NextRequest) {
 
   const orderIds = rangeFilteredOrders.map((order) => order.id).filter(Boolean);
 
-  if (orderIds.length === 0) {
-    const headerRow = [
-      'Fecha',
-      'Pedido',
-      'Cliente',
-      'Teléfono',
-      'Estado',
-      'Tipo',
-      'Dirección',
-      'Notas',
-      'Producto',
-      'Cantidad',
-      'Precio unitario',
-      'Subtotal ítem',
-      'Total pedido',
-    ];
+  const headerRow = [
+    'Tienda',
+    'Fecha',
+    'Hora',
+    'Pedido',
+    'Cliente',
+    'Teléfono',
+    'Estado',
+    'Tipo',
+    'Dirección',
+    'Notas',
+    'ID producto',
+    'Producto',
+    'Categoría',
+    'Cantidad',
+    'Precio unitario',
+    'Subtotal ítem',
+    'Total pedido',
+  ];
 
+  if (orderIds.length === 0) {
     const csvContent = buildCsv([headerRow]);
     const csvWithBom = `\uFEFF${csvContent}`;
     const today = new Intl.DateTimeFormat('sv-SE').format(new Date());
@@ -188,10 +216,10 @@ export async function GET(request: NextRequest) {
   const { data: itemsData, error: itemsError } = await supabase
     .from('order_items')
     .select(`
-      quantity,
-      unit_price,
-      line_total,
+      product_id,
       product_name,
+      quantity,
+      line_total,
       orders!inner (
         id,
         order_number,
@@ -217,6 +245,49 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  const productIds = Array.from(
+    new Set(
+      ((itemsData ?? []) as ExportOrderItemRow[])
+        .map((item) => item.product_id)
+        .filter((value): value is string => Boolean(value))
+    )
+  );
+
+  let categoryByProductId = new Map<string, string>();
+
+  if (productIds.length > 0) {
+    const { data: productsData, error: productsError } = await supabase
+      .from('products')
+      .select(`
+        id,
+        name,
+        categories (
+          name
+        )
+      `)
+      .in('id', productIds);
+
+    if (productsError) {
+      return NextResponse.json(
+        {
+          error: 'No se pudieron cargar las categorías de productos',
+          details: productsError.message,
+        },
+        { status: 500 }
+      );
+    }
+
+    categoryByProductId = new Map(
+      ((productsData ?? []) as ProductCategoryRow[]).map((product) => {
+        const category = Array.isArray(product.categories)
+          ? product.categories[0]?.name ?? ''
+          : product.categories?.name ?? '';
+
+        return [product.id, category];
+      })
+    );
+  }
+
   const detailedRows = ((itemsData ?? []) as ExportOrderItemRow[]).flatMap(
     (item) => {
       const relatedOrder = Array.isArray(item.orders)
@@ -225,9 +296,19 @@ export async function GET(request: NextRequest) {
 
       if (!relatedOrder) return [];
 
+      const { fecha, hora } = getDateParts(relatedOrder.created_at);
+      const quantity = Number(item.quantity ?? 0);
+      const lineTotal = Number(item.line_total ?? 0);
+      const unitPrice = quantity > 0 ? lineTotal / quantity : 0;
+      const categoryName = item.product_id
+        ? categoryByProductId.get(item.product_id) ?? ''
+        : '';
+
       return [
         [
-          formatDate(relatedOrder.created_at),
+          store.name,
+          fecha,
+          hora,
           relatedOrder.order_number ?? '',
           relatedOrder.customer_name ?? '',
           relatedOrder.customer_phone ?? '',
@@ -235,31 +316,17 @@ export async function GET(request: NextRequest) {
           normalizeDeliveryType(relatedOrder.delivery_type ?? ''),
           relatedOrder.delivery_address ?? '',
           relatedOrder.notes ?? '',
+          item.product_id ?? '',
           item.product_name ?? '',
-          item.quantity ?? '',
-          formatMoney(Number(item.unit_price ?? 0)),
-          formatMoney(Number(item.line_total ?? 0)),
+          categoryName,
+          quantity,
+          formatMoney(unitPrice),
+          formatMoney(lineTotal),
           formatMoney(Number(relatedOrder.total ?? 0)),
         ],
       ];
     }
   );
-
-  const headerRow = [
-    'Fecha',
-    'Pedido',
-    'Cliente',
-    'Teléfono',
-    'Estado',
-    'Tipo',
-    'Dirección',
-    'Notas',
-    'Producto',
-    'Cantidad',
-    'Precio unitario',
-    'Subtotal ítem',
-    'Total pedido',
-  ];
 
   const csvContent = buildCsv([headerRow, ...detailedRows]);
   const csvWithBom = `\uFEFF${csvContent}`;

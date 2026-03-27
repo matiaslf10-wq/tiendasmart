@@ -87,34 +87,33 @@ async function ensureUniqueSlugForStore(
 }
 
 export async function createCategory(formData: FormData) {
-  const { store } = await getAuthorizedStore();
-  const supabase = await createClient();
+  try {
+    const { store } = await getAuthorizedStore();
+    const supabase = await createClient();
 
-  const name = String(formData.get('name') || '').trim();
-  const description = String(formData.get('description') || '').trim();
-  const slugInput = String(formData.get('slug') || '').trim();
-  const sortOrderRaw = String(formData.get('sort_order') || '0').trim();
+    const name = String(formData.get('name') || '').trim();
+    const description = String(formData.get('description') || '').trim();
+    const slugInput = String(formData.get('slug') || '').trim();
+    const sortOrderRaw = String(formData.get('sort_order') || '0').trim();
 
-  const slug = slugify(slugInput || name);
-  const sortOrder = Number(sortOrderRaw);
+    const slug = slugify(slugInput || name);
+    const sortOrder = Number(sortOrderRaw);
 
-  if (!name) {
-    throw new Error('El nombre es obligatorio');
-  }
+    if (!name) {
+      throw new Error('El nombre es obligatorio');
+    }
 
-  if (!slug) {
-    throw new Error('El slug es obligatorio');
-  }
+    if (!slug) {
+      throw new Error('El slug es obligatorio');
+    }
 
-  if (Number.isNaN(sortOrder) || sortOrder < 0) {
-    throw new Error('El orden no es válido');
-  }
+    if (Number.isNaN(sortOrder) || sortOrder < 0) {
+      throw new Error('El orden no es válido');
+    }
 
-  await ensureUniqueSlugForStore(store.id, slug);
+    await ensureUniqueSlugForStore(store.id, slug);
 
-  const { error } = await supabase
-    .from('categories')
-    .insert({
+    const { error } = await supabase.from('categories').insert({
       store_id: store.id,
       name,
       slug,
@@ -123,135 +122,154 @@ export async function createCategory(formData: FormData) {
       sort_order: sortOrder,
     });
 
-  if (error) {
-    throw new Error(error.message);
-  }
+    if (error) {
+      throw new Error(error.message);
+    }
 
-  revalidatePath('/admin/categorias');
-  revalidatePath('/admin/productos');
-  revalidatePath(`/${store.slug}`);
-  redirect('/admin/categorias?success=created');
+    revalidatePath('/admin/categorias');
+    revalidatePath('/admin/productos');
+    revalidatePath(`/${store.slug}`);
+    redirect('/admin/categorias?success=created');
+  } catch (error) {
+    console.error('Error creando categoría:', error);
+    redirect('/admin/categorias?error=create');
+  }
 }
 
 export async function updateCategory(formData: FormData) {
-  const { store } = await getAuthorizedStore();
-  const supabase = await createClient();
+  try {
+    const { store } = await getAuthorizedStore();
+    const supabase = await createClient();
 
-  const categoryId = String(formData.get('category_id') || '').trim();
-  const name = String(formData.get('name') || '').trim();
-  const description = String(formData.get('description') || '').trim();
-  const slugInput = String(formData.get('slug') || '').trim();
-  const sortOrderRaw = String(formData.get('sort_order') || '0').trim();
+    const categoryId = String(formData.get('category_id') || '').trim();
+    const name = String(formData.get('name') || '').trim();
+    const description = String(formData.get('description') || '').trim();
+    const slugInput = String(formData.get('slug') || '').trim();
+    const sortOrderRaw = String(formData.get('sort_order') || '0').trim();
 
-  const slug = slugify(slugInput || name);
-  const sortOrder = Number(sortOrderRaw);
+    const slug = slugify(slugInput || name);
+    const sortOrder = Number(sortOrderRaw);
 
-  if (!categoryId) {
-    throw new Error('Falta la categoría');
+    if (!categoryId) {
+      throw new Error('Falta la categoría');
+    }
+
+    if (!name) {
+      throw new Error('El nombre es obligatorio');
+    }
+
+    if (!slug) {
+      throw new Error('El slug es obligatorio');
+    }
+
+    if (Number.isNaN(sortOrder) || sortOrder < 0) {
+      throw new Error('El orden no es válido');
+    }
+
+    await ensureCategoryBelongsToStore(categoryId, store.id);
+    await ensureUniqueSlugForStore(store.id, slug, categoryId);
+
+    const { error } = await supabase
+      .from('categories')
+      .update({
+        name,
+        slug,
+        description: description || null,
+        sort_order: sortOrder,
+      })
+      .eq('id', categoryId)
+      .eq('store_id', store.id);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    revalidatePath('/admin/categorias');
+    revalidatePath('/admin/productos');
+    revalidatePath(`/${store.slug}`);
+    redirect('/admin/categorias?success=updated');
+  } catch (error) {
+    console.error('Error actualizando categoría:', error);
+    redirect('/admin/categorias?error=update');
   }
-
-  if (!name) {
-    throw new Error('El nombre es obligatorio');
-  }
-
-  if (!slug) {
-    throw new Error('El slug es obligatorio');
-  }
-
-  if (Number.isNaN(sortOrder) || sortOrder < 0) {
-    throw new Error('El orden no es válido');
-  }
-
-  await ensureCategoryBelongsToStore(categoryId, store.id);
-  await ensureUniqueSlugForStore(store.id, slug, categoryId);
-
-  const { error } = await supabase
-    .from('categories')
-    .update({
-      name,
-      slug,
-      description: description || null,
-      sort_order: sortOrder,
-    })
-    .eq('id', categoryId)
-    .eq('store_id', store.id);
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  revalidatePath('/admin/categorias');
-  revalidatePath('/admin/productos');
-  revalidatePath(`/${store.slug}`);
-  redirect('/admin/categorias?success=updated');
 }
 
 export async function toggleCategoryActive(formData: FormData) {
-  const { store } = await getAuthorizedStore();
-  const supabase = await createClient();
+  try {
+    const { store } = await getAuthorizedStore();
+    const supabase = await createClient();
 
-  const categoryId = String(formData.get('category_id') || '').trim();
-  const currentValue =
-    String(formData.get('current_value') || '').trim() === 'true';
+    const categoryId = String(formData.get('category_id') || '').trim();
+    const currentValue =
+      String(formData.get('current_value') || '').trim() === 'true';
 
-  if (!categoryId) {
-    throw new Error('Falta la categoría');
+    if (!categoryId) {
+      throw new Error('Falta la categoría');
+    }
+
+    await ensureCategoryBelongsToStore(categoryId, store.id);
+
+    const { error } = await supabase
+      .from('categories')
+      .update({
+        is_active: !currentValue,
+      })
+      .eq('id', categoryId)
+      .eq('store_id', store.id);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    revalidatePath('/admin/categorias');
+    revalidatePath('/admin/productos');
+    revalidatePath(`/${store.slug}`);
+    redirect('/admin/categorias?success=status-updated');
+  } catch (error) {
+    console.error('Error cambiando estado de categoría:', error);
+    redirect('/admin/categorias?error=toggle-status');
   }
-
-  await ensureCategoryBelongsToStore(categoryId, store.id);
-
-  const { error } = await supabase
-    .from('categories')
-    .update({
-      is_active: !currentValue,
-    })
-    .eq('id', categoryId)
-    .eq('store_id', store.id);
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  revalidatePath('/admin/categorias');
-  revalidatePath('/admin/productos');
-  revalidatePath(`/${store.slug}`);
-  redirect('/admin/categorias?success=status-updated');
 }
 
 export async function deleteCategory(formData: FormData) {
-  const { store } = await getAuthorizedStore();
-  const supabase = await createClient();
+  try {
+    const { store } = await getAuthorizedStore();
+    const supabase = await createClient();
 
-  const categoryId = String(formData.get('category_id') || '').trim();
+    const categoryId = String(formData.get('category_id') || '').trim();
 
-  if (!categoryId) {
-    throw new Error('Falta la categoría');
+    if (!categoryId) {
+      throw new Error('Falta la categoría');
+    }
+
+    await ensureCategoryBelongsToStore(categoryId, store.id);
+
+    const { error: clearProductsError } = await supabase
+      .from('products')
+      .update({ category_id: null })
+      .eq('category_id', categoryId)
+      .eq('store_id', store.id);
+
+    if (clearProductsError) {
+      throw new Error(clearProductsError.message);
+    }
+
+    const { error } = await supabase
+      .from('categories')
+      .delete()
+      .eq('id', categoryId)
+      .eq('store_id', store.id);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    revalidatePath('/admin/categorias');
+    revalidatePath('/admin/productos');
+    revalidatePath(`/${store.slug}`);
+    redirect('/admin/categorias?success=deleted');
+  } catch (error) {
+    console.error('Error eliminando categoría:', error);
+    redirect('/admin/categorias?error=delete');
   }
-
-  await ensureCategoryBelongsToStore(categoryId, store.id);
-
-  const { error: clearProductsError } = await supabase
-    .from('products')
-    .update({ category_id: null })
-    .eq('category_id', categoryId)
-    .eq('store_id', store.id);
-
-  if (clearProductsError) {
-    throw new Error(clearProductsError.message);
-  }
-
-  const { error } = await supabase
-    .from('categories')
-    .delete()
-    .eq('id', categoryId)
-    .eq('store_id', store.id);
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  revalidatePath('/admin/categorias');
-  revalidatePath('/admin/productos');
-  revalidatePath(`/${store.slug}`);
-  redirect('/admin/categorias?success=deleted');
 }

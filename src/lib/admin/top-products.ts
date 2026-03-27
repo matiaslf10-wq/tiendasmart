@@ -161,24 +161,31 @@ export async function getTopProductsInsights(params: {
 
     const sales = salesMap.get(key);
 
+    const gaAddedUnits = toSafeNumber(ga.itemsAddedToCart);
+    const gaPurchasedUnits = toSafeNumber(ga.itemsPurchased);
+    const gaRevenue = toSafeNumber(ga.itemRevenue);
+
+    const purchasedUnits = sales?.purchasedUnits ?? gaPurchasedUnits;
+    const revenue = sales?.revenue ?? gaRevenue;
+
     const rowBase = {
       itemId: normalizedItemId || sales?.itemId || '',
       itemName: normalizedItemName || sales?.itemName || 'Producto',
       views: toSafeNumber(ga.itemViewEvents),
-      addToCartEvents: toSafeNumber(ga.addToCarts),
-      addedUnits: toSafeNumber(ga.itemsAddedToCart),
-      purchasedUnits: sales?.purchasedUnits ?? 0,
-      revenue: sales?.revenue ?? 0,
+      addToCartEvents: gaAddedUnits,
+      addedUnits: gaAddedUnits,
+      purchasedUnits,
+      revenue,
       viewToCartRate: percent(
-        toSafeNumber(ga.addToCarts),
+        gaAddedUnits,
         toSafeNumber(ga.itemViewEvents)
       ),
       cartToPurchaseRate: percent(
-        sales?.purchasedUnits ?? 0,
-        toSafeNumber(ga.addToCarts)
+        purchasedUnits,
+        gaAddedUnits
       ),
       viewToPurchaseRate: percent(
-        sales?.purchasedUnits ?? 0,
+        purchasedUnits,
         toSafeNumber(ga.itemViewEvents)
       ),
     };

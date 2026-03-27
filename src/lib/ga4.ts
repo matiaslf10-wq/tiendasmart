@@ -40,8 +40,9 @@ export type Ga4TopProductRow = {
   itemId: string;
   itemName: string;
   itemViewEvents: number;
-  addToCarts: number;
   itemsAddedToCart: number;
+  itemsPurchased: number;
+  itemRevenue: number;
 };
 
 type Ga4ReportRow = {
@@ -158,12 +159,12 @@ function getDateRange(range: RangeValue): Ga4DateRange {
   return range === 'today'
     ? { startDate: 'today', endDate: 'today' }
     : range === '7d'
-    ? { startDate: '7daysAgo', endDate: 'today' }
-    : range === '30d'
-    ? { startDate: '30daysAgo', endDate: 'today' }
-    : range === 'month'
-    ? { startDate: '28daysAgo', endDate: 'today' }
-    : { startDate: '365daysAgo', endDate: 'today' };
+      ? { startDate: '7daysAgo', endDate: 'today' }
+      : range === '30d'
+        ? { startDate: '30daysAgo', endDate: 'today' }
+        : range === 'month'
+          ? { startDate: '28daysAgo', endDate: 'today' }
+          : { startDate: '365daysAgo', endDate: 'today' };
 }
 
 async function getEventCountByName(params: {
@@ -426,8 +427,9 @@ export async function getGa4TopProducts(params: {
     dimensions: [{ name: 'itemId' }, { name: 'itemName' }],
     metrics: [
       { name: 'itemViewEvents' },
-      { name: 'addToCarts' },
       { name: 'itemsAddedToCart' },
+      { name: 'itemsPurchased' },
+      { name: 'itemRevenue' },
     ],
     orderBys: [
       {
@@ -449,16 +451,18 @@ export async function getGa4TopProducts(params: {
 
       const [
         itemViewEvents = '0',
-        addToCarts = '0',
         itemsAddedToCart = '0',
+        itemsPurchased = '0',
+        itemRevenue = '0',
       ] = row.metricValues?.map((metric) => metric.value ?? '0') ?? [];
 
       return {
         itemId,
         itemName,
         itemViewEvents: Number(itemViewEvents) || 0,
-        addToCarts: Number(addToCarts) || 0,
         itemsAddedToCart: Number(itemsAddedToCart) || 0,
+        itemsPurchased: Number(itemsPurchased) || 0,
+        itemRevenue: Number(itemRevenue) || 0,
       };
     })
     .filter((row) => row.itemId || row.itemName);

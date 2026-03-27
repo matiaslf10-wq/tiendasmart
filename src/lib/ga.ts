@@ -115,9 +115,17 @@ export function trackSendToWhatsApp(params: {
 export function trackContactWhatsApp(params?: {
   productId?: string;
   productName?: string;
+  source?: string;
+  store_slug?: string;
+  item?: GAItem;
 }) {
+  const item = params?.item;
+
   trackEvent('contact_whatsapp', {
-    product_id: params?.productId,
-    product_name: params?.productName,
+    source: params?.source,
+    store_slug: params?.store_slug,
+    product_id: params?.productId ?? item?.item_id,
+    product_name: params?.productName ?? item?.item_name,
+    items: item ? [item] : undefined,
   });
 }

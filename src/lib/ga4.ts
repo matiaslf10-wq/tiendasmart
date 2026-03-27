@@ -158,7 +158,7 @@ export async function getGa4Metadata(
   const token = await getAccessToken();
 
   const res = await fetch(
-    `https://analyticsdata.googleapis.com/v1alpha/properties/${propertyId}/metadata`,
+    `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}/metadata`,
     {
       method: 'GET',
       headers: {

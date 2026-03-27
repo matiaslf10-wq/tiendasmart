@@ -148,12 +148,12 @@ export default async function ProductosPage({ searchParams }: ProductosPageProps
 
   return (
     <AdminShell
-  title="Categorías"
+  title="Productos"
   subtitle={`Tienda: ${store.name}`}
   storeName={store.name}
   storeSlug={store.slug}
   plan={store.plan}
-  current="categorias"
+  current="productos"
   pendingOrdersCount={0}
 >
       <div className="-mt-1">

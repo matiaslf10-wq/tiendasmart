@@ -4,7 +4,8 @@ type AnalyticsEventPayload = {
     | 'view_item'
     | 'add_to_cart'
     | 'begin_checkout'
-    | 'send_to_whatsapp';
+    | 'send_to_whatsapp'
+    | 'contact_whatsapp';
   productId?: string | null;
   metadata?: Record<string, unknown>;
 };

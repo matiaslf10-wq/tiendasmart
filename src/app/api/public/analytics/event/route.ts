@@ -6,6 +6,7 @@ const ALLOWED_EVENTS = new Set([
   'add_to_cart',
   'begin_checkout',
   'send_to_whatsapp',
+  'contact_whatsapp',
 ]);
 
 function getSessionId(request: NextRequest) {
@@ -32,10 +33,7 @@ export async function POST(request: NextRequest) {
       body.metadata && typeof body.metadata === 'object' ? body.metadata : {};
 
     if (!storeSlug) {
-      return NextResponse.json(
-        { error: 'Falta storeSlug' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Falta storeSlug' }, { status: 400 });
     }
 
     if (!ALLOWED_EVENTS.has(eventName)) {

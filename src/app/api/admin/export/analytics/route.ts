@@ -10,6 +10,11 @@ import {
   type RangeValue,
 } from '@/lib/admin/orders';
 
+type ExportOrderItemRow = OrderItemRow & {
+  order_id: string;
+  unit_price?: number | string | null;
+};
+
 function isValidRange(value: string | null): value is RangeValue {
   return (
     value === 'today' ||
@@ -100,7 +105,7 @@ export async function GET(request: NextRequest) {
 
     const allOrders = (ordersData ?? []) as Order[];
 
-    const allOrderItems = ((itemsData ?? []) as Array<{
+    const allOrderItems: ExportOrderItemRow[] = ((itemsData ?? []) as Array<{
       order_id: string;
       product_id: string | null;
       product_name: string | null;
@@ -116,7 +121,7 @@ export async function GET(request: NextRequest) {
       quantity: item.quantity,
       line_total: item.line_total,
       orders: item.orders?.[0] ?? null,
-    })) as OrderItemRow[];
+    })) as ExportOrderItemRow[];
 
     const { rangeFilteredOrders } = filterOrders({
       orders: allOrders,
@@ -130,14 +135,13 @@ export async function GET(request: NextRequest) {
     const rangeFilteredOrderItems = filterOrderItemsByRange(
       allOrderItems,
       range
-    );
+    ) as ExportOrderItemRow[];
 
     const orderIdsInRange = new Set(rangeFilteredOrders.map((order) => order.id));
 
-    const orderItems = rangeFilteredOrderItems.filter((item) => {
-      if (!item.order_id) return false;
-      return orderIdsInRange.has(item.order_id);
-    });
+    const orderItems = rangeFilteredOrderItems.filter((item) =>
+      orderIdsInRange.has(item.order_id)
+    );
 
     const totalRevenue = rangeFilteredOrders.reduce(
       (acc, order) => acc + Number(order.total ?? 0),

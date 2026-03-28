@@ -1,33 +1,39 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { trackViewItem } from '@/lib/ga';
+import { trackViewItem, type GAItem } from '@/lib/ga';
+import { trackStoreEvent } from '@/lib/analytics-events';
 
-type Props = {
-  item: {
-    id: string;
-    name: string;
-    price: number;
-    categoryName?: string | null;
+type ViewItemTrackerProps = {
+  storeSlug: string;
+  item: GAItem & {
+    id?: string;
   };
 };
 
-export default function ViewItemTracker({ item }: Props) {
+export default function ViewItemTracker({
+  storeSlug,
+  item,
+}: ViewItemTrackerProps) {
   const trackedRef = useRef(false);
 
   useEffect(() => {
     if (trackedRef.current) return;
-
-    trackViewItem({
-      item_id: item.id,
-      item_name: item.name,
-      price: item.price,
-      quantity: 1,
-      item_category: item.categoryName ?? undefined,
-    });
-
     trackedRef.current = true;
-  }, [item]);
+
+    trackViewItem(item);
+
+    void trackStoreEvent({
+      storeSlug,
+      eventName: 'view_item',
+      productId: item.id ?? item.item_id ?? null,
+      metadata: {
+        item_id: item.item_id,
+        item_name: item.item_name,
+        price: item.price ?? 0,
+      },
+    });
+  }, [storeSlug, item]);
 
   return null;
 }

@@ -1,6 +1,10 @@
 type AnalyticsEventPayload = {
   storeSlug: string;
-  eventName: 'view_item' | 'add_to_cart' | 'begin_checkout' | 'send_to_whatsapp';
+  eventName:
+    | 'view_item'
+    | 'add_to_cart'
+    | 'begin_checkout'
+    | 'send_to_whatsapp';
   productId?: string | null;
   metadata?: Record<string, unknown>;
 };

@@ -26,6 +26,7 @@ import {
   trackSendToWhatsApp,
   trackViewCart,
 } from '@/lib/ga';
+import { trackStoreEvent } from '@/lib/analytics-events';
 import StoreToast from '@/components/store/StoreToast';
 import { createOrder } from '@/app/actions/createOrder';
 
@@ -79,6 +80,7 @@ export default function WhatsAppCart({
   const [isSubmitting, startTransition] = useTransition();
   const toastTimeoutRef = useRef<number | null>(null);
   const hasTrackedViewCartRef = useRef(false);
+  const hasTrackedBeginCheckoutRef = useRef(false);
 
   function showToast(message: string, tone: 'success' | 'error' | 'info') {
     setToast({ message, tone });
@@ -178,6 +180,7 @@ export default function WhatsAppCart({
   useEffect(() => {
     if (!open) {
       hasTrackedViewCartRef.current = false;
+      hasTrackedBeginCheckoutRef.current = false;
       return;
     }
 
@@ -195,6 +198,42 @@ export default function WhatsAppCart({
 
     hasTrackedViewCartRef.current = true;
   }, [open, validItems]);
+
+  useEffect(() => {
+    if (!open || validItems.length === 0) {
+      hasTrackedBeginCheckoutRef.current = false;
+      return;
+    }
+
+    if (checkoutResult) return;
+    if (hasTrackedBeginCheckoutRef.current) return;
+
+    hasTrackedBeginCheckoutRef.current = true;
+
+    void trackStoreEvent({
+      storeSlug,
+      eventName: 'begin_checkout',
+      metadata: {
+        items: validItems.map((item) => ({
+          item_id: item.id,
+          item_name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+        })),
+        total_items: totalItems,
+        total_value: totalPrice,
+        delivery_type: deliveryType,
+      },
+    });
+  }, [
+    open,
+    validItems,
+    totalItems,
+    totalPrice,
+    deliveryType,
+    checkoutResult,
+    storeSlug,
+  ]);
 
   async function handleCopyMessage() {
     if (!checkoutResult?.message) return;
@@ -219,6 +258,24 @@ export default function WhatsAppCart({
         price: item.price,
         quantity: item.quantity,
       })),
+    });
+
+    void trackStoreEvent({
+      storeSlug,
+      eventName: 'send_to_whatsapp',
+      metadata: {
+        order_number: checkoutResult.orderNumber,
+        customer_name: customerName.trim(),
+        delivery_type: deliveryType,
+        items: validItems.map((item) => ({
+          item_id: item.id,
+          item_name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+        })),
+        total_items: totalItems,
+        total_value: totalPrice,
+      },
     });
 
     window.open(checkoutResult.whatsappUrl, '_blank', 'noreferrer');

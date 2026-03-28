@@ -2,8 +2,8 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { addToCart } from '@/lib/cart';
 import { canPurchase, getStockLabel } from '@/lib/stock';
+import AddToCartButton from '@/components/store/AddToCartButton';
 import StoreToast from '@/components/store/StoreToast';
 
 type Product = {
@@ -33,41 +33,16 @@ export default function ProductCard({
   product,
   storeSlug = '',
 }: ProductCardProps) {
-  const [added, setAdded] = useState(false);
   const [toast, setToast] = useState<ToastState>(null);
 
   const purchasable = canPurchase(product);
   const stockLabel = getStockLabel(product);
-  const buttonDisabled = !storeSlug || !purchasable;
-  const productHref = storeSlug ? `/${storeSlug}/producto/${product.slug}` : '#';
+  const hasStoreSlug = Boolean(storeSlug);
+  const productHref = hasStoreSlug ? `/${storeSlug}/producto/${product.slug}` : '#';
 
   function showToast(message: string, tone: 'success' | 'error' | 'info') {
     setToast({ message, tone });
     window.setTimeout(() => setToast(null), 1800);
-  }
-
-  function handleAdd() {
-    if (!storeSlug) return;
-
-    if (!purchasable) {
-      showToast('Este producto no tiene stock.', 'error');
-      return;
-    }
-
-    addToCart(storeSlug, {
-      id: product.id,
-      name: product.name,
-      price: Number(product.price),
-      image_url: product.image_url ?? null,
-      is_active: product.is_active ?? true,
-      track_stock: product.track_stock ?? false,
-      stock_quantity: product.stock_quantity ?? 0,
-      allow_backorder: product.allow_backorder ?? false,
-    });
-
-    setAdded(true);
-    showToast('Producto agregado al carrito.', 'success');
-    window.setTimeout(() => setAdded(false), 1200);
   }
 
   const stockBadgeClass =
@@ -117,11 +92,11 @@ export default function ProductCard({
             ${Number(product.price).toLocaleString('es-AR')}
           </p>
 
-          {product.description && (
+          {product.description ? (
             <p className="line-clamp-3 text-sm leading-5 text-gray-600">
               {product.description}
             </p>
-          )}
+          ) : null}
 
           <div className="flex gap-3">
             <Link
@@ -131,25 +106,46 @@ export default function ProductCard({
               Ver detalle
             </Link>
 
-            <button
-              type="button"
-              onClick={handleAdd}
-              disabled={buttonDisabled}
-              className={`flex-1 rounded-2xl px-4 py-3 text-sm font-semibold transition ${
-                added
-                  ? 'bg-green-600 text-white'
-                  : buttonDisabled
-                    ? 'cursor-not-allowed bg-gray-200 text-gray-500'
-                    : 'bg-black text-white hover:opacity-90'
-              }`}
-            >
-              {added ? 'Agregado ✓' : purchasable ? 'Agregar' : 'Sin stock'}
-            </button>
+            {hasStoreSlug ? (
+              <div className="flex-1">
+                <AddToCartButton
+                  storeSlug={storeSlug}
+                  product={{
+                    id: product.id,
+                    name: product.name,
+                    price: Number(product.price),
+                    image_url: product.image_url ?? null,
+                    quantity: 1,
+                    is_active: product.is_active ?? true,
+                    track_stock: product.track_stock ?? false,
+                    stock_quantity: product.stock_quantity ?? 0,
+                    allow_backorder: product.allow_backorder ?? false,
+                  }}
+                />
+              </div>
+            ) : (
+              <button
+                type="button"
+                disabled
+                onClick={() =>
+                  showToast('No se pudo identificar la tienda.', 'error')
+                }
+                className="flex-1 cursor-not-allowed rounded-2xl bg-gray-200 px-4 py-3 text-sm font-semibold text-gray-500"
+              >
+                Agregar
+              </button>
+            )}
           </div>
+
+          {!purchasable ? (
+            <p className="text-xs text-red-600">
+              Este producto no tiene stock en este momento.
+            </p>
+          ) : null}
         </div>
       </article>
 
-      {toast && <StoreToast message={toast.message} tone={toast.tone} />}
+      {toast ? <StoreToast message={toast.message} tone={toast.tone} /> : null}
     </>
   );
 }

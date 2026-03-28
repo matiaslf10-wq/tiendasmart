@@ -6,6 +6,15 @@ export type GAItem = {
   item_category?: string;
 };
 
+export type GAEventName =
+  | 'view_item'
+  | 'add_to_cart'
+  | 'view_cart'
+  | 'begin_checkout'
+  | 'purchase'
+  | 'send_to_whatsapp'
+  | 'contact_whatsapp';
+
 declare global {
   interface Window {
     dataLayer: unknown[];
@@ -18,7 +27,7 @@ function canTrack() {
 }
 
 export function trackEvent(
-  eventName: string,
+  eventName: GAEventName,
   params?: Record<string, unknown>
 ) {
   if (!canTrack()) return;
@@ -145,7 +154,7 @@ export function trackSendToWhatsApp(params: {
 export function trackContactWhatsApp(params?: {
   productId?: string;
   productName?: string;
-  source?: string;
+  source?: 'product' | 'store';
   store_slug?: string;
   item?: GAItem;
 }) {

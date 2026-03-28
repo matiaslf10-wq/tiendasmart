@@ -47,6 +47,12 @@ type Insight = {
   tone: 'neutral' | 'warning' | 'success';
 };
 
+type AnalyticsEventRow = {
+  event_name: string;
+  created_at: string;
+  session_id: string | null;
+};
+
 function formatPercent(value: number) {
   return `${value.toFixed(1)}%`;
 }
@@ -54,6 +60,40 @@ function formatPercent(value: number) {
 function formatDelta(value: number | null) {
   if (value === null) return 'nuevo';
   return `${value > 0 ? '+' : ''}${value.toFixed(1)}%`;
+}
+
+function getRangeStartDate(range: RangeValue): string | null {
+  const now = new Date();
+
+  if (range === 'all') return null;
+
+  if (range === 'today') {
+    const start = new Date(now);
+    start.setHours(0, 0, 0, 0);
+    return start.toISOString();
+  }
+
+  if (range === '7d') {
+    const start = new Date(now);
+    start.setDate(start.getDate() - 6);
+    start.setHours(0, 0, 0, 0);
+    return start.toISOString();
+  }
+
+  if (range === '30d') {
+    const start = new Date(now);
+    start.setDate(start.getDate() - 29);
+    start.setHours(0, 0, 0, 0);
+    return start.toISOString();
+  }
+
+  if (range === 'month') {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    start.setHours(0, 0, 0, 0);
+    return start.toISOString();
+  }
+
+  return null;
 }
 
 function buildInsights(params: {
@@ -415,18 +455,31 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
   let ga4DailySeries: Awaited<ReturnType<typeof getGa4DailySeries>> = [];
   let ga4Error: string | null = null;
 
+  const rangeStart = getRangeStartDate(range);
+
+  const ordersQuery = supabase.from('orders').select('*').eq('store_id', store.id);
+
+  const itemsQuery = supabase
+    .from('order_items')
+    .select(
+      'product_id, product_name, quantity, line_total, orders!inner(created_at, store_id)'
+    )
+    .eq('orders.store_id', store.id);
+
+  let eventsQuery = supabase
+    .from('analytics_events')
+    .select('event_name, created_at, session_id')
+    .eq('store_id', store.id);
+
+  if (rangeStart) {
+    eventsQuery = eventsQuery.gte('created_at', rangeStart);
+  }
+
   const [
     { data: ordersData, error: ordersError },
     { data: itemsData, error: itemsError },
-  ] = await Promise.all([
-    supabase.from('orders').select('*').eq('store_id', store.id),
-    supabase
-      .from('order_items')
-      .select(
-        'product_id, product_name, quantity, line_total, orders!inner(created_at, store_id)'
-      )
-      .eq('orders.store_id', store.id),
-  ]);
+    { data: analyticsEventsData, error: analyticsEventsError },
+  ] = await Promise.all([ordersQuery, itemsQuery, eventsQuery]);
 
   if (ga4PropertyId && hasGa4Credentials) {
     try {
@@ -457,6 +510,12 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
     throw new Error(`Error cargando items de pedidos: ${itemsError.message}`);
   }
 
+  if (analyticsEventsError) {
+    throw new Error(
+      `Error cargando analytics events: ${analyticsEventsError.message}`
+    );
+  }
+
   const allOrders = (ordersData ?? []) as Order[];
 
   const allOrderItems = ((itemsData ?? []) as Array<{
@@ -472,6 +531,21 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
     line_total: item.line_total,
     orders: item.orders?.[0] ?? null,
   })) as OrderItemRow[];
+
+  const analyticsEvents = (analyticsEventsData ?? []) as AnalyticsEventRow[];
+
+  const customEventCounts = analyticsEvents.reduce<
+    Record<string, number>
+  >((acc, event) => {
+    acc[event.event_name] = (acc[event.event_name] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  const analyticsSessions = new Set(
+    analyticsEvents
+      .map((event) => event.session_id)
+      .filter((value): value is string => Boolean(value))
+  ).size;
 
   const conversion = ga4Data
     ? {
@@ -547,10 +621,10 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
   }
 
   const funnelData = {
-    views: ga4Data?.viewItemEvents ?? 0,
-    addToCart: ga4Data?.addToCartEvents ?? 0,
-    checkout: ga4Data?.beginCheckoutEvents ?? 0,
-    whatsapp: ga4Data?.sendToWhatsAppEvents ?? 0,
+    views: customEventCounts.view_item ?? 0,
+    addToCart: customEventCounts.add_to_cart ?? 0,
+    checkout: customEventCounts.begin_checkout ?? 0,
+    whatsapp: customEventCounts.send_to_whatsapp ?? 0,
     orders: rangeFilteredOrders.length,
   };
 
@@ -692,6 +766,29 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
           </div>
         </section>
 
+        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <MetricCard
+            label="Sesiones propias"
+            value={analyticsSessions}
+            helpText="Sesiones registradas en analytics_events"
+          />
+          <MetricCard
+            label="Views propias"
+            value={funnelData.views}
+            helpText="Eventos view_item guardados por TiendaSmart"
+          />
+          <MetricCard
+            label="Add to cart propios"
+            value={funnelData.addToCart}
+            helpText="Eventos add_to_cart guardados por TiendaSmart"
+          />
+          <MetricCard
+            label="WhatsApp propios"
+            value={funnelData.whatsapp}
+            helpText="Eventos send_to_whatsapp guardados por TiendaSmart"
+          />
+        </section>
+
         {ga4Data ? (
           <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <MetricCard
@@ -740,7 +837,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
         {ga4Data && conversion ? (
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h3 className="mb-4 text-lg font-semibold text-slate-900">
-              Funnel de conversión
+              Funnel de conversión GA4
             </h3>
 
             <div className="grid gap-4 text-center sm:grid-cols-2 xl:grid-cols-5">

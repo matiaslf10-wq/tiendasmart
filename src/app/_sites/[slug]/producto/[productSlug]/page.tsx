@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { createClient } from '@/lib/supabase/server';
@@ -44,7 +45,15 @@ type RelatedProduct = {
   allow_backorder: boolean;
 };
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+type Category = {
+  id: string;
+  name: string;
+  slug: string;
+};
+
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
   const { slug, productSlug } = await params;
   const supabase = await createClient();
 
@@ -79,7 +88,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   return {
     title: `${product.name} | ${store.name}`,
-    description: product.description || `Comprá ${product.name} en ${store.name}.`,
+    description:
+      product.description || `Comprá ${product.name} en ${store.name}.`,
   };
 }
 
@@ -89,14 +99,16 @@ export default async function PublicProductPage({ params }: PageProps) {
 
   const { data: store, error: storeError } = await supabase
     .from('stores')
-    .select(`
+    .select(
+      `
       id,
       name,
       slug,
       whatsapp_number,
       logo_url,
       is_active
-    `)
+    `
+    )
     .eq('slug', slug)
     .eq('is_active', true)
     .maybeSingle();
@@ -107,7 +119,8 @@ export default async function PublicProductPage({ params }: PageProps) {
 
   const { data: product, error: productError } = await supabase
     .from('products')
-    .select(`
+    .select(
+      `
       id,
       name,
       slug,
@@ -119,7 +132,8 @@ export default async function PublicProductPage({ params }: PageProps) {
       track_stock,
       stock_quantity,
       allow_backorder
-    `)
+    `
+    )
     .eq('slug', productSlug)
     .eq('store_id', store.id)
     .eq('is_active', true)
@@ -148,7 +162,8 @@ export default async function PublicProductPage({ params }: PageProps) {
 
       supabase
         .from('products')
-        .select(`
+        .select(
+          `
           id,
           name,
           slug,
@@ -157,7 +172,8 @@ export default async function PublicProductPage({ params }: PageProps) {
           track_stock,
           stock_quantity,
           allow_backorder
-        `)
+        `
+        )
         .eq('store_id', store.id)
         .eq('is_active', true)
         .neq('id', product.id)
@@ -169,6 +185,7 @@ export default async function PublicProductPage({ params }: PageProps) {
   const typedImages: ProductImage[] = (images || []) as ProductImage[];
   const typedRelatedProducts: RelatedProduct[] =
     (relatedProducts || []) as RelatedProduct[];
+  const typedCategory: Category | null = (category as Category | null) ?? null;
 
   const orderedImages = [...typedImages].sort((a, b) => {
     if (a.is_cover && !b.is_cover) return -1;
@@ -186,26 +203,26 @@ export default async function PublicProductPage({ params }: PageProps) {
   return (
     <>
       <ViewItemTracker
-  storeSlug={store.slug}
-  item={{
-    id: typedProduct.id,
-    item_id: typedProduct.id,
-    item_name: typedProduct.name,
-    price: Number(typedProduct.price),
-    item_category: category?.name ?? undefined,
-  }}
-/>
+        storeSlug={store.slug}
+        item={{
+          id: typedProduct.id,
+          item_id: typedProduct.id,
+          item_name: typedProduct.name,
+          price: Number(typedProduct.price),
+          item_category: typedCategory?.name ?? undefined,
+        }}
+      />
 
       <main className="min-h-screen bg-white">
         <section className="border-b">
           <div className="mx-auto flex max-w-6xl items-center gap-3 px-6 py-4 text-sm text-gray-600">
-            <a href={`/${store.slug}`} className="hover:underline">
+            <Link href={`/${store.slug}`} className="hover:underline">
               {store.name}
-            </a>
+            </Link>
             <span>/</span>
-            {category ? (
+            {typedCategory ? (
               <>
-                <span>{category.name}</span>
+                <span>{typedCategory.name}</span>
                 <span>/</span>
               </>
             ) : null}
@@ -225,12 +242,12 @@ export default async function PublicProductPage({ params }: PageProps) {
 
             <div className="space-y-6">
               <div className="space-y-3">
-                <a
+                <Link
                   href={`/${store.slug}`}
                   className="inline-flex items-center rounded-full border px-3 py-1 text-sm text-gray-700 hover:bg-gray-50"
                 >
                   ← Volver a la tienda
-                </a>
+                </Link>
 
                 <div className="flex items-center gap-3">
                   {store.logo_url ? (
@@ -247,9 +264,9 @@ export default async function PublicProductPage({ params }: PageProps) {
                   </div>
                 </div>
 
-                {category ? (
+                {typedCategory ? (
                   <p className="text-sm text-gray-500">
-                    Categoría: {category.name}
+                    Categoría: {typedCategory.name}
                   </p>
                 ) : null}
 
@@ -297,24 +314,24 @@ export default async function PublicProductPage({ params }: PageProps) {
 
                 <div className="flex flex-wrap gap-3">
                   {store.whatsapp_number ? (
-  <ProductWhatsAppButton
-    href={`https://wa.me/${store.whatsapp_number}?text=${whatsappText}`}
-    storeSlug={store.slug}
-    product={{
-      id: typedProduct.id,
-      name: typedProduct.name,
-      price: Number(typedProduct.price),
-      categoryName: category?.name ?? null,
-    }}
-  />
-) : null}
+                    <ProductWhatsAppButton
+                      href={`https://wa.me/${store.whatsapp_number}?text=${whatsappText}`}
+                      storeSlug={store.slug}
+                      product={{
+                        id: typedProduct.id,
+                        name: typedProduct.name,
+                        price: Number(typedProduct.price),
+                        categoryName: typedCategory?.name ?? null,
+                      }}
+                    />
+                  ) : null}
 
-                  <a
+                  <Link
                     href={`/${store.slug}`}
                     className="rounded-xl border px-5 py-3"
                   >
                     Seguir comprando
-                  </a>
+                  </Link>
                 </div>
 
                 <p className="text-sm text-gray-500">
@@ -331,7 +348,7 @@ export default async function PublicProductPage({ params }: PageProps) {
           </div>
         </section>
 
-        {typedRelatedProducts.length > 0 && (
+        {typedRelatedProducts.length > 0 ? (
           <section className="mx-auto max-w-6xl px-6 pb-12">
             <div className="space-y-5 border-t pt-8">
               <h2 className="text-2xl font-semibold">
@@ -340,7 +357,7 @@ export default async function PublicProductPage({ params }: PageProps) {
 
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
                 {typedRelatedProducts.map((item) => (
-                  <a
+                  <Link
                     key={item.id}
                     href={`/${store.slug}/producto/${item.slug}`}
                     className="rounded-2xl border p-4 transition hover:shadow-sm"
@@ -361,7 +378,9 @@ export default async function PublicProductPage({ params }: PageProps) {
                       </div>
 
                       <div>
-                        <h3 className="font-medium text-gray-900">{item.name}</h3>
+                        <h3 className="font-medium text-gray-900">
+                          {item.name}
+                        </h3>
                         <p className="mt-1 text-sm font-semibold text-gray-700">
                           ${Number(item.price).toLocaleString('es-AR')}
                         </p>
@@ -370,20 +389,20 @@ export default async function PublicProductPage({ params }: PageProps) {
                         </p>
                       </div>
                     </div>
-                  </a>
+                  </Link>
                 ))}
               </div>
             </div>
           </section>
-        )}
+        ) : null}
 
-        {store.whatsapp_number && (
+        {store.whatsapp_number ? (
           <WhatsAppCart
             storeSlug={store.slug}
             storeName={store.name}
             whatsappNumber={store.whatsapp_number}
           />
-        )}
+        ) : null}
       </main>
     </>
   );

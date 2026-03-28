@@ -19,10 +19,16 @@ export default function ViewItemTracker({
 
   useEffect(() => {
     if (trackedRef.current) return;
+
+    // seguridad extra: evitar disparar sin datos mínimos
+    if (!item?.item_id || !item?.item_name) return;
+
     trackedRef.current = true;
 
+    // GA4
     trackViewItem(item);
 
+    // tracking propio
     void trackStoreEvent({
       storeSlug,
       eventName: 'view_item',
@@ -31,9 +37,16 @@ export default function ViewItemTracker({
         item_id: item.item_id,
         item_name: item.item_name,
         price: item.price ?? 0,
+        item_category: item.item_category ?? null,
       },
     });
-  }, [storeSlug, item]);
+  }, [
+    storeSlug,
+    item.item_id,
+    item.item_name,
+    item.price,
+    item.item_category,
+  ]);
 
   return null;
 }

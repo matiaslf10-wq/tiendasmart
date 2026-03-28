@@ -186,13 +186,15 @@ export default async function PublicProductPage({ params }: PageProps) {
   return (
     <>
       <ViewItemTracker
-        item={{
-          id: typedProduct.id,
-          name: typedProduct.name,
-          price: Number(typedProduct.price),
-          categoryName: category?.name ?? null,
-        }}
-      />
+  storeSlug={store.slug}
+  item={{
+    id: typedProduct.id,
+    item_id: typedProduct.id,
+    item_name: typedProduct.name,
+    price: Number(typedProduct.price),
+    item_category: category?.name ?? undefined,
+  }}
+/>
 
       <main className="min-h-screen bg-white">
         <section className="border-b">

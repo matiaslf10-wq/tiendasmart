@@ -21,7 +21,6 @@ import {
   type OrdersPeriodComparison,
   type RangeValue,
 } from '@/lib/admin/orders';
-import { buildFunnelConversion } from '@/lib/admin/funnel';
 import {
   getTopProductsInsights,
   type TopProductInsightRow,
@@ -96,87 +95,98 @@ function getRangeStartDate(range: RangeValue): string | null {
   return null;
 }
 
-function buildInsights(params: {
-  ga4Data: Awaited<ReturnType<typeof getGa4Overview>>;
-  conversion: {
-    viewToCart: number;
-    cartToCheckout: number;
-    checkoutToWhatsapp: number;
-    whatsappToPurchase: number;
-  };
-}): Insight[] {
-  const { ga4Data, conversion } = params;
+function buildOwnFunnelInsights(params: {
+  views: number;
+  addToCart: number;
+  checkout: number;
+  whatsapp: number;
+  contactWhatsapp: number;
+  purchases: number;
+}) {
+  const { views, addToCart, checkout, whatsapp, contactWhatsapp, purchases } =
+    params;
+
+  const viewToCart = views > 0 ? (addToCart / views) * 100 : 0;
+  const cartToCheckout = addToCart > 0 ? (checkout / addToCart) * 100 : 0;
+  const checkoutToWhatsapp = checkout > 0 ? (whatsapp / checkout) * 100 : 0;
+  const contactToPurchase =
+    contactWhatsapp > 0 ? (purchases / contactWhatsapp) * 100 : 0;
+
   const insights: Insight[] = [];
 
-  if (ga4Data.viewItemEvents >= 20 && conversion.viewToCart < 8) {
+  if (views >= 20 && viewToCart < 8) {
     insights.push({
-      title: 'Mucho interés, poco agregado al carrito',
+      title: 'Mucha gente consulta pero no compra',
       description:
-        'Los productos reciben vistas, pero pocas personas los agregan al carrito. Conviene revisar precio, fotos, descripción y claridad del stock.',
+        'Hay visualizaciones de productos, pero pocas personas avanzan hacia el carrito. Conviene revisar precio, fotos, descripción y claridad de la propuesta.',
       tone: 'warning',
     });
   }
 
-  if (ga4Data.addToCartEvents >= 10 && conversion.cartToCheckout < 40) {
+  if (addToCart >= 10 && cartToCheckout < 40) {
     insights.push({
-      title: 'Caída entre carrito y checkout',
+      title: 'Se pierde entre carrito e inicio de compra',
       description:
-        'La gente agrega productos, pero una parte importante no inicia checkout. Puede ayudar simplificar el proceso, mostrar costos antes y reforzar confianza.',
+        'Los usuarios agregan productos, pero muchos no llegan al checkout. Puede haber fricción en el carrito o poca claridad en el siguiente paso.',
       tone: 'warning',
     });
   }
 
-  if (
-    ga4Data.beginCheckoutEvents >= 10 &&
-    conversion.checkoutToWhatsapp < 60
-  ) {
+  if (checkout >= 10 && checkoutToWhatsapp < 60) {
     insights.push({
-      title: 'Checkout con baja derivación a WhatsApp',
+      title: 'Se pierde entre carrito y WhatsApp',
       description:
-        'Hay intención de compra, pero no todos llegan a WhatsApp. Revisá si el botón está visible, si el mensaje se entiende y si el flujo es claro.',
+        'Hay intención de compra, pero no todos terminan pasando al canal de contacto. Revisá visibilidad del botón, mensaje y facilidad del flujo.',
       tone: 'warning',
     });
   }
 
-  if (
-    ga4Data.sendToWhatsAppEvents >= 5 &&
-    conversion.whatsappToPurchase < 35
-  ) {
+  if (contactWhatsapp > whatsapp) {
     insights.push({
-      title: 'WhatsApp no está cerrando suficientes ventas',
+      title: 'Prefieren contacto directo por WhatsApp',
       description:
-        'Hay conversaciones iniciadas, pero pocas terminan en compra. Puede mejorar el tiempo de respuesta, el guion de atención y la claridad del cierre.',
+        'Se registran más contactos directos que derivaciones desde el carrito. La tienda parece tener un comportamiento más conversacional que transaccional.',
+      tone: 'neutral',
+    });
+  }
+
+  if (contactWhatsapp >= 5 && contactToPurchase < 35) {
+    insights.push({
+      title: 'Mucha consulta pero pocas ventas',
+      description:
+        'Llegan conversaciones por WhatsApp, pero pocas terminan cerrando. Puede mejorar el tiempo de respuesta, el seguimiento y la estrategia comercial.',
       tone: 'warning',
     });
   }
 
-  if (
-    ga4Data.viewItemEvents > 0 &&
-    conversion.viewToCart >= 12 &&
-    conversion.cartToCheckout >= 50
-  ) {
+  if (contactWhatsapp >= 5 && contactToPurchase >= 45) {
     insights.push({
-      title: 'Buen rendimiento del embudo superior',
+      title: 'Buen cierre comercial',
       description:
-        'La tienda está convirtiendo bien desde vistas hacia carrito y checkout. Hay una base sólida para escalar tráfico.',
+        'Una buena parte de los contactos por WhatsApp termina en venta. El canal comercial está funcionando bien.',
       tone: 'success',
     });
   }
 
-  if (ga4Data.purchaseEvents > 0 && conversion.whatsappToPurchase >= 45) {
+  if (
+    views > 0 &&
+    viewToCart >= 12 &&
+    cartToCheckout >= 50 &&
+    checkoutToWhatsapp >= 60
+  ) {
     insights.push({
-      title: 'Buen cierre comercial por WhatsApp',
+      title: 'Buen rendimiento del funnel',
       description:
-        'Las conversaciones que llegan a WhatsApp están cerrando bien. Vale la pena sostener ese canal y medir tiempos de respuesta.',
+        'El recorrido desde vistas hacia carrito, checkout y WhatsApp muestra una tracción saludable.',
       tone: 'success',
     });
   }
 
   if (insights.length === 0) {
     insights.push({
-      title: 'Todavía no hay suficiente volumen para detectar patrones claros',
+      title: 'Todavía no hay suficiente volumen para conclusiones fuertes',
       description:
-        'Seguimos mostrando métricas y funnel, pero conviene acumular más tráfico o más eventos para sacar conclusiones más firmes.',
+        'Ya se están registrando eventos propios, pero conviene acumular más tráfico o más pedidos para detectar patrones más claros.',
       tone: 'neutral',
     });
   }
@@ -186,15 +196,22 @@ function buildInsights(params: {
 
 function buildExecutiveSummary(params: {
   comparison: OrdersPeriodComparison | null;
-  ga4Data: Awaited<ReturnType<typeof getGa4Overview>> | null;
-  conversion: {
+  ownConversion: {
     viewToCart: number;
     cartToCheckout: number;
     checkoutToWhatsapp: number;
-    whatsappToPurchase: number;
+    contactToPurchase: number;
+  } | null;
+  ownFunnelData: {
+    views: number;
+    addToCart: number;
+    checkout: number;
+    whatsapp: number;
+    contactWhatsapp: number;
+    orders: number;
   } | null;
 }): ExecutiveSummaryItem[] {
-  const { comparison, ga4Data, conversion } = params;
+  const { comparison, ownConversion, ownFunnelData } = params;
   const summary: ExecutiveSummaryItem[] = [];
 
   if (comparison) {
@@ -270,37 +287,37 @@ function buildExecutiveSummary(params: {
     }
   }
 
-  if (ga4Data && conversion) {
-    if (ga4Data.viewItemEvents > 0 && conversion.viewToCart < 8) {
+  if (ownFunnelData && ownConversion) {
+    if (ownFunnelData.views > 0 && ownConversion.viewToCart < 8) {
       summary.push({
         title: 'Hay interés en productos, pero cuesta llevarlo al carrito',
         description:
-          'La tienda está generando vistas, aunque pocas llegan a agregado al carrito. El foco debería estar en ficha de producto, precio, fotos y claridad de propuesta.',
+          'Las vistas existen, pero pocas llegan a agregado al carrito. El foco debería estar en ficha de producto, precio, fotos y propuesta.',
         tone: 'warning',
       });
     }
 
     if (
-      ga4Data.addToCartEvents > 0 &&
-      conversion.cartToCheckout >= 50 &&
-      conversion.checkoutToWhatsapp >= 60
+      ownFunnelData.addToCart > 0 &&
+      ownConversion.cartToCheckout >= 50 &&
+      ownConversion.checkoutToWhatsapp >= 60
     ) {
       summary.push({
         title: 'El proceso de compra muestra buena tracción',
         description:
-          'Una proporción sana de usuarios avanza desde carrito a checkout y luego a WhatsApp. El flujo comercial está bien encaminado.',
+          'Una proporción saludable de usuarios avanza desde carrito a checkout y luego a WhatsApp.',
         tone: 'success',
       });
     }
 
     if (
-      ga4Data.sendToWhatsAppEvents > 0 &&
-      conversion.whatsappToPurchase < 35
+      ownFunnelData.contactWhatsapp > 0 &&
+      ownConversion.contactToPurchase < 35
     ) {
       summary.push({
         title: 'La oportunidad está en el cierre por WhatsApp',
         description:
-          'El embudo logra derivar conversaciones, pero muchas no terminan en compra. La principal mejora parece estar en respuesta, seguimiento y cierre comercial.',
+          'La tienda genera conversaciones, pero muchas no terminan en compra. La mejora principal parece estar en respuesta, seguimiento y cierre comercial.',
         tone: 'warning',
       });
     }
@@ -534,47 +551,19 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
 
   const analyticsEvents = (analyticsEventsData ?? []) as AnalyticsEventRow[];
 
-  const customEventCounts = analyticsEvents.reduce<
-    Record<string, number>
-  >((acc, event) => {
-    acc[event.event_name] = (acc[event.event_name] ?? 0) + 1;
-    return acc;
-  }, {});
+  const customEventCounts = analyticsEvents.reduce<Record<string, number>>(
+    (acc, event) => {
+      acc[event.event_name] = (acc[event.event_name] ?? 0) + 1;
+      return acc;
+    },
+    {}
+  );
 
   const analyticsSessions = new Set(
     analyticsEvents
       .map((event) => event.session_id)
       .filter((value): value is string => Boolean(value))
   ).size;
-
-  const conversion = ga4Data
-    ? {
-        viewToCart:
-          ga4Data.viewItemEvents > 0
-            ? (ga4Data.addToCartEvents / ga4Data.viewItemEvents) * 100
-            : 0,
-        cartToCheckout:
-          ga4Data.addToCartEvents > 0
-            ? (ga4Data.beginCheckoutEvents / ga4Data.addToCartEvents) * 100
-            : 0,
-        checkoutToWhatsapp:
-          ga4Data.beginCheckoutEvents > 0
-            ? (ga4Data.sendToWhatsAppEvents / ga4Data.beginCheckoutEvents) * 100
-            : 0,
-        whatsappToPurchase:
-          ga4Data.sendToWhatsAppEvents > 0
-            ? (ga4Data.purchaseEvents / ga4Data.sendToWhatsAppEvents) * 100
-            : 0,
-      }
-    : null;
-
-  const insights =
-    ga4Data && conversion
-      ? buildInsights({
-          ga4Data,
-          conversion,
-        })
-      : [];
 
   const { rangeFilteredOrders, pendingOrdersCount } = filterOrders({
     orders: allOrders,
@@ -592,10 +581,47 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
 
   const comparison = getOrdersComparison(allOrders, allOrderItems, range);
 
+  const funnelData = {
+    views: customEventCounts.view_item ?? 0,
+    addToCart: customEventCounts.add_to_cart ?? 0,
+    checkout: customEventCounts.begin_checkout ?? 0,
+    whatsapp: customEventCounts.send_to_whatsapp ?? 0,
+    contactWhatsapp: customEventCounts.contact_whatsapp ?? 0,
+    orders: rangeFilteredOrders.length,
+  };
+
+  const ownConversion = {
+    viewToCart:
+      funnelData.views > 0
+        ? (funnelData.addToCart / funnelData.views) * 100
+        : 0,
+    cartToCheckout:
+      funnelData.addToCart > 0
+        ? (funnelData.checkout / funnelData.addToCart) * 100
+        : 0,
+    checkoutToWhatsapp:
+      funnelData.checkout > 0
+        ? (funnelData.whatsapp / funnelData.checkout) * 100
+        : 0,
+    contactToPurchase:
+      funnelData.contactWhatsapp > 0
+        ? (funnelData.orders / funnelData.contactWhatsapp) * 100
+        : 0,
+  };
+
+  const insights = buildOwnFunnelInsights({
+    views: funnelData.views,
+    addToCart: funnelData.addToCart,
+    checkout: funnelData.checkout,
+    whatsapp: funnelData.whatsapp,
+    contactWhatsapp: funnelData.contactWhatsapp,
+    purchases: funnelData.orders,
+  });
+
   const executiveSummary = buildExecutiveSummary({
     comparison,
-    ga4Data,
-    conversion,
+    ownConversion,
+    ownFunnelData: funnelData,
   });
 
   let topProductsInsights: TopProductInsightRow[] = [];
@@ -620,15 +646,26 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
     }
   }
 
-  const funnelData = {
-    views: customEventCounts.view_item ?? 0,
-    addToCart: customEventCounts.add_to_cart ?? 0,
-    checkout: customEventCounts.begin_checkout ?? 0,
-    whatsapp: customEventCounts.send_to_whatsapp ?? 0,
-    orders: rangeFilteredOrders.length,
-  };
-
-  const funnelConversion = buildFunnelConversion(funnelData);
+  const ga4Conversion = ga4Data
+    ? {
+        viewToCart:
+          ga4Data.viewItemEvents > 0
+            ? (ga4Data.addToCartEvents / ga4Data.viewItemEvents) * 100
+            : 0,
+        cartToCheckout:
+          ga4Data.addToCartEvents > 0
+            ? (ga4Data.beginCheckoutEvents / ga4Data.addToCartEvents) * 100
+            : 0,
+        checkoutToWhatsapp:
+          ga4Data.beginCheckoutEvents > 0
+            ? (ga4Data.sendToWhatsAppEvents / ga4Data.beginCheckoutEvents) * 100
+            : 0,
+        whatsappToPurchase:
+          ga4Data.sendToWhatsAppEvents > 0
+            ? (ga4Data.purchaseEvents / ga4Data.sendToWhatsAppEvents) * 100
+            : 0,
+      }
+    : null;
 
   return (
     <AdminShell
@@ -682,7 +719,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
             </div>
 
             <div className="grid gap-4">
-              <div className="rounded-2xl bg-slate-50 p-3 space-y-2">
+              <div className="space-y-2 rounded-2xl bg-slate-50 p-3">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
                     API key
@@ -695,7 +732,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
                 </code>
               </div>
 
-              <div className="rounded-2xl bg-slate-50 p-3 space-y-2">
+              <div className="space-y-2 rounded-2xl bg-slate-50 p-3">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
                     URL CSV (Excel / Power Query)
@@ -708,7 +745,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
                 </code>
               </div>
 
-              <div className="rounded-2xl bg-slate-50 p-3 space-y-2">
+              <div className="space-y-2 rounded-2xl bg-slate-50 p-3">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
                     URL JSON (Power BI)
@@ -766,7 +803,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
           </div>
         </section>
 
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <MetricCard
             label="Sesiones propias"
             value={analyticsSessions}
@@ -787,10 +824,15 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
             value={funnelData.whatsapp}
             helpText="Eventos send_to_whatsapp guardados por TiendaSmart"
           />
+          <MetricCard
+            label="Contactos WhatsApp"
+            value={funnelData.contactWhatsapp}
+            helpText="Eventos contact_whatsapp guardados por TiendaSmart"
+          />
         </section>
 
         {ga4Data ? (
-          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <MetricCard
               label="Usuarios activos"
               value={ga4Data.activeUsers}
@@ -831,10 +873,15 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
               value={ga4Data.sendToWhatsAppEvents}
               helpText="Derivaciones al canal de venta"
             />
+            <MetricCard
+              label="Contact WhatsApp"
+              value={ga4Data.contactWhatsAppEvents}
+              helpText="Consultas directas detectadas por GA4"
+            />
           </section>
         ) : null}
 
-        {ga4Data && conversion ? (
+        {ga4Data && ga4Conversion ? (
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h3 className="mb-4 text-lg font-semibold text-slate-900">
               Funnel de conversión GA4
@@ -854,7 +901,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
                   {ga4Data.addToCartEvents}
                 </p>
                 <p className="mt-1 text-xs text-slate-400">
-                  {formatPercent(conversion.viewToCart)}
+                  {formatPercent(ga4Conversion.viewToCart)}
                 </p>
               </div>
 
@@ -864,7 +911,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
                   {ga4Data.beginCheckoutEvents}
                 </p>
                 <p className="mt-1 text-xs text-slate-400">
-                  {formatPercent(conversion.cartToCheckout)}
+                  {formatPercent(ga4Conversion.cartToCheckout)}
                 </p>
               </div>
 
@@ -874,7 +921,7 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
                   {ga4Data.sendToWhatsAppEvents}
                 </p>
                 <p className="mt-1 text-xs text-slate-400">
-                  {formatPercent(conversion.checkoutToWhatsapp)}
+                  {formatPercent(ga4Conversion.checkoutToWhatsapp)}
                 </p>
               </div>
 
@@ -884,29 +931,36 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
                   {ga4Data.purchaseEvents}
                 </p>
                 <p className="mt-1 text-xs text-slate-400">
-                  {formatPercent(conversion.whatsappToPurchase)}
+                  {formatPercent(ga4Conversion.whatsappToPurchase)}
                 </p>
               </div>
             </div>
           </section>
         ) : null}
 
-        {ga4Data && conversion ? (
-          <Ga4Charts ga4Data={ga4Data} conversion={conversion} />
+        {ga4Data && ga4Conversion ? (
+          <Ga4Charts ga4Data={ga4Data} conversion={ga4Conversion} />
         ) : null}
 
         {ga4DailySeries.length > 0 ? (
           <Ga4DailySeries points={ga4DailySeries} />
         ) : null}
 
-        <FunnelSection data={funnelData} conversion={funnelConversion} />
+        <FunnelSection
+  viewItemEvents={funnelData.views}
+  addToCartEvents={funnelData.addToCart}
+  beginCheckoutEvents={funnelData.checkout}
+  sendToWhatsAppEvents={funnelData.whatsapp}
+  contactWhatsAppEvents={funnelData.contactWhatsapp}
+  purchaseEvents={funnelData.orders}
+/>
 
         <ExecutiveSummary items={executiveSummary} />
 
         {insights.length > 0 ? (
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h3 className="mb-4 text-lg font-semibold text-slate-900">
-              Insights automáticos
+              Insights automáticos del funnel propio
             </h3>
 
             <div className="grid gap-4 xl:grid-cols-2">

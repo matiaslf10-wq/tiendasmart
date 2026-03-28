@@ -52,6 +52,7 @@ export default function AddToCartButton({
       type="button"
       onClick={handleAdd}
       disabled={disabled}
+      aria-disabled={disabled}
       className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
     >
       {disabled ? 'Sin stock' : 'Agregar'}

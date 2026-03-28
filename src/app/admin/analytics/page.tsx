@@ -33,6 +33,8 @@ import {
   ensureAnalyticsApiKey,
   regenerateAnalyticsApiKeyAction,
 } from './actions';
+import ProductInsights from '@/components/admin/ProductInsights';
+import { buildProductInsights } from '@/lib/admin/product-insights';
 
 type PageProps = {
   searchParams: Promise<{
@@ -50,6 +52,14 @@ type AnalyticsEventRow = {
   event_name: string;
   created_at: string;
   session_id: string | null;
+  product_id: string | null;
+  metadata:
+    | {
+        item_id?: string | null;
+        item_name?: string | null;
+        product_name?: string | null;
+      }
+    | null;
 };
 
 function formatPercent(value: number) {
@@ -484,9 +494,9 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
     .eq('orders.store_id', store.id);
 
   let eventsQuery = supabase
-    .from('analytics_events')
-    .select('event_name, created_at, session_id')
-    .eq('store_id', store.id);
+  .from('analytics_events')
+  .select('event_name, created_at, session_id, product_id, metadata')
+  .eq('store_id', store.id);
 
   if (rangeStart) {
     eventsQuery = eventsQuery.gte('created_at', rangeStart);
@@ -551,6 +561,45 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
 
   const analyticsEvents = (analyticsEventsData ?? []) as AnalyticsEventRow[];
 
+  const productEventMap = new Map<
+  string,
+  {
+    productId: string;
+    productName: string;
+    views: number;
+    addToCart: number;
+    contactWhatsapp: number;
+    purchases: number;
+  }
+>();
+
+for (const event of analyticsEvents) {
+  const productId = event.product_id ?? event.metadata?.item_id ?? null;
+  if (!productId) continue;
+
+  const productName =
+    event.metadata?.item_name ?? event.metadata?.product_name ?? 'Producto';
+
+  const current = productEventMap.get(productId) ?? {
+    productId,
+    productName,
+    views: 0,
+    addToCart: 0,
+    contactWhatsapp: 0,
+    purchases: 0,
+  };
+
+  if (!current.productName || current.productName === 'Producto') {
+    current.productName = productName;
+  }
+
+  if (event.event_name === 'view_item') current.views += 1;
+  if (event.event_name === 'add_to_cart') current.addToCart += 1;
+  if (event.event_name === 'contact_whatsapp') current.contactWhatsapp += 1;
+
+  productEventMap.set(productId, current);
+}
+
   const customEventCounts = analyticsEvents.reduce<Record<string, number>>(
     (acc, event) => {
       acc[event.event_name] = (acc[event.event_name] ?? 0) + 1;
@@ -578,6 +627,34 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
     allOrderItems,
     range
   );
+
+  for (const item of rangeFilteredOrderItems) {
+  const productId = item.product_id ?? null;
+  if (!productId) continue;
+
+  const productName = item.product_name ?? 'Producto';
+
+  const current = productEventMap.get(productId) ?? {
+    productId,
+    productName,
+    views: 0,
+    addToCart: 0,
+    contactWhatsapp: 0,
+    purchases: 0,
+  };
+
+  current.purchases += Number(item.quantity ?? 0) || 0;
+
+  if (!current.productName || current.productName === 'Producto') {
+    current.productName = productName;
+  }
+
+  productEventMap.set(productId, current);
+}
+
+const productInsights = buildProductInsights(
+  Array.from(productEventMap.values())
+);
 
   const comparison = getOrdersComparison(allOrders, allOrderItems, range);
 
@@ -956,6 +1033,8 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
 />
 
         <ExecutiveSummary items={executiveSummary} />
+
+        <ProductInsights insights={productInsights} />
 
         {insights.length > 0 ? (
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

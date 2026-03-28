@@ -1,11 +1,11 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import AdminShell from '@/components/admin/AdminShell';
+import CopyToClipboardButton from '@/components/admin/CopyToClipboardButton';
 import ExecutiveSummary, {
   type ExecutiveSummaryItem,
 } from '@/components/admin/ExecutiveSummary';
-import ExportOrdersButton from '@/components/admin/ExportOrdersButton';
-import ExportOrdersDetailedButton from '@/components/admin/ExportOrdersDetailedButton';
+import FunnelSection from '@/components/admin/FunnelSection';
 import Ga4Charts from '@/components/admin/Ga4Charts';
 import Ga4DailySeries from '@/components/admin/Ga4DailySeries';
 import Ga4TopProductsInsights from '@/components/admin/Ga4TopProductsInsights';
@@ -21,6 +21,7 @@ import {
   type OrdersPeriodComparison,
   type RangeValue,
 } from '@/lib/admin/orders';
+import { buildFunnelConversion } from '@/lib/admin/funnel';
 import {
   getTopProductsInsights,
   type TopProductInsightRow,
@@ -33,7 +34,6 @@ import {
   ensureAnalyticsApiKey,
   regenerateAnalyticsApiKeyAction,
 } from './actions';
-import CopyToClipboardButton from '@/components/admin/CopyToClipboardButton';
 
 type PageProps = {
   searchParams: Promise<{
@@ -401,6 +401,10 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
     ? `${appUrl}/api/public/analytics/orders-detailed-json?range=${range}&api_key=${analyticsApiKey}`
     : `/api/public/analytics/orders-detailed-json?range=${range}&api_key=${analyticsApiKey}`;
 
+  const excelExportUrl = `/api/admin/export/analytics?range=${range}`;
+  const powerBiOpenUrl = process.env.NEXT_PUBLIC_POWER_BI_OPEN_URL ?? '';
+  const powerBiEmbedUrl = process.env.NEXT_PUBLIC_POWER_BI_EMBED_URL ?? '';
+
   const supabase = await createClient();
 
   const ga4ServiceAccountJson = process.env.GA4_SERVICE_ACCOUNT_JSON;
@@ -542,6 +546,16 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
     }
   }
 
+  const funnelData = {
+    views: ga4Data?.viewItemEvents ?? 0,
+    addToCart: ga4Data?.addToCartEvents ?? 0,
+    checkout: ga4Data?.beginCheckoutEvents ?? 0,
+    whatsapp: ga4Data?.sendToWhatsAppEvents ?? 0,
+    orders: rangeFilteredOrders.length,
+  };
+
+  const funnelConversion = buildFunnelConversion(funnelData);
+
   return (
     <AdminShell
       title="Analytics"
@@ -554,109 +568,84 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
     >
       <div className="space-y-6">
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-  <div className="space-y-4">
-    <h2 className="text-lg font-semibold text-slate-900">
-      Conexión para Power BI y Excel
-    </h2>
-
-    <p className="text-sm text-slate-600">
-      Usá estas URLs para importar datos desde Power BI Desktop o desde Excel
-      con Power Query.
-    </p>
-
-    {/* API KEY */}
-    <div className="rounded-2xl bg-slate-50 p-3 space-y-2">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-          API key
-        </p>
-
-        <CopyToClipboardButton value={analyticsApiKey} />
-      </div>
-
-      <code className="block break-all text-sm text-slate-900">
-        {analyticsApiKey}
-      </code>
-    </div>
-
-    {/* CSV */}
-    <div className="rounded-2xl bg-slate-50 p-3 space-y-2">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-          URL CSV (Excel)
-        </p>
-
-        <CopyToClipboardButton value={publicAnalyticsUrl} />
-      </div>
-
-      <code className="block break-all text-sm text-slate-900">
-        {publicAnalyticsUrl}
-      </code>
-    </div>
-
-    {/* JSON */}
-    <div className="rounded-2xl bg-slate-50 p-3 space-y-2">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-          URL JSON (Power BI)
-        </p>
-
-        <CopyToClipboardButton value={publicAnalyticsJsonUrl} />
-      </div>
-
-      <code className="block break-all text-sm text-slate-900">
-        {publicAnalyticsJsonUrl}
-      </code>
-    </div>
-
-    {/* BOTÓN REGENERAR */}
-    <form action={regenerateAnalyticsApiKeyAction}>
-      <button
-        type="submit"
-        className="inline-flex items-center rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-900 shadow-sm transition hover:bg-slate-50"
-      >
-        Regenerar API key
-      </button>
-    </form>
-  </div>
-</section>
-
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="space-y-3">
-            <h2 className="text-lg font-semibold text-slate-900">
-              Conexión para Power BI y Excel
-            </h2>
-
-            <p className="text-sm text-slate-600">
-              Usá estas URLs para importar datos desde Power BI Desktop o desde
-              Excel con Power Query.
-            </p>
-
-            <div className="rounded-2xl bg-slate-50 p-3">
-              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">
-                API key
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">
+                Exportación y Power BI
+              </h2>
+              <p className="text-sm text-slate-600">
+                Descargá analytics en Excel, abrí Power BI y usá las URLs para
+                conectar Power Query o integraciones externas.
               </p>
-              <code className="break-all text-sm text-slate-900">
-                {analyticsApiKey}
-              </code>
             </div>
 
-            <div className="rounded-2xl bg-slate-50 p-3">
-              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">
-                URL CSV para Excel
-              </p>
-              <code className="break-all text-sm text-slate-900">
-                {publicAnalyticsUrl}
-              </code>
+            <div className="flex flex-wrap gap-3">
+              <a
+                href={excelExportUrl}
+                className="inline-flex items-center rounded-2xl bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-slate-800"
+              >
+                Descargar Excel directo
+              </a>
+
+              {powerBiOpenUrl ? (
+                <a
+                  href={powerBiOpenUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center rounded-2xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-900 shadow-sm transition hover:bg-slate-50"
+                >
+                  Abrir en Power BI
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className="inline-flex cursor-not-allowed items-center rounded-2xl border border-slate-200 bg-slate-100 px-4 py-2 text-sm font-medium text-slate-400"
+                >
+                  Abrir en Power BI
+                </button>
+              )}
             </div>
 
-            <div className="rounded-2xl bg-slate-50 p-3">
-              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">
-                URL JSON para Power BI
-              </p>
-              <code className="break-all text-sm text-slate-900">
-                {publicAnalyticsJsonUrl}
-              </code>
+            <div className="grid gap-4">
+              <div className="rounded-2xl bg-slate-50 p-3 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                    API key
+                  </p>
+                  <CopyToClipboardButton value={analyticsApiKey} />
+                </div>
+
+                <code className="block break-all text-sm text-slate-900">
+                  {analyticsApiKey}
+                </code>
+              </div>
+
+              <div className="rounded-2xl bg-slate-50 p-3 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                    URL CSV (Excel / Power Query)
+                  </p>
+                  <CopyToClipboardButton value={publicAnalyticsUrl} />
+                </div>
+
+                <code className="block break-all text-sm text-slate-900">
+                  {publicAnalyticsUrl}
+                </code>
+              </div>
+
+              <div className="rounded-2xl bg-slate-50 p-3 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                    URL JSON (Power BI)
+                  </p>
+                  <CopyToClipboardButton value={publicAnalyticsJsonUrl} />
+                </div>
+
+                <code className="block break-all text-sm text-slate-900">
+                  {publicAnalyticsJsonUrl}
+                </code>
+              </div>
             </div>
 
             <form action={regenerateAnalyticsApiKeyAction}>
@@ -813,6 +802,8 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
           <Ga4DailySeries points={ga4DailySeries} />
         ) : null}
 
+        <FunnelSection data={funnelData} conversion={funnelConversion} />
+
         <ExecutiveSummary items={executiveSummary} />
 
         {insights.length > 0 ? (
@@ -858,6 +849,37 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
           range={range}
           comparison={comparison}
         />
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold text-slate-900">
+              Dashboard embebido
+            </h2>
+            <p className="text-sm text-slate-600">
+              Visualización integrada de Power BI dentro del panel de
+              TiendaSmart.
+            </p>
+          </div>
+
+          {powerBiEmbedUrl ? (
+            <div className="overflow-hidden rounded-2xl border border-slate-200">
+              <iframe
+                title="Power BI Dashboard"
+                src={powerBiEmbedUrl}
+                className="h-[720px] w-full"
+                allowFullScreen
+              />
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-sm text-slate-500">
+              Todavía no configuraste el enlace embebible de Power BI en
+              <code className="mx-1 rounded bg-slate-100 px-1 py-0.5 text-slate-700">
+                NEXT_PUBLIC_POWER_BI_EMBED_URL
+              </code>
+              .
+            </div>
+          )}
+        </section>
       </div>
     </AdminShell>
   );

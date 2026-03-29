@@ -564,6 +564,11 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
     )
     .eq('orders.store_id', store.id);
 
+    const productsQuery = supabase
+  .from('products')
+  .select('id, category_id, categories(name)')
+  .eq('store_id', store.id);
+
   let eventsQuery = supabase
   .from('analytics_events')
   .select('event_name, created_at, session_id, product_id, metadata')
@@ -574,10 +579,16 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
   }
 
   const [
-    { data: ordersData, error: ordersError },
-    { data: itemsData, error: itemsError },
-    { data: analyticsEventsData, error: analyticsEventsError },
-  ] = await Promise.all([ordersQuery, itemsQuery, eventsQuery]);
+  { data: ordersData, error: ordersError },
+  { data: itemsData, error: itemsError },
+  { data: productsData, error: productsError },
+  { data: analyticsEventsData, error: analyticsEventsError },
+] = await Promise.all([
+  ordersQuery,
+  itemsQuery,
+  productsQuery,
+  eventsQuery,
+]);
 
   if (ga4PropertyId && hasGa4Credentials) {
     try {
@@ -608,6 +619,10 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
     throw new Error(`Error cargando items de pedidos: ${itemsError.message}`);
   }
 
+  if (productsError) {
+  throw new Error(`Error cargando productos: ${productsError.message}`);
+}
+
   if (analyticsEventsError) {
     throw new Error(
       `Error cargando analytics events: ${analyticsEventsError.message}`
@@ -629,6 +644,28 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
     line_total: item.line_total,
     orders: item.orders?.[0] ?? null,
   })) as OrderItemRow[];
+
+  const productCategoryMap = new Map<string, string>();
+
+for (const product of (productsData ?? []) as Array<{
+  id: string;
+  category_id: string | null;
+  categories:
+    | {
+        name: string | null;
+      }
+    | Array<{
+        name: string | null;
+      }>
+    | null;
+}>) {
+  const category =
+    Array.isArray(product.categories)
+      ? (product.categories[0]?.name ?? null)
+      : (product.categories?.name ?? null);
+
+  productCategoryMap.set(product.id, category ?? 'Sin categoría');
+}
 
 const analyticsEvents = (analyticsEventsData ?? []) as AnalyticsEventRow[];
 
@@ -782,7 +819,10 @@ for (const event of analyticsEvents) {
 }
 
 for (const item of rangeFilteredOrderItems) {
-  const categoryName = 'Sin categoría';
+  const categoryName = item.product_id
+    ? (productCategoryMap.get(item.product_id) ?? 'Sin categoría')
+    : 'Sin categoría';
+
   const current = categoryMap.get(categoryName) ?? {
     categoryName,
     views: 0,

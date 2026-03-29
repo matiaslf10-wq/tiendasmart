@@ -37,6 +37,8 @@ import ProductInsights from '@/components/admin/ProductInsights';
 import { buildProductInsights } from '@/lib/admin/product-insights';
 import FunnelComparison from '@/components/admin/FunnelComparison';
 import { buildFunnelComparison } from '@/lib/admin/funnel-comparison';
+import FunnelDailyChart from '@/components/admin/FunnelDailyChart';
+import { buildFunnelDailySeries } from '@/lib/admin/funnel-daily-series';
 
 type PageProps = {
   searchParams: Promise<{
@@ -685,6 +687,13 @@ for (const event of analyticsEvents) {
     range,
   });
 
+  const funnelDailySeries = buildFunnelDailySeries({
+  analyticsEvents,
+  orders: rangeFilteredOrders.map((order) => ({
+    created_at: order.created_at,
+  })),
+});
+
 const previousRangeDates = getPreviousRangeDates(range);
 
 const previousRangeFilteredOrders =
@@ -1148,6 +1157,8 @@ const funnelComparison = buildFunnelComparison({
 />
 
 <FunnelComparison comparison={funnelComparison} />
+
+<FunnelDailyChart points={funnelDailySeries} />
 
         <ExecutiveSummary items={executiveSummary} />
 

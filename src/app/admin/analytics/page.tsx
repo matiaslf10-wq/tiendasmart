@@ -630,9 +630,59 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
     orders: item.orders?.[0] ?? null,
   })) as OrderItemRow[];
 
-  const analyticsEvents = (analyticsEventsData ?? []) as AnalyticsEventRow[];
+const analyticsEvents = (analyticsEventsData ?? []) as AnalyticsEventRow[];
 
-  const productEventMap = new Map<
+const customEventCounts = analyticsEvents.reduce<Record<string, number>>(
+  (acc, event) => {
+    acc[event.event_name] = (acc[event.event_name] ?? 0) + 1;
+    return acc;
+  },
+  {}
+);
+
+const analyticsSessions = new Set(
+  analyticsEvents
+    .map((event) => event.session_id)
+    .filter((value): value is string => Boolean(value))
+).size;
+
+const { rangeFilteredOrders, pendingOrdersCount } = filterOrders({
+  orders: allOrders,
+  status: 'all',
+  queryText: '',
+  delivery: 'all',
+  notes: 'all',
+  range,
+});
+
+const previousRangeDates = getPreviousRangeDates(range);
+
+const previousRangeFilteredOrders =
+  previousRangeDates.start && previousRangeDates.end
+    ? allOrders.filter((order) => {
+        const createdAt = new Date(order.created_at);
+        return (
+          createdAt >= previousRangeDates.start! &&
+          createdAt <= previousRangeDates.end!
+        );
+      })
+    : [];
+
+const rangeFilteredOrderItems = filterOrderItemsByRange(
+  allOrderItems,
+  range
+);
+
+const funnelDailySeries = buildFunnelDailySeries({
+  analyticsEvents,
+  orders: rangeFilteredOrders.map((order) => ({
+    created_at: order.created_at,
+  })),
+});
+
+const funnelTrendInsights = buildFunnelTrendInsights(funnelDailySeries);
+
+const productEventMap = new Map<
   string,
   {
     productId: string;
@@ -664,52 +714,6 @@ for (const event of analyticsEvents) {
     current.productName = productName;
   }
 
-  const categoryMap = new Map<
-  string,
-  {
-    categoryName: string;
-    views: number;
-    addToCart: number;
-    contactWhatsapp: number;
-    purchases: number;
-  }
->();
-
-for (const event of analyticsEvents) {
-  const categoryName = event.metadata?.item_category ?? 'Sin categoría';
-  const current = categoryMap.get(categoryName) ?? {
-    categoryName,
-    views: 0,
-    addToCart: 0,
-    contactWhatsapp: 0,
-    purchases: 0,
-  };
-
-  if (event.event_name === 'view_item') current.views += 1;
-  if (event.event_name === 'add_to_cart') current.addToCart += 1;
-  if (event.event_name === 'contact_whatsapp') current.contactWhatsapp += 1;
-
-  categoryMap.set(categoryName, current);
-}
-
-for (const item of rangeFilteredOrderItems) {
-  const product = Array.from(productEventMap.values()).find(
-    (row) => row.productId === item.product_id
-  );
-
-  const categoryName = 'Sin categoría';
-  const current = categoryMap.get(categoryName) ?? {
-    categoryName,
-    views: 0,
-    addToCart: 0,
-    contactWhatsapp: 0,
-    purchases: 0,
-  };
-
-  current.purchases += Number(item.quantity ?? 0) || 0;
-  categoryMap.set(categoryName, current);
-}
-
   if (event.event_name === 'view_item') current.views += 1;
   if (event.event_name === 'add_to_cart') current.addToCart += 1;
   if (event.event_name === 'contact_whatsapp') current.contactWhatsapp += 1;
@@ -717,57 +721,7 @@ for (const item of rangeFilteredOrderItems) {
   productEventMap.set(productId, current);
 }
 
-  const customEventCounts = analyticsEvents.reduce<Record<string, number>>(
-    (acc, event) => {
-      acc[event.event_name] = (acc[event.event_name] ?? 0) + 1;
-      return acc;
-    },
-    {}
-  );
-
-  const analyticsSessions = new Set(
-    analyticsEvents
-      .map((event) => event.session_id)
-      .filter((value): value is string => Boolean(value))
-  ).size;
-
-  const { rangeFilteredOrders, pendingOrdersCount } = filterOrders({
-    orders: allOrders,
-    status: 'all',
-    queryText: '',
-    delivery: 'all',
-    notes: 'all',
-    range,
-  });
-
-  const funnelDailySeries = buildFunnelDailySeries({
-  analyticsEvents,
-  orders: rangeFilteredOrders.map((order) => ({
-    created_at: order.created_at,
-  })),
-});
-
-const funnelTrendInsights = buildFunnelTrendInsights(funnelDailySeries);
-
-const previousRangeDates = getPreviousRangeDates(range);
-
-const previousRangeFilteredOrders =
-  previousRangeDates.start && previousRangeDates.end
-    ? allOrders.filter((order) => {
-        const createdAt = new Date(order.created_at);
-        return (
-          createdAt >= previousRangeDates.start! &&
-          createdAt <= previousRangeDates.end!
-        );
-      })
-    : [];
-
-  const rangeFilteredOrderItems = filterOrderItemsByRange(
-    allOrderItems,
-    range
-  );
-
-  for (const item of rangeFilteredOrderItems) {
+for (const item of rangeFilteredOrderItems) {
   const productId = item.product_id ?? null;
   if (!productId) continue;
 
@@ -798,6 +752,48 @@ const productInsights = buildProductInsights(
 const productAlerts = buildProductAlerts(
   Array.from(productEventMap.values())
 );
+
+const categoryMap = new Map<
+  string,
+  {
+    categoryName: string;
+    views: number;
+    addToCart: number;
+    contactWhatsapp: number;
+    purchases: number;
+  }
+>();
+
+for (const event of analyticsEvents) {
+  const categoryName = event.metadata?.item_category ?? 'Sin categoría';
+  const current = categoryMap.get(categoryName) ?? {
+    categoryName,
+    views: 0,
+    addToCart: 0,
+    contactWhatsapp: 0,
+    purchases: 0,
+  };
+
+  if (event.event_name === 'view_item') current.views += 1;
+  if (event.event_name === 'add_to_cart') current.addToCart += 1;
+  if (event.event_name === 'contact_whatsapp') current.contactWhatsapp += 1;
+
+  categoryMap.set(categoryName, current);
+}
+
+for (const item of rangeFilteredOrderItems) {
+  const categoryName = 'Sin categoría';
+  const current = categoryMap.get(categoryName) ?? {
+    categoryName,
+    views: 0,
+    addToCart: 0,
+    contactWhatsapp: 0,
+    purchases: 0,
+  };
+
+  current.purchases += Number(item.quantity ?? 0) || 0;
+  categoryMap.set(categoryName, current);
+}
 
 const categoryInsights = buildCategoryInsights(
   Array.from(categoryMap.values())
@@ -1230,6 +1226,8 @@ const funnelComparison = buildFunnelComparison({
         <ProductInsights insights={productInsights} />
 
         <ProductAlerts alerts={productAlerts} />
+
+<CategoryInsights insights={categoryInsights} />
 
         {insights.length > 0 ? (
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

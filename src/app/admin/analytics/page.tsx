@@ -41,6 +41,8 @@ import FunnelDailyChart from '@/components/admin/FunnelDailyChart';
 import { buildFunnelDailySeries } from '@/lib/admin/funnel-daily-series';
 import FunnelTrendInsights from '@/components/admin/FunnelTrendInsights';
 import { buildFunnelTrendInsights } from '@/lib/admin/funnel-trend-insights';
+import ProductAlerts from '@/components/admin/ProductAlerts';
+import { buildProductAlerts } from '@/lib/admin/product-alerts';
 
 type PageProps = {
   searchParams: Promise<{
@@ -744,6 +746,10 @@ const productInsights = buildProductInsights(
   Array.from(productEventMap.values())
 );
 
+const productAlerts = buildProductAlerts(
+  Array.from(productEventMap.values())
+);
+
   const comparison = getOrdersComparison(allOrders, allOrderItems, range);
 
   const funnelData = {
@@ -1169,6 +1175,8 @@ const funnelComparison = buildFunnelComparison({
         <ExecutiveSummary items={executiveSummary} />
 
         <ProductInsights insights={productInsights} />
+
+        <ProductAlerts alerts={productAlerts} />
 
         {insights.length > 0 ? (
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

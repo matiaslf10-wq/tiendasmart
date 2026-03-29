@@ -35,6 +35,8 @@ import {
 } from './actions';
 import ProductInsights from '@/components/admin/ProductInsights';
 import { buildProductInsights } from '@/lib/admin/product-insights';
+import FunnelComparison from '@/components/admin/FunnelComparison';
+import { buildFunnelComparison } from '@/lib/admin/funnel-comparison';
 
 type PageProps = {
   searchParams: Promise<{
@@ -69,6 +71,66 @@ function formatPercent(value: number) {
 function formatDelta(value: number | null) {
   if (value === null) return 'nuevo';
   return `${value > 0 ? '+' : ''}${value.toFixed(1)}%`;
+}
+
+function getPreviousRangeDates(range: RangeValue): {
+  start: Date | null;
+  end: Date | null;
+} {
+  const now = new Date();
+
+  if (range === 'all') {
+    return { start: null, end: null };
+  }
+
+  if (range === 'today') {
+    const start = new Date(now);
+    start.setDate(start.getDate() - 1);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(now);
+    end.setDate(end.getDate() - 1);
+    end.setHours(23, 59, 59, 999);
+
+    return { start, end };
+  }
+
+  if (range === '7d') {
+    const start = new Date(now);
+    start.setDate(start.getDate() - 13);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(now);
+    end.setDate(end.getDate() - 7);
+    end.setHours(23, 59, 59, 999);
+
+    return { start, end };
+  }
+
+  if (range === '30d') {
+    const start = new Date(now);
+    start.setDate(start.getDate() - 59);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(now);
+    end.setDate(end.getDate() - 30);
+    end.setHours(23, 59, 59, 999);
+
+    return { start, end };
+  }
+
+  if (range === 'month') {
+    const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const previousMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+    previousMonthEnd.setHours(23, 59, 59, 999);
+
+    return {
+      start: previousMonthStart,
+      end: previousMonthEnd,
+    };
+  }
+
+  return { start: null, end: null };
 }
 
 function getRangeStartDate(range: RangeValue): string | null {
@@ -623,6 +685,19 @@ for (const event of analyticsEvents) {
     range,
   });
 
+const previousRangeDates = getPreviousRangeDates(range);
+
+const previousRangeFilteredOrders =
+  previousRangeDates.start && previousRangeDates.end
+    ? allOrders.filter((order) => {
+        const createdAt = new Date(order.created_at);
+        return (
+          createdAt >= previousRangeDates.start! &&
+          createdAt <= previousRangeDates.end!
+        );
+      })
+    : [];
+
   const rangeFilteredOrderItems = filterOrderItemsByRange(
     allOrderItems,
     range
@@ -666,6 +741,46 @@ const productInsights = buildProductInsights(
     contactWhatsapp: customEventCounts.contact_whatsapp ?? 0,
     orders: rangeFilteredOrders.length,
   };
+
+const previousAnalyticsEvents =
+  previousRangeDates.start && previousRangeDates.end
+    ? analyticsEvents.filter((event) => {
+        const createdAt = new Date(event.created_at);
+        return (
+          createdAt >= previousRangeDates.start! &&
+          createdAt <= previousRangeDates.end!
+        );
+      })
+    : [];
+
+const previousCustomEventCounts = previousAnalyticsEvents.reduce<Record<string, number>>(
+  (acc, event) => {
+    acc[event.event_name] = (acc[event.event_name] ?? 0) + 1;
+    return acc;
+  },
+  {}
+);
+
+const previousFunnelData = {
+  views: previousCustomEventCounts.view_item ?? 0,
+  addToCart: previousCustomEventCounts.add_to_cart ?? 0,
+  checkout: previousCustomEventCounts.begin_checkout ?? 0,
+  whatsapp: previousCustomEventCounts.send_to_whatsapp ?? 0,
+  contactWhatsapp: previousCustomEventCounts.contact_whatsapp ?? 0,
+  purchases: previousRangeFilteredOrders.length,
+};
+
+const funnelComparison = buildFunnelComparison({
+  current: {
+    views: funnelData.views,
+    addToCart: funnelData.addToCart,
+    checkout: funnelData.checkout,
+    whatsapp: funnelData.whatsapp,
+    contactWhatsapp: funnelData.contactWhatsapp,
+    purchases: funnelData.orders,
+  },
+  previous: previousFunnelData,
+});
 
   const ownConversion = {
     viewToCart:
@@ -1031,6 +1146,8 @@ const productInsights = buildProductInsights(
   contactWhatsAppEvents={funnelData.contactWhatsapp}
   purchaseEvents={funnelData.orders}
 />
+
+<FunnelComparison comparison={funnelComparison} />
 
         <ExecutiveSummary items={executiveSummary} />
 

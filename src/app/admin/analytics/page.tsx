@@ -43,6 +43,8 @@ import FunnelTrendInsights from '@/components/admin/FunnelTrendInsights';
 import { buildFunnelTrendInsights } from '@/lib/admin/funnel-trend-insights';
 import ProductAlerts from '@/components/admin/ProductAlerts';
 import { buildProductAlerts } from '@/lib/admin/product-alerts';
+import CategoryInsights from '@/components/admin/CategoryInsights';
+import { buildCategoryInsights } from '@/lib/admin/category-insights';
 
 type PageProps = {
   searchParams: Promise<{
@@ -62,12 +64,13 @@ type AnalyticsEventRow = {
   session_id: string | null;
   product_id: string | null;
   metadata:
-    | {
-        item_id?: string | null;
-        item_name?: string | null;
-        product_name?: string | null;
-      }
-    | null;
+  | {
+      item_id?: string | null;
+      item_name?: string | null;
+      product_name?: string | null;
+      item_category?: string | null;
+    }
+  | null;
 };
 
 function formatPercent(value: number) {
@@ -661,6 +664,52 @@ for (const event of analyticsEvents) {
     current.productName = productName;
   }
 
+  const categoryMap = new Map<
+  string,
+  {
+    categoryName: string;
+    views: number;
+    addToCart: number;
+    contactWhatsapp: number;
+    purchases: number;
+  }
+>();
+
+for (const event of analyticsEvents) {
+  const categoryName = event.metadata?.item_category ?? 'Sin categoría';
+  const current = categoryMap.get(categoryName) ?? {
+    categoryName,
+    views: 0,
+    addToCart: 0,
+    contactWhatsapp: 0,
+    purchases: 0,
+  };
+
+  if (event.event_name === 'view_item') current.views += 1;
+  if (event.event_name === 'add_to_cart') current.addToCart += 1;
+  if (event.event_name === 'contact_whatsapp') current.contactWhatsapp += 1;
+
+  categoryMap.set(categoryName, current);
+}
+
+for (const item of rangeFilteredOrderItems) {
+  const product = Array.from(productEventMap.values()).find(
+    (row) => row.productId === item.product_id
+  );
+
+  const categoryName = 'Sin categoría';
+  const current = categoryMap.get(categoryName) ?? {
+    categoryName,
+    views: 0,
+    addToCart: 0,
+    contactWhatsapp: 0,
+    purchases: 0,
+  };
+
+  current.purchases += Number(item.quantity ?? 0) || 0;
+  categoryMap.set(categoryName, current);
+}
+
   if (event.event_name === 'view_item') current.views += 1;
   if (event.event_name === 'add_to_cart') current.addToCart += 1;
   if (event.event_name === 'contact_whatsapp') current.contactWhatsapp += 1;
@@ -748,6 +797,10 @@ const productInsights = buildProductInsights(
 
 const productAlerts = buildProductAlerts(
   Array.from(productEventMap.values())
+);
+
+const categoryInsights = buildCategoryInsights(
+  Array.from(categoryMap.values())
 );
 
   const comparison = getOrdersComparison(allOrders, allOrderItems, range);

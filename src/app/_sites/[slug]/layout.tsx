@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import GoogleAnalytics from '@/components/store/GoogleAnalytics';
+import AttributionTracker from '@/components/store/AttributionTracker';
 
 type Props = {
   children: React.ReactNode;
@@ -21,6 +22,7 @@ export default async function StoreLayout({ children, params }: Props) {
 
   return (
     <>
+      <AttributionTracker storeSlug={slug} />
       {children}
       <GoogleAnalytics measurementId={measurementId} />
     </>

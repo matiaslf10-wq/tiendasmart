@@ -101,6 +101,12 @@ type SourcePerformanceRow = {
   contacts: number;
 };
 
+type SourceInsight = {
+  title: string;
+  description: string;
+  tone: 'neutral' | 'warning' | 'success';
+};
+
 function getTrafficSource(event: AnalyticsEventRow) {
   return event.metadata?.traffic_source?.trim() || 'direct';
 }
@@ -199,6 +205,102 @@ function getTopSourcesSummary(rows: SourcePerformanceRow[]) {
     topByContacts,
     bestConversion,
   };
+}
+
+function buildSourceInsights(rows: SourcePerformanceRow[]): SourceInsight[] {
+  const insights: SourceInsight[] = [];
+
+  if (rows.length === 0) {
+    return insights;
+  }
+
+  const topByViews = [...rows].sort((a, b) => b.views - a.views)[0];
+  const topByContacts = [...rows].sort((a, b) => b.contacts - a.contacts)[0];
+
+  const rowsWithRates = rows.map((row) => ({
+    ...row,
+    viewToContactRate: row.views > 0 ? (row.contacts / row.views) * 100 : 0,
+    viewToCartRate: row.views > 0 ? (row.addToCart / row.views) * 100 : 0,
+    checkoutToWhatsappRate:
+      row.checkout > 0 ? (row.whatsapp / row.checkout) * 100 : 0,
+  }));
+
+  const bestConversion = [...rowsWithRates].sort(
+    (a, b) => b.viewToContactRate - a.viewToContactRate
+  )[0];
+
+  const weakHighTraffic = rowsWithRates.find(
+    (row) => row.views >= 20 && row.viewToContactRate < 3
+  );
+
+  const strongEfficient = rowsWithRates.find(
+    (row) => row.views >= 10 && row.viewToContactRate >= 8
+  );
+
+  if (topByViews && topByViews.views > 0) {
+    insights.push({
+      title: `El canal con más tráfico es ${topByViews.source}`,
+      description: `Es el origen que más vistas aporta en este período, con ${topByViews.views} views. Conviene usarlo como referencia principal para comparar calidad contra volumen.`,
+      tone: 'neutral',
+    });
+  }
+
+  if (
+    topByContacts &&
+    topByContacts.contacts > 0 &&
+    topByContacts.source !== topByViews.source
+  ) {
+    insights.push({
+      title: `${topByContacts.source} genera más conversaciones que otros canales`,
+      description: `Aunque no necesariamente sea el de mayor tráfico, es el origen con más contactos registrados (${topByContacts.contacts}). Puede estar trayendo usuarios con mejor intención de compra.`,
+      tone: 'success',
+    });
+  }
+
+  if (weakHighTraffic) {
+    insights.push({
+      title: `${weakHighTraffic.source} trae volumen, pero convierte poco`,
+      description: `Este origen reúne ${weakHighTraffic.views} views, pero su tasa de contacto es solo ${formatPercent(
+        weakHighTraffic.viewToContactRate
+      )}. Puede haber interés inicial, pero poco avance comercial.`,
+      tone: 'warning',
+    });
+  }
+
+  if (strongEfficient) {
+    insights.push({
+      title: `${strongEfficient.source} muestra buena calidad de tráfico`,
+      description: `Este canal convierte ${formatPercent(
+        strongEfficient.viewToContactRate
+      )} de sus vistas en contactos. Está atrayendo usuarios con intención más clara.`,
+      tone: 'success',
+    });
+  }
+
+  if (
+    bestConversion &&
+    bestConversion.views >= 5 &&
+    bestConversion.contacts > 0
+  ) {
+    insights.push({
+      title: `${bestConversion.source} es el canal con mejor conversión a contacto`,
+      description: `Dentro de los orígenes medidos, es el que mejor transforma vistas en conversaciones, con una tasa de ${formatPercent(
+        bestConversion.viewToContactRate
+      )}.`,
+      tone: 'success',
+    });
+  }
+
+  if (insights.length === 0) {
+    insights.push({
+      title: 'Todavía no hay suficiente volumen por canal',
+      description:
+        'Ya se registran orígenes de tráfico, pero todavía no hay suficiente movimiento como para detectar diferencias fuertes entre canales.',
+      tone: 'neutral',
+    });
+  }
+
+  return insights.slice(0, 4);
 }
 
 function getPreviousRangeDates(range: RangeValue): {
@@ -791,6 +893,8 @@ const analyticsEvents = (analyticsEventsData ?? []) as AnalyticsEventRow[];
 const sourceRows = buildSourcePerformanceRows(analyticsEvents);
 
 const sourceSummary = getTopSourcesSummary(sourceRows);
+
+const sourceInsights = buildSourceInsights(sourceRows);
 
 const customEventCounts = analyticsEvents.reduce<Record<string, number>>(
   (acc, event) => {
@@ -1469,6 +1573,23 @@ const funnelComparison = buildFunnelComparison({
           ))}
         </tbody>
       </table>
+    </div>
+  </section>
+) : null}
+
+{sourceInsights.length > 0 ? (
+  <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <h3 className="mb-4 text-lg font-semibold text-slate-900">
+      Insights automáticos por canal
+    </h3>
+
+    <div className="grid gap-4 xl:grid-cols-2">
+      {sourceInsights.map((insight) => (
+        <InsightCard
+          key={`${insight.title}-${insight.description}`}
+          insight={insight}
+        />
+      ))}
     </div>
   </section>
 ) : null}

@@ -181,6 +181,26 @@ function buildSourcePerformanceRows(events: AnalyticsEventRow[]) {
     });
 }
 
+function getTopSourcesSummary(rows: SourcePerformanceRow[]) {
+  if (rows.length === 0) return null;
+
+  const topByViews = [...rows].sort((a, b) => b.views - a.views)[0];
+  const topByContacts = [...rows].sort((a, b) => b.contacts - a.contacts)[0];
+
+  const bestConversion = [...rows]
+    .map((row) => ({
+      ...row,
+      conversion: row.views > 0 ? (row.contacts / row.views) * 100 : 0,
+    }))
+    .sort((a, b) => b.conversion - a.conversion)[0];
+
+  return {
+    topByViews,
+    topByContacts,
+    bestConversion,
+  };
+}
+
 function getPreviousRangeDates(range: RangeValue): {
   start: Date | null;
   end: Date | null;
@@ -769,6 +789,8 @@ for (const product of (productsData ?? []) as Array<{
 const analyticsEvents = (analyticsEventsData ?? []) as AnalyticsEventRow[];
 
 const sourceRows = buildSourcePerformanceRows(analyticsEvents);
+
+const sourceSummary = getTopSourcesSummary(sourceRows);
 
 const customEventCounts = analyticsEvents.reduce<Record<string, number>>(
   (acc, event) => {
@@ -1371,6 +1393,34 @@ const funnelComparison = buildFunnelComparison({
 <FunnelDailyChart points={funnelDailySeries} />
 
 <FunnelTrendInsights insights={funnelTrendInsights} />
+
+{sourceSummary ? (
+  <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    <MetricCard
+      label="Origen con más tráfico"
+      value={`${sourceSummary.topByViews.source}`}
+      helpText={`${sourceSummary.topByViews.views} views`}
+    />
+
+    <MetricCard
+      label="Origen con más contactos"
+      value={`${sourceSummary.topByContacts.source}`}
+      helpText={`${sourceSummary.topByContacts.contacts} contactos`}
+    />
+
+    <MetricCard
+      label="Mejor conversión a contacto"
+      value={`${sourceSummary.bestConversion.source}`}
+      helpText={`${formatPercent(
+        sourceSummary.bestConversion.views > 0
+          ? (sourceSummary.bestConversion.contacts /
+              sourceSummary.bestConversion.views) *
+              100
+          : 0
+      )}`}
+    />
+  </section>
+) : null}
 
 {sourceRows.length > 0 ? (
   <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

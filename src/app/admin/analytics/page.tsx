@@ -45,6 +45,8 @@ import ProductAlerts from '@/components/admin/ProductAlerts';
 import { buildProductAlerts } from '@/lib/admin/product-alerts';
 import CategoryInsights from '@/components/admin/CategoryInsights';
 import { buildCategoryInsights } from '@/lib/admin/category-insights';
+import TodayActions from '@/components/admin/TodayActions';
+import { buildTodayActions } from '@/lib/admin/today-actions';
 
 type PageProps = {
   searchParams: Promise<{
@@ -839,6 +841,8 @@ const categoryInsights = buildCategoryInsights(
   Array.from(categoryMap.values())
 );
 
+
+
   const comparison = getOrdersComparison(allOrders, allOrderItems, range);
 
   const funnelData = {
@@ -849,6 +853,12 @@ const categoryInsights = buildCategoryInsights(
     contactWhatsapp: customEventCounts.contact_whatsapp ?? 0,
     orders: rangeFilteredOrders.length,
   };
+
+  const todayActions = buildTodayActions({
+  funnel: funnelData,
+  products: Array.from(productEventMap.values()),
+  categories: Array.from(categoryMap.values()),
+});
 
 const previousAnalyticsEvents =
   previousRangeDates.start && previousRangeDates.end
@@ -1102,6 +1112,8 @@ const funnelComparison = buildFunnelComparison({
             ) : null}
           </div>
         </section>
+
+        <TodayActions actions={todayActions} />
 
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <MetricCard

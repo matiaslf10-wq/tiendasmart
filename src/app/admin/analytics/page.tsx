@@ -66,13 +66,18 @@ type AnalyticsEventRow = {
   session_id: string | null;
   product_id: string | null;
   metadata:
-  | {
-      item_id?: string | null;
-      item_name?: string | null;
-      product_name?: string | null;
-      item_category?: string | null;
-    }
-  | null;
+    | {
+        item_id?: string | null;
+        item_name?: string | null;
+        product_name?: string | null;
+        item_category?: string | null;
+        traffic_source?: string | null;
+        traffic_medium?: string | null;
+        traffic_campaign?: string | null;
+        traffic_referrer?: string | null;
+        landing_path?: string | null;
+      }
+    | null;
 };
 
 function formatPercent(value: number) {
@@ -82,6 +87,98 @@ function formatPercent(value: number) {
 function formatDelta(value: number | null) {
   if (value === null) return 'nuevo';
   return `${value > 0 ? '+' : ''}${value.toFixed(1)}%`;
+}
+
+type SourcePerformanceRow = {
+  source: string;
+  medium: string;
+  campaign: string;
+  sessions: number;
+  views: number;
+  addToCart: number;
+  checkout: number;
+  whatsapp: number;
+  contacts: number;
+};
+
+function getTrafficSource(event: AnalyticsEventRow) {
+  return event.metadata?.traffic_source?.trim() || 'direct';
+}
+
+function getTrafficMedium(event: AnalyticsEventRow) {
+  return event.metadata?.traffic_medium?.trim() || 'none';
+}
+
+function getTrafficCampaign(event: AnalyticsEventRow) {
+  return event.metadata?.traffic_campaign?.trim() || '—';
+}
+
+function buildSourcePerformanceRows(events: AnalyticsEventRow[]) {
+  const map = new Map<
+    string,
+    {
+      source: string;
+      medium: string;
+      campaign: string;
+      sessions: Set<string>;
+      views: number;
+      addToCart: number;
+      checkout: number;
+      whatsapp: number;
+      contacts: number;
+    }
+  >();
+
+  for (const event of events) {
+    const source = getTrafficSource(event);
+    const medium = getTrafficMedium(event);
+    const campaign = getTrafficCampaign(event);
+    const key = `${source}__${medium}__${campaign}`;
+
+    const current = map.get(key) ?? {
+      source,
+      medium,
+      campaign,
+      sessions: new Set<string>(),
+      views: 0,
+      addToCart: 0,
+      checkout: 0,
+      whatsapp: 0,
+      contacts: 0,
+    };
+
+    if (event.session_id) {
+      current.sessions.add(event.session_id);
+    }
+
+    if (event.event_name === 'view_item') current.views += 1;
+    if (event.event_name === 'add_to_cart') current.addToCart += 1;
+    if (event.event_name === 'begin_checkout') current.checkout += 1;
+    if (event.event_name === 'send_to_whatsapp') current.whatsapp += 1;
+    if (event.event_name === 'contact_whatsapp') current.contacts += 1;
+
+    map.set(key, current);
+  }
+
+  return Array.from(map.values())
+    .map(
+      (row): SourcePerformanceRow => ({
+        source: row.source,
+        medium: row.medium,
+        campaign: row.campaign,
+        sessions: row.sessions.size,
+        views: row.views,
+        addToCart: row.addToCart,
+        checkout: row.checkout,
+        whatsapp: row.whatsapp,
+        contacts: row.contacts,
+      })
+    )
+    .sort((a, b) => {
+      if (b.views !== a.views) return b.views - a.views;
+      if (b.contacts !== a.contacts) return b.contacts - a.contacts;
+      return b.sessions - a.sessions;
+    });
 }
 
 function getPreviousRangeDates(range: RangeValue): {
@@ -670,6 +767,8 @@ for (const product of (productsData ?? []) as Array<{
 }
 
 const analyticsEvents = (analyticsEventsData ?? []) as AnalyticsEventRow[];
+
+const sourceRows = buildSourcePerformanceRows(analyticsEvents);
 
 const customEventCounts = analyticsEvents.reduce<Record<string, number>>(
   (acc, event) => {
@@ -1272,6 +1371,57 @@ const funnelComparison = buildFunnelComparison({
 <FunnelDailyChart points={funnelDailySeries} />
 
 <FunnelTrendInsights insights={funnelTrendInsights} />
+
+{sourceRows.length > 0 ? (
+  <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div className="mb-4">
+      <h3 className="text-lg font-semibold text-slate-900">
+        Rendimiento por origen
+      </h3>
+      <p className="text-sm text-slate-600">
+        Qué canales generan más sesiones, vistas, intención de compra y contactos.
+      </p>
+    </div>
+
+    <div className="overflow-x-auto">
+      <table className="min-w-full text-sm">
+        <thead>
+          <tr className="border-b border-slate-200 text-left text-slate-500">
+            <th className="px-3 py-2 font-medium">Origen</th>
+            <th className="px-3 py-2 font-medium">Medio</th>
+            <th className="px-3 py-2 font-medium">Campaña</th>
+            <th className="px-3 py-2 font-medium">Sesiones</th>
+            <th className="px-3 py-2 font-medium">Views</th>
+            <th className="px-3 py-2 font-medium">Add to cart</th>
+            <th className="px-3 py-2 font-medium">Checkout</th>
+            <th className="px-3 py-2 font-medium">WhatsApp</th>
+            <th className="px-3 py-2 font-medium">Contactos</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sourceRows.map((row) => (
+            <tr
+              key={`${row.source}-${row.medium}-${row.campaign}`}
+              className="border-b border-slate-100"
+            >
+              <td className="px-3 py-2 font-medium text-slate-900">
+                {row.source}
+              </td>
+              <td className="px-3 py-2 text-slate-600">{row.medium}</td>
+              <td className="px-3 py-2 text-slate-600">{row.campaign}</td>
+              <td className="px-3 py-2 text-slate-600">{row.sessions}</td>
+              <td className="px-3 py-2 text-slate-600">{row.views}</td>
+              <td className="px-3 py-2 text-slate-600">{row.addToCart}</td>
+              <td className="px-3 py-2 text-slate-600">{row.checkout}</td>
+              <td className="px-3 py-2 text-slate-600">{row.whatsapp}</td>
+              <td className="px-3 py-2 text-slate-600">{row.contacts}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </section>
+) : null}
 
         <ExecutiveSummary items={executiveSummary} />
 

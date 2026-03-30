@@ -188,13 +188,14 @@ export default function WhatsAppCart({
     if (hasTrackedViewCartRef.current) return;
 
     trackViewCart(
-      validItems.map((item) => ({
-        item_id: item.id,
-        item_name: item.name,
-        price: item.price,
-        quantity: item.quantity,
-      }))
-    );
+  validItems.map((item) => ({
+    item_id: item.id,
+    item_name: item.name,
+    price: item.price,
+    quantity: item.quantity,
+  })),
+  storeSlug
+);
 
     hasTrackedViewCartRef.current = true;
   }, [open, validItems]);
@@ -312,13 +313,14 @@ export default function WhatsAppCart({
     }
 
     trackBeginCheckout(
-      validItems.map((item) => ({
-        item_id: item.id,
-        item_name: item.name,
-        price: item.price,
-        quantity: item.quantity,
-      }))
-    );
+  validItems.map((item) => ({
+    item_id: item.id,
+    item_name: item.name,
+    price: item.price,
+    quantity: item.quantity,
+  })),
+  storeSlug
+);
 
     startTransition(() => {
       void (async () => {
@@ -344,16 +346,17 @@ export default function WhatsAppCart({
         }
 
         trackPurchase({
-          transactionId: result.orderNumber,
-          items: validItems.map((item) => ({
-            item_id: item.id,
-            item_name: item.name,
-            price: item.price,
-            quantity: item.quantity,
-          })),
-          shipping: 0,
-          tax: 0,
-        });
+  transactionId: result.orderNumber,
+  store_slug: storeSlug,
+  items: validItems.map((item) => ({
+    item_id: item.id,
+    item_name: item.name,
+    price: item.price,
+    quantity: item.quantity,
+  })),
+  shipping: 0,
+  tax: 0,
+});
 
         const message = buildWhatsAppMessage({
           storeName,

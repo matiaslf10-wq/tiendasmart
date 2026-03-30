@@ -3,10 +3,14 @@
 import { useEffect } from 'react';
 import { persistAttribution } from '@/lib/analytics-source';
 
-export default function AttributionTracker() {
+type Props = {
+  storeSlug: string;
+};
+
+export default function AttributionTracker({ storeSlug }: Props) {
   useEffect(() => {
-    persistAttribution();
-  }, []);
+    persistAttribution(storeSlug);
+  }, [storeSlug]);
 
   return null;
 }

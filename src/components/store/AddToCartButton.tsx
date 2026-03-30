@@ -27,12 +27,15 @@ export default function AddToCartButton({
 
     addToCart(storeSlug, product);
 
-    trackAddToCart({
-      item_id: product.id,
-      item_name: product.name,
-      price: product.price,
-      quantity: 1,
-    });
+    trackAddToCart(
+      {
+        item_id: product.id,
+        item_name: product.name,
+        price: product.price,
+        quantity: 1,
+      },
+      storeSlug
+    );
 
     void trackStoreEvent({
       storeSlug,

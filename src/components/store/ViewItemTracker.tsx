@@ -20,15 +20,12 @@ export default function ViewItemTracker({
   useEffect(() => {
     if (trackedRef.current) return;
 
-    // seguridad extra: evitar disparar sin datos mínimos
     if (!item?.item_id || !item?.item_name) return;
 
     trackedRef.current = true;
 
-    // GA4
-    trackViewItem(item);
+    trackViewItem(item, storeSlug);
 
-    // tracking propio
     void trackStoreEvent({
       storeSlug,
       eventName: 'view_item',

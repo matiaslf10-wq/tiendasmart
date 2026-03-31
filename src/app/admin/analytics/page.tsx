@@ -48,6 +48,7 @@ import { buildCategoryInsights } from '@/lib/admin/category-insights';
 import TodayActions from '@/components/admin/TodayActions';
 import { buildTodayActions } from '@/lib/admin/today-actions';
 import SourceLinksCard from '@/components/admin/SourceLinksCard';
+import LinkGeneratorCard from '@/components/admin/LinkGeneratorCard';
 import { getDefaultSourceLinkPresets } from '@/lib/admin/source-links';
 
 type PageProps = {
@@ -1432,6 +1433,8 @@ const funnelComparison = buildFunnelComparison({
         </section>
 
         <TodayActions actions={todayActions} />
+
+        <LinkGeneratorCard baseUrl={storeBaseUrl} />
 
         {sourceLinks.length > 0 ? <SourceLinksCard links={sourceLinks} /> : null}
 

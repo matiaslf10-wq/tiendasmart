@@ -6,6 +6,7 @@ export type AttributionData = {
   campaign?: string;
   referrer?: string;
   landingPath?: string;
+  tsLink?: string;
 };
 
 function getStorageKey(storeSlug: string) {
@@ -34,31 +35,35 @@ export function getAttributionFromBrowser(): AttributionData {
   const utmMedium = url.searchParams.get('utm_medium')?.trim();
   const utmCampaign = url.searchParams.get('utm_campaign')?.trim();
   const referrer = document.referrer?.trim();
+  const tsLink = url.searchParams.get('ts_link')?.trim();
 
   if (utmSource) {
-    return {
-      source: utmSource,
-      medium: utmMedium ?? undefined,
-      campaign: utmCampaign ?? undefined,
-      referrer: referrer || undefined,
-      landingPath: `${url.pathname}${url.search}`,
-    };
-  }
+  return {
+    source: utmSource,
+    medium: utmMedium ?? undefined,
+    campaign: utmCampaign ?? undefined,
+    referrer: referrer || undefined,
+    landingPath: `${url.pathname}${url.search}`,
+    tsLink: tsLink ?? undefined,
+  };
+}
 
   if (referrer) {
-    return {
-      source: normalizeSourceFromReferrer(referrer),
-      medium: 'referral',
-      referrer,
-      landingPath: `${url.pathname}${url.search}`,
-    };
-  }
+  return {
+    source: normalizeSourceFromReferrer(referrer),
+    medium: 'referral',
+    referrer,
+    landingPath: `${url.pathname}${url.search}`,
+    tsLink: tsLink ?? undefined,
+  };
+}
 
   return {
-    source: 'direct',
-    medium: 'none',
-    landingPath: `${url.pathname}${url.search}`,
-  };
+  source: 'direct',
+  medium: 'none',
+  landingPath: `${url.pathname}${url.search}`,
+  tsLink: tsLink ?? undefined,
+};
 }
 
 export function persistAttribution(storeSlug: string) {

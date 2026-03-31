@@ -47,6 +47,8 @@ import CategoryInsights from '@/components/admin/CategoryInsights';
 import { buildCategoryInsights } from '@/lib/admin/category-insights';
 import TodayActions from '@/components/admin/TodayActions';
 import { buildTodayActions } from '@/lib/admin/today-actions';
+import SourceLinksCard from '@/components/admin/SourceLinksCard';
+import { getDefaultSourceLinkPresets } from '@/lib/admin/source-links';
 
 type PageProps = {
   searchParams: Promise<{
@@ -760,6 +762,14 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
     ? `${appUrl}/api/public/analytics/orders-detailed-json?range=${range}&api_key=${analyticsApiKey}`
     : `/api/public/analytics/orders-detailed-json?range=${range}&api_key=${analyticsApiKey}`;
 
+    const storeBaseUrl = appUrl
+  ? `${appUrl.replace(/\/$/, '')}/${store.slug}`
+  : `/${store.slug}`;
+
+const sourceLinks = appUrl
+  ? getDefaultSourceLinkPresets(storeBaseUrl)
+  : [];
+
   const excelExportUrl = `/api/admin/export/analytics?range=${range}`;
   const powerBiOpenUrl = process.env.NEXT_PUBLIC_POWER_BI_OPEN_URL ?? '';
   const powerBiEmbedUrl = process.env.NEXT_PUBLIC_POWER_BI_EMBED_URL ?? '';
@@ -1084,6 +1094,8 @@ const categoryInsights = buildCategoryInsights(
   products: Array.from(productEventMap.values()),
   categories: Array.from(categoryMap.values()),
 });
+
+{sourceLinks.length > 0 ? <SourceLinksCard links={sourceLinks} /> : null}
 
 const previousAnalyticsEvents =
   previousRangeDates.start && previousRangeDates.end

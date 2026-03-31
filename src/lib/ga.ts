@@ -41,6 +41,7 @@ function getAttributionParams(storeSlug?: string) {
     traffic_campaign: attribution.campaign,
     traffic_referrer: attribution.referrer,
     landing_path: attribution.landingPath,
+    traffic_ts_link: attribution.tsLink,
   };
 }
 

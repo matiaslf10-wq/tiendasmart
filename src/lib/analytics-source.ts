@@ -82,9 +82,10 @@ export function persistAttribution(storeSlug: string) {
     const existing = JSON.parse(existingRaw) as AttributionData;
 
     const shouldReplace =
-      current.source !== 'direct' ||
-      current.medium !== 'none' ||
-      Boolean(current.campaign);
+  current.source !== 'direct' ||
+  current.medium !== 'none' ||
+  Boolean(current.campaign) ||
+  Boolean(current.tsLink);
 
     if (shouldReplace) {
       sessionStorage.setItem(storageKey, JSON.stringify(current));

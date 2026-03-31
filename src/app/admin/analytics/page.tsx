@@ -78,6 +78,7 @@ type AnalyticsEventRow = {
         traffic_campaign?: string | null;
         traffic_referrer?: string | null;
         landing_path?: string | null;
+        traffic_ts_link?: string | null;
       }
     | null;
 };

@@ -1026,8 +1026,6 @@ const analyticsEvents = (analyticsEventsData ?? []) as AnalyticsEventRow[];
 
 const sourceRows = buildSourcePerformanceRows(analyticsEvents);
 
-const tsLinkRows = buildTsLinkRows(analyticsEvents, rangeFilteredOrders);
-
 const sourceSummary = getTopSourcesSummary(sourceRows);
 
 const sourceInsights = buildSourceInsights(sourceRows);

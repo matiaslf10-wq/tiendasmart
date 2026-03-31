@@ -199,7 +199,7 @@ export default function WhatsAppCart({
 );
 
     hasTrackedViewCartRef.current = true;
-  }, [open, validItems]);
+  }, [open, validItems, storeSlug]);
 
   useEffect(() => {
     if (!open || validItems.length === 0) {

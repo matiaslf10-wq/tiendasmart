@@ -17,6 +17,12 @@ type CreateOrderInput = {
   deliveryAddress?: string;
   notes?: string;
   items: CheckoutItemInput[];
+  trafficSource?: string;
+  trafficMedium?: string;
+  trafficCampaign?: string;
+  trafficReferrer?: string;
+  trafficTsLink?: string;
+  landingPath?: string;
 };
 
 type CreateOrderResult =
@@ -79,16 +85,24 @@ export async function createOrder(
     }
 
     const { data, error } = await supabase.rpc('create_order_atomic', {
-      p_store_slug: input.storeSlug,
-      p_customer_name: customerName,
-      p_customer_phone: customerPhone,
-      p_customer_email: customerEmail,
-      p_delivery_type: input.deliveryType,
-      p_delivery_address:
-        input.deliveryType === 'delivery' ? deliveryAddress : null,
-      p_notes: notes,
-      p_items: normalizedItems,
-    });
+  p_store_slug: input.storeSlug,
+  p_customer_name: customerName,
+  p_customer_phone: customerPhone,
+  p_customer_email: customerEmail,
+  p_delivery_type: input.deliveryType,
+  p_delivery_address:
+    input.deliveryType === 'delivery' ? deliveryAddress : null,
+  p_notes: notes,
+  p_items: normalizedItems,
+  p_metadata: {
+    traffic_source: input.trafficSource ?? null,
+    traffic_medium: input.trafficMedium ?? null,
+    traffic_campaign: input.trafficCampaign ?? null,
+    traffic_referrer: input.trafficReferrer ?? null,
+    traffic_ts_link: input.trafficTsLink ?? null,
+    landing_path: input.landingPath ?? null,
+  },
+});
 
     if (error) {
       console.error('createOrder rpc error:', error);

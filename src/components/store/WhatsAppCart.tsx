@@ -29,6 +29,7 @@ import {
 import { trackStoreEvent } from '@/lib/analytics-events';
 import StoreToast from '@/components/store/StoreToast';
 import { createOrder } from '@/app/actions/createOrder';
+import { getStoredAttribution } from '@/lib/analytics-source';
 
 type WhatsAppCartProps = {
   storeSlug: string;
@@ -323,27 +324,34 @@ export default function WhatsAppCart({
 );
 
     startTransition(() => {
-      void (async () => {
-        const normalizedPhone = normalizePhone(customerPhone);
+  void (async () => {
+    const normalizedPhone = normalizePhone(customerPhone);
+    const attribution = getStoredAttribution(storeSlug);
 
-        const result = await createOrder({
-          storeSlug,
-          customerName: customerName.trim(),
-          customerPhone: normalizedPhone,
-          deliveryType,
-          deliveryAddress:
-            deliveryType === 'delivery' ? customerAddress.trim() : '',
-          notes: customerNotes.trim(),
-          items: validItems.map((item) => ({
-            productId: item.id,
-            quantity: item.quantity,
-          })),
-        });
+    const result = await createOrder({
+      storeSlug,
+      customerName: customerName.trim(),
+      customerPhone: normalizedPhone,
+      deliveryType,
+      deliveryAddress:
+        deliveryType === 'delivery' ? customerAddress.trim() : '',
+      notes: customerNotes.trim(),
+      items: validItems.map((item) => ({
+        productId: item.id,
+        quantity: item.quantity,
+      })),
+      trafficSource: attribution.source,
+      trafficMedium: attribution.medium,
+      trafficCampaign: attribution.campaign,
+      trafficReferrer: attribution.referrer,
+      trafficTsLink: attribution.tsLink,
+      landingPath: attribution.landingPath,
+    });
 
-        if (!result.success) {
-          showToast(result.error, 'error');
-          return;
-        }
+    if (!result.success) {
+      showToast(result.error, 'error');
+      return;
+    }
 
         trackPurchase({
   transactionId: result.orderNumber,

@@ -762,13 +762,16 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
     ? `${appUrl}/api/public/analytics/orders-detailed-json?range=${range}&api_key=${analyticsApiKey}`
     : `/api/public/analytics/orders-detailed-json?range=${range}&api_key=${analyticsApiKey}`;
 
-    const storeBaseUrl = appUrl
-  ? `${appUrl.replace(/\/$/, '')}/${store.slug}`
-  : `/${store.slug}`;
+    const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? '';
 
-const sourceLinks = appUrl
-  ? getDefaultSourceLinkPresets(storeBaseUrl)
-  : [];
+const storeBaseUrl =
+  rootDomain && store.slug
+    ? `https://${store.slug}.${rootDomain}`
+    : appUrl
+      ? `${appUrl.replace(/\/$/, '')}/${store.slug}`
+      : `/${store.slug}`;
+
+const sourceLinks = getDefaultSourceLinkPresets(storeBaseUrl);
 
   const excelExportUrl = `/api/admin/export/analytics?range=${range}`;
   const powerBiOpenUrl = process.env.NEXT_PUBLIC_POWER_BI_OPEN_URL ?? '';
@@ -1095,7 +1098,6 @@ const categoryInsights = buildCategoryInsights(
   categories: Array.from(categoryMap.values()),
 });
 
-{sourceLinks.length > 0 ? <SourceLinksCard links={sourceLinks} /> : null}
 
 const previousAnalyticsEvents =
   previousRangeDates.start && previousRangeDates.end
@@ -1351,6 +1353,8 @@ const funnelComparison = buildFunnelComparison({
         </section>
 
         <TodayActions actions={todayActions} />
+
+        {sourceLinks.length > 0 ? <SourceLinksCard links={sourceLinks} /> : null}
 
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <MetricCard

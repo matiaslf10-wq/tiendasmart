@@ -119,6 +119,7 @@ type TsLinkRow = {
   checkout: number;
   whatsapp: number;
   contacts: number;
+  purchases: number;
   conversionToContact: number;
 };
 
@@ -206,7 +207,16 @@ function buildSourcePerformanceRows(events: AnalyticsEventRow[]) {
     });
 }
 
-function buildTsLinkRows(events: AnalyticsEventRow[]) {
+function buildTsLinkRows(
+  events: AnalyticsEventRow[],
+  orders: Array<
+    Order & {
+      metadata?: {
+        traffic_ts_link?: string | null;
+      } | null;
+    }
+  >
+) {
   const map = new Map<
     string,
     {
@@ -217,6 +227,7 @@ function buildTsLinkRows(events: AnalyticsEventRow[]) {
       checkout: number;
       whatsapp: number;
       contacts: number;
+      purchases: number;
     }
   >();
 
@@ -231,6 +242,7 @@ function buildTsLinkRows(events: AnalyticsEventRow[]) {
       checkout: 0,
       whatsapp: 0,
       contacts: 0,
+      purchases: 0,
     };
 
     if (event.session_id) {
@@ -246,6 +258,24 @@ function buildTsLinkRows(events: AnalyticsEventRow[]) {
     map.set(tsLink, current);
   }
 
+  for (const order of orders) {
+    const tsLink = order.metadata?.traffic_ts_link?.trim() || 'sin_link';
+
+    const current = map.get(tsLink) ?? {
+      tsLink,
+      sessions: new Set<string>(),
+      views: 0,
+      addToCart: 0,
+      checkout: 0,
+      whatsapp: 0,
+      contacts: 0,
+      purchases: 0,
+    };
+
+    current.purchases += 1;
+    map.set(tsLink, current);
+  }
+
   return Array.from(map.values())
     .map(
       (row): TsLinkRow => ({
@@ -256,11 +286,13 @@ function buildTsLinkRows(events: AnalyticsEventRow[]) {
         checkout: row.checkout,
         whatsapp: row.whatsapp,
         contacts: row.contacts,
+        purchases: row.purchases,
         conversionToContact:
           row.views > 0 ? (row.contacts / row.views) * 100 : 0,
       })
     )
     .sort((a, b) => {
+      if (b.purchases !== a.purchases) return b.purchases - a.purchases;
       if (b.contacts !== a.contacts) return b.contacts - a.contacts;
       if (b.views !== a.views) return b.views - a.views;
       return b.sessions - a.sessions;
@@ -941,7 +973,18 @@ const sourceLinks = getDefaultSourceLinkPresets(storeBaseUrl);
     );
   }
 
-  const allOrders = (ordersData ?? []) as Order[];
+  const allOrders = (ordersData ?? []) as Array<
+  Order & {
+    metadata?: {
+      traffic_source?: string | null;
+      traffic_medium?: string | null;
+      traffic_campaign?: string | null;
+      traffic_referrer?: string | null;
+      traffic_ts_link?: string | null;
+      landing_path?: string | null;
+    } | null;
+  }
+>;
 
   const allOrderItems = ((itemsData ?? []) as Array<{
     product_id: string | null;
@@ -983,7 +1026,7 @@ const analyticsEvents = (analyticsEventsData ?? []) as AnalyticsEventRow[];
 
 const sourceRows = buildSourcePerformanceRows(analyticsEvents);
 
-const tsLinkRows = buildTsLinkRows(analyticsEvents);
+const tsLinkRows = buildTsLinkRows(analyticsEvents, rangeFilteredOrders);
 
 const sourceSummary = getTopSourcesSummary(sourceRows);
 
@@ -1011,6 +1054,8 @@ const { rangeFilteredOrders, pendingOrdersCount } = filterOrders({
   notes: 'all',
   range,
 });
+
+const tsLinkRows = buildTsLinkRows(analyticsEvents, rangeFilteredOrders);
 
 const previousRangeDates = getPreviousRangeDates(range);
 
@@ -1697,6 +1742,7 @@ const funnelComparison = buildFunnelComparison({
             <th className="px-3 py-2 font-medium">Checkout</th>
             <th className="px-3 py-2 font-medium">WhatsApp</th>
             <th className="px-3 py-2 font-medium">Contactos</th>
+            <th className="px-3 py-2 font-medium">Ventas</th>
             <th className="px-3 py-2 font-medium">Conv. a contacto</th>
           </tr>
         </thead>
@@ -1715,6 +1761,7 @@ const funnelComparison = buildFunnelComparison({
               <td className="px-3 py-2 text-slate-600">{row.checkout}</td>
               <td className="px-3 py-2 text-slate-600">{row.whatsapp}</td>
               <td className="px-3 py-2 text-slate-600">{row.contacts}</td>
+              <td className="px-3 py-2 text-slate-600">{row.purchases}</td>
               <td className="px-3 py-2 text-slate-600">
                 {formatPercent(row.conversionToContact)}
               </td>

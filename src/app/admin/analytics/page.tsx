@@ -110,6 +110,17 @@ type SourceInsight = {
   tone: 'neutral' | 'warning' | 'success';
 };
 
+type TsLinkRow = {
+  tsLink: string;
+  sessions: number;
+  views: number;
+  addToCart: number;
+  checkout: number;
+  whatsapp: number;
+  contacts: number;
+  conversionToContact: number;
+};
+
 function getTrafficSource(event: AnalyticsEventRow) {
   return event.metadata?.traffic_source?.trim() || 'direct';
 }
@@ -120,6 +131,10 @@ function getTrafficMedium(event: AnalyticsEventRow) {
 
 function getTrafficCampaign(event: AnalyticsEventRow) {
   return event.metadata?.traffic_campaign?.trim() || '—';
+}
+
+function getTrafficTsLink(event: AnalyticsEventRow) {
+  return event.metadata?.traffic_ts_link?.trim() || 'sin_link';
 }
 
 function buildSourcePerformanceRows(events: AnalyticsEventRow[]) {
@@ -186,6 +201,67 @@ function buildSourcePerformanceRows(events: AnalyticsEventRow[]) {
     .sort((a, b) => {
       if (b.views !== a.views) return b.views - a.views;
       if (b.contacts !== a.contacts) return b.contacts - a.contacts;
+      return b.sessions - a.sessions;
+    });
+}
+
+function buildTsLinkRows(events: AnalyticsEventRow[]) {
+  const map = new Map<
+    string,
+    {
+      tsLink: string;
+      sessions: Set<string>;
+      views: number;
+      addToCart: number;
+      checkout: number;
+      whatsapp: number;
+      contacts: number;
+    }
+  >();
+
+  for (const event of events) {
+    const tsLink = getTrafficTsLink(event);
+
+    const current = map.get(tsLink) ?? {
+      tsLink,
+      sessions: new Set<string>(),
+      views: 0,
+      addToCart: 0,
+      checkout: 0,
+      whatsapp: 0,
+      contacts: 0,
+    };
+
+    if (event.session_id) {
+      current.sessions.add(event.session_id);
+    }
+
+    if (event.event_name === 'view_item') current.views += 1;
+    if (event.event_name === 'add_to_cart') current.addToCart += 1;
+    if (event.event_name === 'begin_checkout') current.checkout += 1;
+    if (event.event_name === 'send_to_whatsapp') current.whatsapp += 1;
+    if (event.event_name === 'contact_whatsapp') current.contacts += 1;
+
+    map.set(tsLink, current);
+  }
+
+  return Array.from(map.values())
+    .map(
+      (row): TsLinkRow => ({
+        tsLink: row.tsLink,
+        sessions: row.sessions.size,
+        views: row.views,
+        addToCart: row.addToCart,
+        checkout: row.checkout,
+        whatsapp: row.whatsapp,
+        contacts: row.contacts,
+        conversionToContact:
+          row.views > 0 ? (row.contacts / row.views) * 100 : 0,
+      })
+    )
+    .sort((a, b) => {
+      if (b.contacts !== a.contacts) return b.contacts - a.contacts;
+      if (b.views !== a.views) return b.views - a.views;
       return b.sessions - a.sessions;
     });
 }
@@ -906,6 +982,8 @@ const analyticsEvents = (analyticsEventsData ?? []) as AnalyticsEventRow[];
 
 const sourceRows = buildSourcePerformanceRows(analyticsEvents);
 
+const tsLinkRows = buildTsLinkRows(analyticsEvents);
+
 const sourceSummary = getTopSourcesSummary(sourceRows);
 
 const sourceInsights = buildSourceInsights(sourceRows);
@@ -1586,6 +1664,57 @@ const funnelComparison = buildFunnelComparison({
               <td className="px-3 py-2 text-slate-600">{row.checkout}</td>
               <td className="px-3 py-2 text-slate-600">{row.whatsapp}</td>
               <td className="px-3 py-2 text-slate-600">{row.contacts}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </section>
+) : null}
+
+{tsLinkRows.length > 0 ? (
+  <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div className="mb-4">
+      <h3 className="text-lg font-semibold text-slate-900">
+        Rendimiento por link
+      </h3>
+      <p className="text-sm text-slate-600">
+        Qué links específicos generan más sesiones, vistas y contactos.
+      </p>
+    </div>
+
+    <div className="overflow-x-auto">
+      <table className="min-w-full text-sm">
+        <thead>
+          <tr className="border-b border-slate-200 text-left text-slate-500">
+            <th className="px-3 py-2 font-medium">Link</th>
+            <th className="px-3 py-2 font-medium">Sesiones</th>
+            <th className="px-3 py-2 font-medium">Views</th>
+            <th className="px-3 py-2 font-medium">Add to cart</th>
+            <th className="px-3 py-2 font-medium">Checkout</th>
+            <th className="px-3 py-2 font-medium">WhatsApp</th>
+            <th className="px-3 py-2 font-medium">Contactos</th>
+            <th className="px-3 py-2 font-medium">Conv. a contacto</th>
+          </tr>
+        </thead>
+        <tbody>
+          {tsLinkRows.map((row) => (
+            <tr
+              key={row.tsLink}
+              className="border-b border-slate-100"
+            >
+              <td className="px-3 py-2 font-medium text-slate-900">
+                {row.tsLink}
+              </td>
+              <td className="px-3 py-2 text-slate-600">{row.sessions}</td>
+              <td className="px-3 py-2 text-slate-600">{row.views}</td>
+              <td className="px-3 py-2 text-slate-600">{row.addToCart}</td>
+              <td className="px-3 py-2 text-slate-600">{row.checkout}</td>
+              <td className="px-3 py-2 text-slate-600">{row.whatsapp}</td>
+              <td className="px-3 py-2 text-slate-600">{row.contacts}</td>
+              <td className="px-3 py-2 text-slate-600">
+                {formatPercent(row.conversionToContact)}
+              </td>
             </tr>
           ))}
         </tbody>

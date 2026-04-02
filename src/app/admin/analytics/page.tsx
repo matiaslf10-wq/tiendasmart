@@ -54,6 +54,7 @@ import { getDefaultSourceLinkPresets } from '@/lib/admin/source-links';
 type PageProps = {
   searchParams: Promise<{
     range?: RangeValue;
+    ts_link?: string;
   }>;
 };
 
@@ -99,6 +100,25 @@ function formatMoney(value: number) {
     currency: 'ARS',
     maximumFractionDigits: 0,
   }).format(value);
+}
+
+function formatTsLinkDisplay(tsLink: string) {
+  if (!tsLink || tsLink === 'sin_link') return 'Sin link identificado';
+  return tsLink;
+}
+
+function buildAnalyticsUrl(params: {
+  range: RangeValue;
+  tsLink?: string | null;
+}) {
+  const query = new URLSearchParams();
+  query.set('range', params.range);
+
+  if (params.tsLink) {
+    query.set('ts_link', params.tsLink);
+  }
+
+  return `/admin/analytics?${query.toString()}#ts-links-table`;
 }
 
 type SourcePerformanceRow = {
@@ -830,22 +850,24 @@ function TsLinkHighlightCard({
   tsLink,
   metric,
   submetric,
+  range,
   accent = 'slate',
 }: {
   label: string;
   tsLink: string;
   metric: string;
   submetric: string;
+  range: RangeValue;
   accent?: 'emerald' | 'violet' | 'amber' | 'slate';
 }) {
   const accentClasses =
     accent === 'emerald'
-      ? 'border-emerald-200 bg-emerald-50'
+      ? 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100'
       : accent === 'violet'
-        ? 'border-violet-200 bg-violet-50'
+        ? 'border-violet-200 bg-violet-50 hover:bg-violet-100'
         : accent === 'amber'
-          ? 'border-amber-200 bg-amber-50'
-          : 'border-slate-200 bg-slate-50';
+          ? 'border-amber-200 bg-amber-50 hover:bg-amber-100'
+          : 'border-slate-200 bg-slate-50 hover:bg-slate-100';
 
   const badgeClasses =
     accent === 'emerald'
@@ -857,7 +879,10 @@ function TsLinkHighlightCard({
           : 'bg-slate-100 text-slate-700';
 
   return (
-    <div className={`rounded-2xl border p-4 shadow-sm ${accentClasses}`}>
+    <Link
+      href={buildAnalyticsUrl({ range, tsLink })}
+      className={`block rounded-2xl border p-4 shadow-sm transition ${accentClasses}`}
+    >
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -869,7 +894,7 @@ function TsLinkHighlightCard({
         <span
           className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${badgeClasses}`}
         >
-          Destacado
+          Ver fila
         </span>
       </div>
 
@@ -883,7 +908,7 @@ function TsLinkHighlightCard({
       </div>
 
       <p className="mt-3 text-sm text-slate-600">{submetric}</p>
-    </div>
+    </Link>
   );
 }
 
@@ -926,7 +951,8 @@ export default async function AnalyticsPage({ searchParams }: PageProps) {
 
   const store = membership.stores;
   const resolvedSearchParams = await searchParams;
-  const range: RangeValue = resolvedSearchParams.range ?? '30d';
+const range: RangeValue = resolvedSearchParams.range ?? '30d';
+const selectedTsLink = resolvedSearchParams.ts_link ?? null;
 
   if (!hasFeature(store.plan, 'advanced_analytics')) {
     return (
@@ -1840,52 +1866,77 @@ const funnelComparison = buildFunnelComparison({
 {tsLinkRows.length > 0 ? (
   <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
     <div className="space-y-5">
-      <div>
-        <h3 className="text-lg font-semibold text-slate-900">
-          Rendimiento por link
-        </h3>
-        <p className="text-sm text-slate-600">
-          Qué links específicos generan más sesiones, vistas, contactos y ventas.
-        </p>
-      </div>
+      <div id="ts-links-table" className="scroll-mt-24">
+  <div className="flex flex-wrap items-start justify-between gap-3">
+    <div>
+      <h3 className="text-lg font-semibold text-slate-900">
+        Rendimiento por link
+      </h3>
+      <p className="text-sm text-slate-600">
+        Qué links específicos generan más sesiones, vistas, contactos y ventas.
+      </p>
+    </div>
+
+    {selectedTsLink ? (
+      <Link
+        href={buildAnalyticsUrl({ range, tsLink: null })}
+        className="inline-flex items-center rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+      >
+        Limpiar selección
+      </Link>
+    ) : null}
+  </div>
+
+  {selectedTsLink ? (
+    <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">
+      Fila resaltada para:{' '}
+      <span className="font-mono font-medium">
+        {formatTsLinkDisplay(selectedTsLink)}
+      </span>
+    </div>
+  ) : null}
+</div>
 
       {tsLinkSummary ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          <TsLinkHighlightCard
-            label="Link con más ventas"
-            tsLink={tsLinkSummary.topByPurchases.tsLink}
-            metric={`${tsLinkSummary.topByPurchases.purchases} ventas`}
-            submetric={`Facturación: ${formatMoney(
-              tsLinkSummary.topByPurchases.revenue
-            )}`}
-            accent="emerald"
-          />
+  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    <TsLinkHighlightCard
+      label="Link con más ventas"
+      tsLink={tsLinkSummary.topByPurchases.tsLink}
+      metric={`${tsLinkSummary.topByPurchases.purchases} ventas`}
+      submetric={`Facturación: ${formatMoney(
+        tsLinkSummary.topByPurchases.revenue
+      )}`}
+      range={range}
+      accent="emerald"
+    />
 
-          <TsLinkHighlightCard
-            label="Link con más facturación"
-            tsLink={tsLinkSummary.topByRevenue.tsLink}
-            metric={formatMoney(tsLinkSummary.topByRevenue.revenue)}
-            submetric={`${tsLinkSummary.topByRevenue.purchases} ventas registradas`}
-            accent="violet"
-          />
+    <TsLinkHighlightCard
+      label="Link con más facturación"
+      tsLink={tsLinkSummary.topByRevenue.tsLink}
+      metric={formatMoney(tsLinkSummary.topByRevenue.revenue)}
+      submetric={`${tsLinkSummary.topByRevenue.purchases} ventas registradas`}
+      range={range}
+      accent="violet"
+    />
 
-          <TsLinkHighlightCard
-            label="Mejor ticket promedio"
-            tsLink={tsLinkSummary.bestAverageTicket?.tsLink ?? 'sin_link'}
-            metric={
-              tsLinkSummary.bestAverageTicket
-                ? formatMoney(tsLinkSummary.bestAverageTicket.averageTicket)
-                : 'Sin ventas'
-            }
-            submetric={
-              tsLinkSummary.bestAverageTicket
-                ? `${tsLinkSummary.bestAverageTicket.purchases} ventas para este link`
-                : 'Todavía no hay compras atribuidas a links'
-            }
-            accent="amber"
-          />
-        </div>
-      ) : null}
+    <TsLinkHighlightCard
+      label="Mejor ticket promedio"
+      tsLink={tsLinkSummary.bestAverageTicket?.tsLink ?? 'sin_link'}
+      metric={
+        tsLinkSummary.bestAverageTicket
+          ? formatMoney(tsLinkSummary.bestAverageTicket.averageTicket)
+          : 'Sin ventas'
+      }
+      submetric={
+        tsLinkSummary.bestAverageTicket
+          ? `${tsLinkSummary.bestAverageTicket.purchases} ventas para este link`
+          : 'Todavía no hay compras atribuidas a links'
+      }
+      range={range}
+      accent="amber"
+    />
+  </div>
+) : null}
 
       <div className="overflow-x-auto rounded-2xl border border-slate-200">
         <table className="min-w-full text-sm">
@@ -1906,12 +1957,23 @@ const funnelComparison = buildFunnelComparison({
           </thead>
           <tbody>
             {tsLinkRows.map((row) => (
-              <tr key={row.tsLink} className="border-b border-slate-100 last:border-b-0">
-                <td className="px-3 py-3 font-medium text-slate-900">
-                  <span className="break-all font-mono text-xs sm:text-sm">
-                    {formatTsLinkDisplay(row.tsLink)}
-                  </span>
-                </td>
+              <tr
+  key={row.tsLink}
+  className={`border-b last:border-b-0 ${
+    selectedTsLink === row.tsLink
+      ? 'border-blue-200 bg-blue-50'
+      : 'border-slate-100'
+  }`}
+>
+                <td
+  className={`px-3 py-3 font-medium ${
+    selectedTsLink === row.tsLink ? 'text-blue-950' : 'text-slate-900'
+  }`}
+>
+  <span className="break-all font-mono text-xs sm:text-sm">
+    {formatTsLinkDisplay(row.tsLink)}
+  </span>
+</td>
                 <td className="px-3 py-3 text-slate-600">{row.sessions}</td>
                 <td className="px-3 py-3 text-slate-600">{row.views}</td>
                 <td className="px-3 py-3 text-slate-600">{row.addToCart}</td>

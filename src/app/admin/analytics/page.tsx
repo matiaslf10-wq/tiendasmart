@@ -370,43 +370,6 @@ function getTopTsLinksSummary(rows: TsLinkRow[]) {
   };
 }
 
-function formatTsLinkDisplay(tsLink: string) {
-  if (!tsLink || tsLink === 'sin_link') return 'Sin link identificado';
-  return tsLink;
-}
-
-function getTopTsLinksSummary(rows: TsLinkRow[]) {
-  if (rows.length === 0) return null;
-
-  const topByPurchases = [...rows].sort((a, b) => {
-    if (b.purchases !== a.purchases) return b.purchases - a.purchases;
-    return b.revenue - a.revenue;
-  })[0];
-
-  const topByRevenue = [...rows].sort((a, b) => {
-    if (b.revenue !== a.revenue) return b.revenue - a.revenue;
-    return b.purchases - a.purchases;
-  })[0];
-
-  const rowsWithPurchases = rows.filter((row) => row.purchases > 0);
-
-  const bestAverageTicket =
-    rowsWithPurchases.length > 0
-      ? [...rowsWithPurchases].sort((a, b) => {
-          if (b.averageTicket !== a.averageTicket) {
-            return b.averageTicket - a.averageTicket;
-          }
-          return b.revenue - a.revenue;
-        })[0]
-      : null;
-
-  return {
-    topByPurchases,
-    topByRevenue,
-    bestAverageTicket,
-  };
-}
-
 function buildSourceInsights(rows: SourcePerformanceRow[]): SourceInsight[] {
   const insights: SourceInsight[] = [];
 

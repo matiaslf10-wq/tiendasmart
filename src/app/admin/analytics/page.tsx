@@ -93,6 +93,14 @@ function formatDelta(value: number | null) {
   return `${value > 0 ? '+' : ''}${value.toFixed(1)}%`;
 }
 
+function formatMoney(value: number) {
+  return new Intl.NumberFormat('es-AR', {
+    style: 'currency',
+    currency: 'ARS',
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
 type SourcePerformanceRow = {
   source: string;
   medium: string;
@@ -120,6 +128,8 @@ type TsLinkRow = {
   whatsapp: number;
   contacts: number;
   purchases: number;
+  revenue: number;
+  averageTicket: number;
   conversionToContact: number;
 };
 
@@ -207,10 +217,12 @@ function buildSourcePerformanceRows(events: AnalyticsEventRow[]) {
     });
 }
 
+
 function buildTsLinkRows(
   events: AnalyticsEventRow[],
   orders: Array<
     Order & {
+      total?: number | string | null;
       metadata?: {
         traffic_ts_link?: string | null;
       } | null;
@@ -228,6 +240,7 @@ function buildTsLinkRows(
       whatsapp: number;
       contacts: number;
       purchases: number;
+      revenue: number;
     }
   >();
 
@@ -243,6 +256,7 @@ function buildTsLinkRows(
       whatsapp: 0,
       contacts: 0,
       purchases: 0,
+      revenue: 0,
     };
 
     if (event.session_id) {
@@ -270,9 +284,12 @@ function buildTsLinkRows(
       whatsapp: 0,
       contacts: 0,
       purchases: 0,
+      revenue: 0,
     };
 
     current.purchases += 1;
+    current.revenue += Number(order.total ?? 0) || 0;
+
     map.set(tsLink, current);
   }
 
@@ -287,18 +304,20 @@ function buildTsLinkRows(
         whatsapp: row.whatsapp,
         contacts: row.contacts,
         purchases: row.purchases,
+        revenue: row.revenue,
+        averageTicket:
+          row.purchases > 0 ? row.revenue / row.purchases : 0,
         conversionToContact:
           row.views > 0 ? (row.contacts / row.views) * 100 : 0,
       })
     )
     .sort((a, b) => {
+      if (b.revenue !== a.revenue) return b.revenue - a.revenue;
       if (b.purchases !== a.purchases) return b.purchases - a.purchases;
       if (b.contacts !== a.contacts) return b.contacts - a.contacts;
-      if (b.views !== a.views) return b.views - a.views;
-      return b.sessions - a.sessions;
+      return b.views - a.views;
     });
 }
-
 function getTopSourcesSummary(rows: SourcePerformanceRow[]) {
   if (rows.length === 0) return null;
 
@@ -1740,8 +1759,10 @@ const funnelComparison = buildFunnelComparison({
             <th className="px-3 py-2 font-medium">Checkout</th>
             <th className="px-3 py-2 font-medium">WhatsApp</th>
             <th className="px-3 py-2 font-medium">Contactos</th>
-            <th className="px-3 py-2 font-medium">Ventas</th>
-            <th className="px-3 py-2 font-medium">Conv. a contacto</th>
+<th className="px-3 py-2 font-medium">Ventas</th>
+<th className="px-3 py-2 font-medium">Facturación</th>
+<th className="px-3 py-2 font-medium">Ticket prom.</th>
+<th className="px-3 py-2 font-medium">Conv. a contacto</th>
           </tr>
         </thead>
         <tbody>
@@ -1759,10 +1780,12 @@ const funnelComparison = buildFunnelComparison({
               <td className="px-3 py-2 text-slate-600">{row.checkout}</td>
               <td className="px-3 py-2 text-slate-600">{row.whatsapp}</td>
               <td className="px-3 py-2 text-slate-600">{row.contacts}</td>
-              <td className="px-3 py-2 text-slate-600">{row.purchases}</td>
-              <td className="px-3 py-2 text-slate-600">
-                {formatPercent(row.conversionToContact)}
-              </td>
+<td className="px-3 py-2 text-slate-600">{row.purchases}</td>
+<td className="px-3 py-2 text-slate-600">{formatMoney(row.revenue)}</td>
+<td className="px-3 py-2 text-slate-600">{formatMoney(row.averageTicket)}</td>
+<td className="px-3 py-2 text-slate-600">
+  {formatPercent(row.conversionToContact)}
+</td>
             </tr>
           ))}
         </tbody>

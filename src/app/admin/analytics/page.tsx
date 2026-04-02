@@ -338,6 +338,75 @@ function getTopSourcesSummary(rows: SourcePerformanceRow[]) {
   };
 }
 
+function getTopTsLinksSummary(rows: TsLinkRow[]) {
+  if (rows.length === 0) return null;
+
+  const topByPurchases = [...rows].sort((a, b) => {
+    if (b.purchases !== a.purchases) return b.purchases - a.purchases;
+    return b.revenue - a.revenue;
+  })[0];
+
+  const topByRevenue = [...rows].sort((a, b) => {
+    if (b.revenue !== a.revenue) return b.revenue - a.revenue;
+    return b.purchases - a.purchases;
+  })[0];
+
+  const rowsWithPurchases = rows.filter((row) => row.purchases > 0);
+
+  const bestAverageTicket =
+    rowsWithPurchases.length > 0
+      ? [...rowsWithPurchases].sort((a, b) => {
+          if (b.averageTicket !== a.averageTicket) {
+            return b.averageTicket - a.averageTicket;
+          }
+          return b.revenue - a.revenue;
+        })[0]
+      : null;
+
+  return {
+    topByPurchases,
+    topByRevenue,
+    bestAverageTicket,
+  };
+}
+
+function formatTsLinkDisplay(tsLink: string) {
+  if (!tsLink || tsLink === 'sin_link') return 'Sin link identificado';
+  return tsLink;
+}
+
+function getTopTsLinksSummary(rows: TsLinkRow[]) {
+  if (rows.length === 0) return null;
+
+  const topByPurchases = [...rows].sort((a, b) => {
+    if (b.purchases !== a.purchases) return b.purchases - a.purchases;
+    return b.revenue - a.revenue;
+  })[0];
+
+  const topByRevenue = [...rows].sort((a, b) => {
+    if (b.revenue !== a.revenue) return b.revenue - a.revenue;
+    return b.purchases - a.purchases;
+  })[0];
+
+  const rowsWithPurchases = rows.filter((row) => row.purchases > 0);
+
+  const bestAverageTicket =
+    rowsWithPurchases.length > 0
+      ? [...rowsWithPurchases].sort((a, b) => {
+          if (b.averageTicket !== a.averageTicket) {
+            return b.averageTicket - a.averageTicket;
+          }
+          return b.revenue - a.revenue;
+        })[0]
+      : null;
+
+  return {
+    topByPurchases,
+    topByRevenue,
+    bestAverageTicket,
+  };
+}
+
 function buildSourceInsights(rows: SourcePerformanceRow[]): SourceInsight[] {
   const insights: SourceInsight[] = [];
 
@@ -788,6 +857,68 @@ function MetricCard({
   );
 }
 
+function TsLinkHighlightCard({
+  label,
+  tsLink,
+  metric,
+  submetric,
+  accent = 'slate',
+}: {
+  label: string;
+  tsLink: string;
+  metric: string;
+  submetric: string;
+  accent?: 'emerald' | 'violet' | 'amber' | 'slate';
+}) {
+  const accentClasses =
+    accent === 'emerald'
+      ? 'border-emerald-200 bg-emerald-50'
+      : accent === 'violet'
+        ? 'border-violet-200 bg-violet-50'
+        : accent === 'amber'
+          ? 'border-amber-200 bg-amber-50'
+          : 'border-slate-200 bg-slate-50';
+
+  const badgeClasses =
+    accent === 'emerald'
+      ? 'bg-emerald-100 text-emerald-800'
+      : accent === 'violet'
+        ? 'bg-violet-100 text-violet-800'
+        : accent === 'amber'
+          ? 'bg-amber-100 text-amber-800'
+          : 'bg-slate-100 text-slate-700';
+
+  return (
+    <div className={`rounded-2xl border p-4 shadow-sm ${accentClasses}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            {label}
+          </p>
+          <p className="mt-2 text-2xl font-bold text-slate-900">{metric}</p>
+        </div>
+
+        <span
+          className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${badgeClasses}`}
+        >
+          Destacado
+        </span>
+      </div>
+
+      <div className="mt-4 rounded-xl bg-white/70 p-3">
+        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+          Link
+        </p>
+        <p className="mt-1 break-all font-mono text-sm text-slate-900">
+          {formatTsLinkDisplay(tsLink)}
+        </p>
+      </div>
+
+      <p className="mt-3 text-sm text-slate-600">{submetric}</p>
+    </div>
+  );
+}
+
 function InsightCard({ insight }: { insight: Insight }) {
   const toneClasses =
     insight.tone === 'warning'
@@ -1073,6 +1204,7 @@ const { rangeFilteredOrders, pendingOrdersCount } = filterOrders({
 });
 
 const tsLinkRows = buildTsLinkRows(analyticsEvents, rangeFilteredOrders);
+const tsLinkSummary = getTopTsLinksSummary(tsLinkRows);
 
 const previousRangeDates = getPreviousRangeDates(range);
 
@@ -1739,57 +1871,100 @@ const funnelComparison = buildFunnelComparison({
 
 {tsLinkRows.length > 0 ? (
   <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-    <div className="mb-4">
-      <h3 className="text-lg font-semibold text-slate-900">
-        Rendimiento por link
-      </h3>
-      <p className="text-sm text-slate-600">
-        Qué links específicos generan más sesiones, vistas y contactos.
-      </p>
-    </div>
+    <div className="space-y-5">
+      <div>
+        <h3 className="text-lg font-semibold text-slate-900">
+          Rendimiento por link
+        </h3>
+        <p className="text-sm text-slate-600">
+          Qué links específicos generan más sesiones, vistas, contactos y ventas.
+        </p>
+      </div>
 
-    <div className="overflow-x-auto">
-      <table className="min-w-full text-sm">
-        <thead>
-          <tr className="border-b border-slate-200 text-left text-slate-500">
-            <th className="px-3 py-2 font-medium">Link</th>
-            <th className="px-3 py-2 font-medium">Sesiones</th>
-            <th className="px-3 py-2 font-medium">Views</th>
-            <th className="px-3 py-2 font-medium">Add to cart</th>
-            <th className="px-3 py-2 font-medium">Checkout</th>
-            <th className="px-3 py-2 font-medium">WhatsApp</th>
-            <th className="px-3 py-2 font-medium">Contactos</th>
-<th className="px-3 py-2 font-medium">Ventas</th>
-<th className="px-3 py-2 font-medium">Facturación</th>
-<th className="px-3 py-2 font-medium">Ticket prom.</th>
-<th className="px-3 py-2 font-medium">Conv. a contacto</th>
-          </tr>
-        </thead>
-        <tbody>
-          {tsLinkRows.map((row) => (
-            <tr
-              key={row.tsLink}
-              className="border-b border-slate-100"
-            >
-              <td className="px-3 py-2 font-medium text-slate-900">
-                {row.tsLink}
-              </td>
-              <td className="px-3 py-2 text-slate-600">{row.sessions}</td>
-              <td className="px-3 py-2 text-slate-600">{row.views}</td>
-              <td className="px-3 py-2 text-slate-600">{row.addToCart}</td>
-              <td className="px-3 py-2 text-slate-600">{row.checkout}</td>
-              <td className="px-3 py-2 text-slate-600">{row.whatsapp}</td>
-              <td className="px-3 py-2 text-slate-600">{row.contacts}</td>
-<td className="px-3 py-2 text-slate-600">{row.purchases}</td>
-<td className="px-3 py-2 text-slate-600">{formatMoney(row.revenue)}</td>
-<td className="px-3 py-2 text-slate-600">{formatMoney(row.averageTicket)}</td>
-<td className="px-3 py-2 text-slate-600">
-  {formatPercent(row.conversionToContact)}
-</td>
+      {tsLinkSummary ? (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <TsLinkHighlightCard
+            label="Link con más ventas"
+            tsLink={tsLinkSummary.topByPurchases.tsLink}
+            metric={`${tsLinkSummary.topByPurchases.purchases} ventas`}
+            submetric={`Facturación: ${formatMoney(
+              tsLinkSummary.topByPurchases.revenue
+            )}`}
+            accent="emerald"
+          />
+
+          <TsLinkHighlightCard
+            label="Link con más facturación"
+            tsLink={tsLinkSummary.topByRevenue.tsLink}
+            metric={formatMoney(tsLinkSummary.topByRevenue.revenue)}
+            submetric={`${tsLinkSummary.topByRevenue.purchases} ventas registradas`}
+            accent="violet"
+          />
+
+          <TsLinkHighlightCard
+            label="Mejor ticket promedio"
+            tsLink={tsLinkSummary.bestAverageTicket?.tsLink ?? 'sin_link'}
+            metric={
+              tsLinkSummary.bestAverageTicket
+                ? formatMoney(tsLinkSummary.bestAverageTicket.averageTicket)
+                : 'Sin ventas'
+            }
+            submetric={
+              tsLinkSummary.bestAverageTicket
+                ? `${tsLinkSummary.bestAverageTicket.purchases} ventas para este link`
+                : 'Todavía no hay compras atribuidas a links'
+            }
+            accent="amber"
+          />
+        </div>
+      ) : null}
+
+      <div className="overflow-x-auto rounded-2xl border border-slate-200">
+        <table className="min-w-full text-sm">
+          <thead className="bg-slate-50">
+            <tr className="border-b border-slate-200 text-left text-slate-500">
+              <th className="px-3 py-3 font-medium">Link</th>
+              <th className="px-3 py-3 font-medium">Sesiones</th>
+              <th className="px-3 py-3 font-medium">Views</th>
+              <th className="px-3 py-3 font-medium">Add to cart</th>
+              <th className="px-3 py-3 font-medium">Checkout</th>
+              <th className="px-3 py-3 font-medium">WhatsApp</th>
+              <th className="px-3 py-3 font-medium">Contactos</th>
+              <th className="px-3 py-3 font-medium">Ventas</th>
+              <th className="px-3 py-3 font-medium">Facturación</th>
+              <th className="px-3 py-3 font-medium">Ticket prom.</th>
+              <th className="px-3 py-3 font-medium">Conv. a contacto</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {tsLinkRows.map((row) => (
+              <tr key={row.tsLink} className="border-b border-slate-100 last:border-b-0">
+                <td className="px-3 py-3 font-medium text-slate-900">
+                  <span className="break-all font-mono text-xs sm:text-sm">
+                    {formatTsLinkDisplay(row.tsLink)}
+                  </span>
+                </td>
+                <td className="px-3 py-3 text-slate-600">{row.sessions}</td>
+                <td className="px-3 py-3 text-slate-600">{row.views}</td>
+                <td className="px-3 py-3 text-slate-600">{row.addToCart}</td>
+                <td className="px-3 py-3 text-slate-600">{row.checkout}</td>
+                <td className="px-3 py-3 text-slate-600">{row.whatsapp}</td>
+                <td className="px-3 py-3 text-slate-600">{row.contacts}</td>
+                <td className="px-3 py-3 text-slate-600">{row.purchases}</td>
+                <td className="px-3 py-3 text-slate-600">
+                  {formatMoney(row.revenue)}
+                </td>
+                <td className="px-3 py-3 text-slate-600">
+                  {formatMoney(row.averageTicket)}
+                </td>
+                <td className="px-3 py-3 text-slate-600">
+                  {formatPercent(row.conversionToContact)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   </section>
 ) : null}

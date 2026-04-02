@@ -390,11 +390,6 @@ function getTopTsLinksSummary(rows: TsLinkRow[]) {
   };
 }
 
-function formatTsLinkDisplay(tsLink: string) {
-  if (!tsLink || tsLink === 'sin_link') return 'Sin link identificado';
-  return tsLink;
-}
-
 function buildSourceInsights(rows: SourcePerformanceRow[]): SourceInsight[] {
   const insights: SourceInsight[] = [];
 

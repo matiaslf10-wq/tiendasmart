@@ -103,7 +103,10 @@ function formatMoney(value: number) {
 }
 
 function formatTsLinkDisplay(tsLink: string) {
-  if (!tsLink || tsLink === 'sin_link') return 'Sin link identificado';
+  if (!tsLink || tsLink === 'sin_link') {
+    return 'Tráfico sin link identificado';
+  }
+
   return tsLink;
 }
 
@@ -1883,13 +1886,13 @@ const funnelComparison = buildFunnelComparison({
   </div>
 
   {selectedTsLink ? (
-    <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">
-      Fila resaltada para:{' '}
-      <span className="font-mono font-medium">
-        {formatTsLinkDisplay(selectedTsLink)}
-      </span>
-    </div>
-  ) : null}
+  <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">
+    Mostrando destacado de:{' '}
+    <span className="font-medium">
+      {formatTsLinkDisplay(selectedTsLink)}
+    </span>
+  </div>
+) : null}
 </div>
 
       {tsLinkSummary ? (

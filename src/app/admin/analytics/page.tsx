@@ -102,8 +102,12 @@ function formatMoney(value: number) {
   }).format(value);
 }
 
+function isUnattributedTsLink(tsLink: string | null | undefined) {
+  return !tsLink || tsLink === 'sin_link';
+}
+
 function formatTsLinkDisplay(tsLink: string) {
-  if (!tsLink || tsLink === 'sin_link') {
+  if (isUnattributedTsLink(tsLink)) {
     return 'Tráfico sin link identificado';
   }
 
@@ -900,13 +904,45 @@ function TsLinkHighlightCard({
         <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
           Link
         </p>
-        <p className="mt-1 break-all font-mono text-sm text-slate-900">
-          {formatTsLinkDisplay(tsLink)}
-        </p>
+        <div className="mt-1">
+  <TsLinkValue tsLink={tsLink} />
+</div>
       </div>
 
       <p className="mt-3 text-sm text-slate-600">{submetric}</p>
     </Link>
+  );
+}
+
+function TsLinkValue({
+  tsLink,
+  selected = false,
+}: {
+  tsLink: string;
+  selected?: boolean;
+}) {
+  if (isUnattributedTsLink(tsLink)) {
+    return (
+      <span
+        className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${
+          selected
+            ? 'border-slate-400 bg-slate-200 text-slate-800'
+            : 'border-slate-200 bg-slate-100 text-slate-700'
+        }`}
+      >
+        {formatTsLinkDisplay(tsLink)}
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className={`break-all font-mono text-xs sm:text-sm ${
+        selected ? 'text-blue-950' : 'text-slate-900'
+      }`}
+    >
+      {tsLink}
+    </span>
   );
 }
 
@@ -1887,10 +1923,10 @@ const funnelComparison = buildFunnelComparison({
 
   {selectedTsLink ? (
   <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900">
-    Mostrando destacado de:{' '}
-    <span className="font-medium">
-      {formatTsLinkDisplay(selectedTsLink)}
-    </span>
+    <div className="flex flex-wrap items-center gap-2">
+      <span>Mostrando destacado de:</span>
+      <TsLinkValue tsLink={selectedTsLink} selected />
+    </div>
   </div>
 ) : null}
 </div>
@@ -1963,14 +1999,11 @@ const funnelComparison = buildFunnelComparison({
       : 'border-slate-100'
   }`}
 >
-                <td
-  className={`px-3 py-3 font-medium ${
-    selectedTsLink === row.tsLink ? 'text-blue-950' : 'text-slate-900'
-  }`}
->
-  <span className="break-all font-mono text-xs sm:text-sm">
-    {formatTsLinkDisplay(row.tsLink)}
-  </span>
+ <td className="px-3 py-3 font-medium">
+  <TsLinkValue
+    tsLink={row.tsLink}
+    selected={selectedTsLink === row.tsLink}
+  />
 </td>
                 <td className="px-3 py-3 text-slate-600">{row.sessions}</td>
                 <td className="px-3 py-3 text-slate-600">{row.views}</td>

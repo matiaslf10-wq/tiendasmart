@@ -12,7 +12,6 @@ type StoreRow = {
   cover_url?: string | null;
   google_analytics_id?: string | null;
   google_analytics_property_id?: string | null;
-  analytics_api_key?: string | null;
 };
 
 type StoreMembershipRow = {
@@ -48,8 +47,7 @@ export async function getCurrentUserStore(): Promise<StoreMembership | null> {
         logo_url,
         cover_url,
         google_analytics_id,
-        google_analytics_property_id,
-        analytics_api_key
+        google_analytics_property_id
       )
     `)
     .eq('user_id', user.id)

@@ -7,6 +7,7 @@ import {
 
 type Props = {
   orders: Order[];
+  comparisonOrders?: Order[];
   range?: RangeValue;
   rangeLabel?: string;
 };
@@ -47,11 +48,12 @@ function sumDeliveredRevenue(orders: Order[]) {
 
 function percentageDelta(current: number, previous: number) {
   if (previous === 0 && current === 0) return 0;
-  if (previous === 0) return 100;
+  if (previous === 0) return null;
   return ((current - previous) / previous) * 100;
 }
 
-function formatDelta(value: number, suffix = '%') {
+function formatDelta(value: number | null, suffix = '%') {
+  if (value === null) return 'Sin base previa';
   const rounded = Math.round(value);
   const sign = rounded > 0 ? '+' : '';
   return `${sign}${rounded}${suffix}`;
@@ -59,6 +61,7 @@ function formatDelta(value: number, suffix = '%') {
 
 export default function OrdersStats({
   orders,
+  comparisonOrders = orders,
   range = 'all',
   rangeLabel = 'período',
 }: Props) {
@@ -125,7 +128,7 @@ export default function OrdersStats({
   const cancellationRate =
     totalOrders > 0 ? Math.round((cancelled / totalOrders) * 100) : 0;
 
-  const comparableOrders = orders.filter(
+  const comparableOrders = comparisonOrders.filter(
     (order) => typeof order.created_at === 'string' && order.created_at.length > 0
   );
 

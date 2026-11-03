@@ -12,6 +12,7 @@ import {
 
 type OrdersAnalyticsSectionProps = {
   orders: Order[];
+  comparisonOrders?: Order[];
   items: OrderItemRow[];
   range: RangeValue;
   comparison: OrdersPeriodComparisonType | null;
@@ -19,6 +20,7 @@ type OrdersAnalyticsSectionProps = {
 
 export default function OrdersAnalyticsSection({
   orders,
+  comparisonOrders,
   items,
   range,
   comparison,
@@ -36,6 +38,7 @@ export default function OrdersAnalyticsSection({
 
       <OrdersStats
         orders={orders}
+        comparisonOrders={comparisonOrders}
         range={range}
         rangeLabel={rangeLabel}
       />

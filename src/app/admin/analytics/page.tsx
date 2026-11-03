@@ -1,3 +1,4 @@
+import { getRangeWindow, getPreviousRangeWindow, normalizeOrderItem, normalizeOrderStatus } from '@/lib/admin/orders';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import AdminShell from '@/components/admin/AdminShell';
@@ -300,6 +301,7 @@ function buildTsLinkRows(
   }
 
   for (const order of orders) {
+    if (normalizeOrderStatus(order.status) === 'cancelled') continue;
     const tsLink = order.metadata?.traffic_ts_link?.trim() || 'sin_link';
 
     const current = map.get(tsLink) ?? {
@@ -493,98 +495,11 @@ function buildSourceInsights(rows: SourcePerformanceRow[]): SourceInsight[] {
   return insights.slice(0, 4);
 }
 
-function getPreviousRangeDates(range: RangeValue): {
-  start: Date | null;
-  end: Date | null;
-} {
-  const now = new Date();
-
-  if (range === 'all') {
-    return { start: null, end: null };
-  }
-
-  if (range === 'today') {
-    const start = new Date(now);
-    start.setDate(start.getDate() - 1);
-    start.setHours(0, 0, 0, 0);
-
-    const end = new Date(now);
-    end.setDate(end.getDate() - 1);
-    end.setHours(23, 59, 59, 999);
-
-    return { start, end };
-  }
-
-  if (range === '7d') {
-    const start = new Date(now);
-    start.setDate(start.getDate() - 13);
-    start.setHours(0, 0, 0, 0);
-
-    const end = new Date(now);
-    end.setDate(end.getDate() - 7);
-    end.setHours(23, 59, 59, 999);
-
-    return { start, end };
-  }
-
-  if (range === '30d') {
-    const start = new Date(now);
-    start.setDate(start.getDate() - 59);
-    start.setHours(0, 0, 0, 0);
-
-    const end = new Date(now);
-    end.setDate(end.getDate() - 30);
-    end.setHours(23, 59, 59, 999);
-
-    return { start, end };
-  }
-
-  if (range === 'month') {
-    const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const previousMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
-    previousMonthEnd.setHours(23, 59, 59, 999);
-
-    return {
-      start: previousMonthStart,
-      end: previousMonthEnd,
-    };
-  }
-
-  return { start: null, end: null };
+function getPreviousRangeDates(range: RangeValue) {
+  return getPreviousRangeWindow(range) ?? { start: null, end: null };
 }
-
 function getRangeStartDate(range: RangeValue): string | null {
-  const now = new Date();
-
-  if (range === 'all') return null;
-
-  if (range === 'today') {
-    const start = new Date(now);
-    start.setHours(0, 0, 0, 0);
-    return start.toISOString();
-  }
-
-  if (range === '7d') {
-    const start = new Date(now);
-    start.setDate(start.getDate() - 6);
-    start.setHours(0, 0, 0, 0);
-    return start.toISOString();
-  }
-
-  if (range === '30d') {
-    const start = new Date(now);
-    start.setDate(start.getDate() - 29);
-    start.setHours(0, 0, 0, 0);
-    return start.toISOString();
-  }
-
-  if (range === 'month') {
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    start.setHours(0, 0, 0, 0);
-    return start.toISOString();
-  }
-
-  return null;
+  return getRangeWindow(range)?.start.toISOString() ?? null;
 }
 
 function buildOwnFunnelInsights(params: {
@@ -979,7 +894,7 @@ function InsightCard({ insight }: { insight: Insight }) {
 export default async function AnalyticsPage({ searchParams }: PageProps) {
   const membership = await getCurrentUserStore();
 
-  if (!membership?.stores) {
+  if (!membership?.stores || !['owner', 'admin'].includes(membership.role)) {
     redirect('/login');
   }
 
@@ -1038,17 +953,17 @@ const selectedTsLink = resolvedSearchParams.ts_link ?? null;
   }
 
   const analyticsApiKey =
-    store.analytics_api_key ?? (await ensureAnalyticsApiKey()).apiKey;
+    (await ensureAnalyticsApiKey()).apiKey;
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? '';
 
   const publicAnalyticsUrl = appUrl
-    ? `${appUrl}/api/public/analytics/orders-detailed?range=${range}&api_key=${analyticsApiKey}`
-    : `/api/public/analytics/orders-detailed?range=${range}&api_key=${analyticsApiKey}`;
+    ? `${appUrl}/api/public/analytics/orders-detailed?range=${range}`
+    : `/api/public/analytics/orders-detailed?range=${range}`;
 
   const publicAnalyticsJsonUrl = appUrl
-    ? `${appUrl}/api/public/analytics/orders-detailed-json?range=${range}&api_key=${analyticsApiKey}`
-    : `/api/public/analytics/orders-detailed-json?range=${range}&api_key=${analyticsApiKey}`;
+    ? `${appUrl}/api/public/analytics/orders-detailed-json?range=${range}`
+    : `/api/public/analytics/orders-detailed-json?range=${range}`;
 
     const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN ?? '';
 
@@ -1075,14 +990,14 @@ const sourceLinks = getDefaultSourceLinkPresets(storeBaseUrl);
   let ga4DailySeries: Awaited<ReturnType<typeof getGa4DailySeries>> = [];
   let ga4Error: string | null = null;
 
-  const rangeStart = getRangeStartDate(range);
+  const rangeStart = getPreviousRangeWindow(range)?.start.toISOString() ?? getRangeStartDate(range);
 
   const ordersQuery = supabase.from('orders').select('*').eq('store_id', store.id);
 
   const itemsQuery = supabase
     .from('order_items')
     .select(
-      'product_id, product_name, quantity, line_total, orders!inner(created_at, store_id)'
+      'product_id, product_name, quantity, line_total, orders!inner(created_at, store_id, status)'
     )
     .eq('orders.store_id', store.id);
 
@@ -1169,13 +1084,13 @@ const sourceLinks = getDefaultSourceLinkPresets(storeBaseUrl);
     product_name: string | null;
     quantity: number | string | null;
     line_total: number | string | null;
-    orders: { created_at: string; store_id: string }[];
+    orders: { created_at: string; store_id: string; status: string } | { created_at: string; store_id: string; status: string }[];
   }>).map((item) => ({
     product_id: item.product_id,
     product_name: item.product_name,
     quantity: item.quantity,
     line_total: item.line_total,
-    orders: item.orders?.[0] ?? null,
+    orders: normalizeOrderItem(item).orders,
   })) as OrderItemRow[];
 
   const productCategoryMap = new Map<string, string>();
@@ -1200,7 +1115,9 @@ for (const product of (productsData ?? []) as Array<{
   productCategoryMap.set(product.id, category ?? 'Sin categoría');
 }
 
-const analyticsEvents = (analyticsEventsData ?? []) as AnalyticsEventRow[];
+const allAnalyticsEvents = (analyticsEventsData ?? []) as AnalyticsEventRow[];
+const activeWindow = getRangeWindow(range);
+const analyticsEvents = allAnalyticsEvents.filter(e => !activeWindow || (new Date(e.created_at) >= activeWindow.start && new Date(e.created_at) < activeWindow.end));
 
 const sourceRows = buildSourcePerformanceRows(analyticsEvents);
 
@@ -1242,7 +1159,7 @@ const previousRangeFilteredOrders =
         const createdAt = new Date(order.created_at);
         return (
           createdAt >= previousRangeDates.start! &&
-          createdAt <= previousRangeDates.end!
+          createdAt < previousRangeDates.end!
         );
       })
     : [];
@@ -1250,7 +1167,7 @@ const previousRangeFilteredOrders =
 const rangeFilteredOrderItems = filterOrderItemsByRange(
   allOrderItems,
   range
-);
+).filter(item => normalizeOrderStatus(item.orders?.status) !== 'cancelled');
 
 const funnelDailySeries = buildFunnelDailySeries({
   analyticsEvents,
@@ -1403,11 +1320,11 @@ const categoryInsights = buildCategoryInsights(
 
 const previousAnalyticsEvents =
   previousRangeDates.start && previousRangeDates.end
-    ? analyticsEvents.filter((event) => {
+    ? allAnalyticsEvents.filter((event) => {
         const createdAt = new Date(event.created_at);
         return (
           createdAt >= previousRangeDates.start! &&
-          createdAt <= previousRangeDates.end!
+          createdAt < previousRangeDates.end!
         );
       })
     : [];
@@ -1536,7 +1453,7 @@ const funnelComparison = buildFunnelComparison({
                 Exportación y Power BI
               </h2>
               <p className="text-sm text-slate-600">
-                Descargá analytics en Excel, abrí Power BI y usá las URLs para
+                En Power BI, enviá la clave como encabezado x-api-key. Usá las URLs para
                 conectar Power Query o integraciones externas.
               </p>
             </div>
@@ -2094,6 +2011,7 @@ const funnelComparison = buildFunnelComparison({
 
         <OrdersAnalyticsSection
           orders={rangeFilteredOrders}
+          comparisonOrders={allOrders}
           items={rangeFilteredOrderItems}
           range={range}
           comparison={comparison}

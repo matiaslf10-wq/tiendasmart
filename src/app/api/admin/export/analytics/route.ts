@@ -1,3 +1,4 @@
+import { argentinaDateKey, normalizeOrderItem, normalizeOrderStatus } from '@/lib/admin/orders';
 import { NextRequest, NextResponse } from 'next/server';
 import * as XLSX from 'xlsx';
 import { createClient } from '@/lib/supabase/server';
@@ -36,6 +37,7 @@ function formatCurrency(value: number) {
 function formatDate(value: string) {
   try {
     return new Intl.DateTimeFormat('es-AR', {
+      timeZone: 'America/Argentina/Buenos_Aires',
       dateStyle: 'short',
       timeStyle: 'short',
     }).format(new Date(value));
@@ -48,7 +50,7 @@ export async function GET(request: NextRequest) {
   try {
     const membership = await getCurrentUserStore();
 
-    if (!membership?.stores) {
+    if (!membership?.stores || !['owner','admin'].includes(membership.role) || !['pro','intelligence'].includes(membership.stores.plan)) {
       return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
     }
 
@@ -84,7 +86,7 @@ export async function GET(request: NextRequest) {
       supabase
         .from('order_items')
         .select(
-          'order_id, product_id, product_name, unit_price, quantity, line_total, orders!inner(created_at, store_id)'
+          'order_id, product_id, product_name, unit_price, quantity, line_total, orders!inner(created_at, store_id, status)'
         )
         .eq('orders.store_id', store.id),
     ]);
@@ -112,7 +114,7 @@ export async function GET(request: NextRequest) {
       unit_price?: number | string | null;
       quantity: number | string | null;
       line_total: number | string | null;
-      orders: { created_at: string; store_id: string }[];
+      orders: { created_at: string; store_id: string; status: string }[];
     }>).map((item) => ({
       order_id: item.order_id,
       product_id: item.product_id,
@@ -120,7 +122,7 @@ export async function GET(request: NextRequest) {
       unit_price: item.unit_price ?? 0,
       quantity: item.quantity,
       line_total: item.line_total,
-      orders: item.orders?.[0] ?? null,
+      orders: normalizeOrderItem(item).orders,
     })) as ExportOrderItemRow[];
 
     const { rangeFilteredOrders } = filterOrders({
@@ -139,18 +141,19 @@ export async function GET(request: NextRequest) {
 
     const orderIdsInRange = new Set(rangeFilteredOrders.map((order) => order.id));
 
-    const orderItems = rangeFilteredOrderItems.filter((item) =>
+    const orderItems = rangeFilteredOrderItems.filter(item => normalizeOrderStatus(item.orders?.status) !== 'cancelled').filter((item) =>
       orderIdsInRange.has(item.order_id)
     );
 
-    const totalRevenue = rangeFilteredOrders.reduce(
+    const revenueOrders = rangeFilteredOrders.filter(order => normalizeOrderStatus(order.status) !== 'cancelled');
+    const totalRevenue = revenueOrders.reduce(
       (acc, order) => acc + Number(order.total ?? 0),
       0
     );
 
     const avgTicket =
-      rangeFilteredOrders.length > 0
-        ? totalRevenue / rangeFilteredOrders.length
+      revenueOrders.length > 0
+        ? totalRevenue / revenueOrders.length
         : 0;
 
     const totalItemsSold = orderItems.reduce(
@@ -208,17 +211,14 @@ export async function GET(request: NextRequest) {
     const dailyMap = rangeFilteredOrders.reduce<
       Record<string, { pedidos: number; facturacion: number }>
     >((acc, order) => {
-      const date = new Date(order.created_at);
-      const key = `${date.getFullYear()}-${String(
-        date.getMonth() + 1
-      ).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      const key = argentinaDateKey(order.created_at);
 
       if (!acc[key]) {
         acc[key] = { pedidos: 0, facturacion: 0 };
       }
 
       acc[key].pedidos += 1;
-      acc[key].facturacion += Number(order.total ?? 0);
+      if (normalizeOrderStatus(order.status) !== 'cancelled') acc[key].facturacion += Number(order.total ?? 0);
 
       return acc;
     }, {});

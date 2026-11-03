@@ -30,6 +30,7 @@ export type OrderItemRow = {
   orders: {
     created_at: string;
     store_id: string;
+    status?: string;
   } | null;
 };
 
@@ -48,18 +49,24 @@ export type OrdersPeriodComparison = {
   unitsSold: ComparisonMetric;
 };
 
-function startOfDay(date: Date) {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return d;
+// Argentina uses UTC-03. Build boundaries explicitly, independently of server TZ.
+const AR_OFFSET = 3 * 60 * 60 * 1000;
+function arParts(date: Date) {
+  const shifted = new Date(date.getTime() - AR_OFFSET);
+  return { year: shifted.getUTCFullYear(), month: shifted.getUTCMonth(), day: shifted.getUTCDate() };
 }
-
-function startOfNextDay(date: Date) {
-  const d = startOfDay(date);
-  d.setDate(d.getDate() + 1);
-  return d;
+function arMidnight(year: number, month: number, day: number) {
+  return new Date(Date.UTC(year, month, day, 3));
 }
-
+export function argentinaDateKey(value: string) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return '';
+  const { year, month, day } = arParts(date);
+  return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+export function normalizeOrderItem<T extends { orders: unknown }>(item: T) {
+  return { ...item, orders: (Array.isArray(item.orders) ? item.orders[0] : item.orders) ?? null };
+}
 export function normalizeOrderStatus(status: string | null | undefined): string {
   const value = (status ?? '').toLowerCase().trim();
 
@@ -75,60 +82,8 @@ export function toNumber(value: number | string | null | undefined) {
 export function isWithinRange(dateString: string, range: RangeValue): boolean {
   if (range === 'all') return true;
 
-  const date = new Date(dateString);
-  const now = new Date();
-
-  if (Number.isNaN(date.getTime())) return false;
-
-  if (range === 'today') {
-    const todayStart = startOfDay(now);
-    const tomorrowStart = startOfNextDay(now);
-
-    return date >= todayStart && date < tomorrowStart;
-  }
-
-  if (range === '7d') {
-    const start = startOfDay(now);
-    start.setDate(start.getDate() - 6);
-
-    const endExclusive = startOfNextDay(now);
-
-    return date >= start && date < endExclusive;
-  }
-
-  if (range === '30d') {
-    const start = startOfDay(now);
-    start.setDate(start.getDate() - 29);
-
-    const endExclusive = startOfNextDay(now);
-
-    return date >= start && date < endExclusive;
-  }
-
-  if (range === 'month') {
-    const monthStart = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      1,
-      0,
-      0,
-      0,
-      0
-    );
-    const nextMonthStart = new Date(
-      now.getFullYear(),
-      now.getMonth() + 1,
-      1,
-      0,
-      0,
-      0,
-      0
-    );
-
-    return date >= monthStart && date < nextMonthStart;
-  }
-
-  return true;
+  const window = getRangeWindow(range);
+  return isDateInWindow(dateString, window);
 }
 
 export function matchesSearch(order: Order, rawQuery: string): boolean {
@@ -232,101 +187,20 @@ export function getRangeLabel(range: RangeValue): string {
 }
 
 export function getRangeWindow(range: RangeValue, now = new Date()) {
-  if (range === 'all') {
-    return null;
-  }
-
-  if (range === 'today') {
-    const start = startOfDay(now);
-    const end = startOfNextDay(now);
-
-    return { start, end };
-  }
-
-  if (range === '7d') {
-    const start = startOfDay(now);
-    start.setDate(start.getDate() - 6);
-
-    const end = startOfNextDay(now);
-
-    return { start, end };
-  }
-
-  if (range === '30d') {
-    const start = startOfDay(now);
-    start.setDate(start.getDate() - 29);
-
-    const end = startOfNextDay(now);
-
-    return { start, end };
-  }
-
-  if (range === 'month') {
-    const start = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      1,
-      0,
-      0,
-      0,
-      0
-    );
-    const end = new Date(
-      now.getFullYear(),
-      now.getMonth() + 1,
-      1,
-      0,
-      0,
-      0,
-      0
-    );
-
-    return { start, end };
-  }
-
-  return null;
+  if (range === 'all') return null;
+  const { year, month, day } = arParts(now);
+  if (range === 'month') return { start: arMidnight(year, month, 1), end: arMidnight(year, month + 1, 1) };
+  const days = range === '7d' ? 7 : range === '30d' ? 30 : 1;
+  return { start: arMidnight(year, month, day - days + 1), end: arMidnight(year, month, day + 1) };
 }
-
 export function getPreviousRangeWindow(range: RangeValue, now = new Date()) {
   const current = getRangeWindow(range, now);
-
-  if (!current) {
-    return null;
-  }
-
+  if (!current) return null;
   if (range === 'month') {
-    const currentStart = current.start;
-
-    const start = new Date(
-      currentStart.getFullYear(),
-      currentStart.getMonth() - 1,
-      1,
-      0,
-      0,
-      0,
-      0
-    );
-    const end = new Date(
-      currentStart.getFullYear(),
-      currentStart.getMonth(),
-      1,
-      0,
-      0,
-      0,
-      0
-    );
-
-    return { start, end };
+    const { year, month } = arParts(now);
+    return { start: arMidnight(year, month - 1, 1), end: current.start };
   }
-
-  const currentStart = current.start.getTime();
-  const currentEnd = current.end.getTime();
-  const duration = currentEnd - currentStart;
-
-  const end = new Date(currentStart);
-  const start = new Date(currentStart - duration);
-
-  return { start, end };
+  return { start: new Date(current.start.getTime() - (current.end.getTime() - current.start.getTime())), end: current.start };
 }
 
 export function isDateInWindow(
@@ -409,11 +283,13 @@ export function getOrdersComparison(
   const currentItems = filterOrderItemsByWindow(items, currentWindow);
   const previousItems = filterOrderItemsByWindow(items, previousWindow);
 
-  const currentRevenue = currentOrders.reduce(
+  const revenueOrders = currentOrders.filter(o => normalizeOrderStatus(o.status) !== 'cancelled');
+  const previousRevenueOrders = previousOrders.filter(o => normalizeOrderStatus(o.status) !== 'cancelled');
+  const currentRevenue = revenueOrders.reduce(
     (acc, order) => acc + toNumber(order.total),
     0
   );
-  const previousRevenue = previousOrders.reduce(
+  const previousRevenue = previousRevenueOrders.reduce(
     (acc, order) => acc + toNumber(order.total),
     0
   );
@@ -422,15 +298,15 @@ export function getOrdersComparison(
   const previousOrdersCount = previousOrders.length;
 
   const currentAverageTicket =
-    currentOrdersCount > 0 ? currentRevenue / currentOrdersCount : 0;
+    revenueOrders.length > 0 ? currentRevenue / revenueOrders.length : 0;
   const previousAverageTicket =
-    previousOrdersCount > 0 ? previousRevenue / previousOrdersCount : 0;
+    previousRevenueOrders.length > 0 ? previousRevenue / previousRevenueOrders.length : 0;
 
-  const currentUnitsSold = currentItems.reduce(
+  const currentUnitsSold = currentItems.filter(i => normalizeOrderStatus(i.orders?.status) !== 'cancelled').reduce(
     (acc, item) => acc + toNumber(item.quantity),
     0
   );
-  const previousUnitsSold = previousItems.reduce(
+  const previousUnitsSold = previousItems.filter(i => normalizeOrderStatus(i.orders?.status) !== 'cancelled').reduce(
     (acc, item) => acc + toNumber(item.quantity),
     0
   );

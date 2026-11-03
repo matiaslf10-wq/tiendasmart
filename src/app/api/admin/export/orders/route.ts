@@ -16,6 +16,7 @@ function isValidRange(value: string | null): value is RangeValue {
 function formatDate(value: string) {
   try {
     return new Intl.DateTimeFormat('es-AR', {
+      timeZone: 'America/Argentina/Buenos_Aires',
       dateStyle: 'short',
       timeStyle: 'short',
     }).format(new Date(value));
@@ -70,7 +71,7 @@ function buildCsv(rows: Array<Array<unknown>>) {
 export async function GET(request: NextRequest) {
   const membership = await getCurrentUserStore();
 
-  if (!membership?.stores) {
+  if (!membership?.stores || !['owner','admin'].includes(membership.role)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   }
 

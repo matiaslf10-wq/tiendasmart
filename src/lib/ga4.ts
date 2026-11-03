@@ -1,5 +1,5 @@
 import { GoogleAuth } from 'google-auth-library';
-import type { RangeValue } from '@/lib/admin/orders';
+import { argentinaDateKey, getRangeWindow, type RangeValue } from '@/lib/admin/orders';
 
 type Ga4MetricValue = {
   name: string;
@@ -206,15 +206,8 @@ function parseMetricRows(
 }
 
 function getDateRange(range: RangeValue): Ga4DateRange {
-  return range === 'today'
-    ? { startDate: 'today', endDate: 'today' }
-    : range === '7d'
-      ? { startDate: '7daysAgo', endDate: 'today' }
-      : range === '30d'
-        ? { startDate: '30daysAgo', endDate: 'today' }
-        : range === 'month'
-          ? { startDate: '28daysAgo', endDate: 'today' }
-          : { startDate: '365daysAgo', endDate: 'today' };
+  const window = getRangeWindow(range);
+  return { startDate: window ? argentinaDateKey(window.start.toISOString()) : '2000-01-01', endDate: argentinaDateKey(new Date().toISOString()) };
 }
 
 async function getEventCountByName(params: {

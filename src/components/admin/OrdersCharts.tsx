@@ -1,3 +1,5 @@
+
+import { argentinaDateKey } from '@/lib/admin/orders';
 type Order = {
   status: string;
   total: number | string | null;
@@ -53,7 +55,7 @@ export default function OrdersCharts({ orders }: Props) {
   >();
 
   for (const order of validOrders) {
-    const key = String(order.created_at).slice(0, 10);
+    const key = argentinaDateKey(order.created_at ?? '');
     const current = byDayMap.get(key) ?? { orders: 0, revenue: 0 };
 
     current.orders += 1;

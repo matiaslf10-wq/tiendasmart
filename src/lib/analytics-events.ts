@@ -15,6 +15,7 @@ export async function trackStoreEvent(params: TrackStoreEventParams) {
         : { source: 'direct' };
 
     const body = JSON.stringify({
+      eventId: crypto.randomUUID(),
       storeSlug: params.storeSlug,
       eventName: params.eventName,
       productId: params.productId,
@@ -31,8 +32,7 @@ export async function trackStoreEvent(params: TrackStoreEventParams) {
 
     if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
       const blob = new Blob([body], { type: 'application/json' });
-      navigator.sendBeacon('/api/public/analytics/event', blob);
-      return;
+      if (navigator.sendBeacon('/api/public/analytics/event', blob)) return;
     }
 
     await fetch('/api/public/analytics/event', {

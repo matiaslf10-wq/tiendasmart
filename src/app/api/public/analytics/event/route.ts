@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
+    const eventId = typeof body.eventId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.eventId) ? body.eventId : crypto.randomUUID();
     const storeSlug = String(body.storeSlug ?? '').trim();
     const eventName = String(body.eventName ?? '').trim();
     const productId =
@@ -61,15 +62,14 @@ export async function POST(request: NextRequest) {
 
     const sessionId = getSessionId(request);
 
-    const { error: insertError } = await supabase
-      .from('analytics_events')
-      .insert({
-        store_id: store.id,
-        event_name: eventName,
-        product_id: productId,
-        session_id: sessionId,
-        metadata,
-      });
+    const { error: insertError } = await supabase.rpc('record_analytics_event', {
+      p_event_id: eventId,
+      p_store_id: store.id,
+      p_event_name: eventName,
+      p_product_id: productId,
+      p_session_id: sessionId,
+      p_metadata: metadata,
+    });
 
     if (insertError) {
       return NextResponse.json(

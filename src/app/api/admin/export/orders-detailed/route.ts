@@ -18,12 +18,14 @@ function getDateParts(value: string) {
     const date = new Date(value);
 
     const fecha = new Intl.DateTimeFormat('es-AR', {
+      timeZone: 'America/Argentina/Buenos_Aires',
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
     }).format(date);
 
     const hora = new Intl.DateTimeFormat('es-AR', {
+      timeZone: 'America/Argentina/Buenos_Aires',
       hour: '2-digit',
       minute: '2-digit',
       hour12: false,
@@ -127,7 +129,7 @@ type ProductCategoryRow = {
 export async function GET(request: NextRequest) {
   const membership = await getCurrentUserStore();
 
-  if (!membership?.stores) {
+  if (!membership?.stores || !['owner','admin'].includes(membership.role)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
   }
 

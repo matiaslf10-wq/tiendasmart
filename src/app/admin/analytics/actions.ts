@@ -16,23 +16,21 @@ function generateApiKey() {
 export async function ensureAnalyticsApiKey(): Promise<AnalyticsApiKeyResult> {
   const membership = await getCurrentUserStore();
 
-  if (!membership?.stores) {
+  if (!membership?.stores || !['owner', 'admin'].includes(membership.role) || !['pro','intelligence'].includes(membership.stores.plan) || !membership.stores.is_active) {
     throw new Error('No autorizado');
   }
 
   const store = membership.stores;
 
-  if (store.analytics_api_key) {
-    return { apiKey: store.analytics_api_key };
-  }
-
   const supabase = await createClient();
+  const { data: existing, error: readError } = await supabase.from('store_analytics_keys').select('api_key').eq('store_id', store.id).maybeSingle();
+  if (readError) throw new Error('No se pudo consultar la clave');
+  if (existing) return { apiKey: existing.api_key };
   const apiKey = generateApiKey();
 
   const { error } = await supabase
-    .from('stores')
-    .update({ analytics_api_key: apiKey })
-    .eq('id', store.id);
+    .from('store_analytics_keys')
+    .upsert({ store_id: store.id, api_key: apiKey }, { onConflict: 'store_id' });
 
   if (error) {
     throw new Error(`No se pudo generar la API key: ${error.message}`);
@@ -46,7 +44,7 @@ export async function ensureAnalyticsApiKey(): Promise<AnalyticsApiKeyResult> {
 export async function regenerateAnalyticsApiKey(): Promise<AnalyticsApiKeyResult> {
   const membership = await getCurrentUserStore();
 
-  if (!membership?.stores) {
+  if (!membership?.stores || !['owner', 'admin'].includes(membership.role) || !['pro','intelligence'].includes(membership.stores.plan) || !membership.stores.is_active) {
     throw new Error('No autorizado');
   }
 
@@ -55,9 +53,8 @@ export async function regenerateAnalyticsApiKey(): Promise<AnalyticsApiKeyResult
   const apiKey = generateApiKey();
 
   const { error } = await supabase
-    .from('stores')
-    .update({ analytics_api_key: apiKey })
-    .eq('id', store.id);
+    .from('store_analytics_keys')
+    .upsert({ store_id: store.id, api_key: apiKey }, { onConflict: 'store_id' });
 
   if (error) {
     throw new Error(`No se pudo regenerar la API key: ${error.message}`);

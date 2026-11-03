@@ -1,3 +1,4 @@
+import { argentinaDateKey } from '@/lib/admin/orders';
 export type FunnelDailyPoint = {
   date: string;
   views: number;
@@ -18,7 +19,7 @@ type OrderRow = {
 };
 
 function toDateKey(value: string) {
-  return value.slice(0, 10);
+  return argentinaDateKey(value);
 }
 
 function createEmptyPoint(date: string): FunnelDailyPoint {

@@ -1,3 +1,4 @@
+import { getRangeWindow } from '@/lib/admin/orders';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { filterOrders, type Order, type RangeValue } from '@/lib/admin/orders';
@@ -17,12 +18,14 @@ function getDateParts(value: string) {
     const date = new Date(value);
 
     const fecha = new Intl.DateTimeFormat('es-AR', {
+      timeZone: 'America/Argentina/Buenos_Aires',
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
     }).format(date);
 
     const hora = new Intl.DateTimeFormat('es-AR', {
+      timeZone: 'America/Argentina/Buenos_Aires',
       hour: '2-digit',
       minute: '2-digit',
       hour12: false,
@@ -125,8 +128,7 @@ type ProductRow = {
 
 export async function GET(request: NextRequest) {
   const apiKey =
-    request.headers.get('x-api-key') ??
-    request.nextUrl.searchParams.get('api_key');
+    request.headers.get('x-api-key');
 
   if (!apiKey) {
     return NextResponse.json({ error: 'Falta API key' }, { status: 401 });
@@ -137,43 +139,16 @@ export async function GET(request: NextRequest) {
 
   const supabase = await createClient();
 
-  const { data: store, error: storeError } = await supabase
-    .from('stores')
-    .select('id, name, slug, analytics_api_key, is_active')
-    .eq('analytics_api_key', apiKey)
-    .single();
-
-  if (storeError || !store || !store.is_active) {
-    return NextResponse.json({ error: 'API key inválida' }, { status: 401 });
-  }
-
-  const { data: ordersData, error: ordersError } = await supabase
-    .from('orders')
-    .select(`
-      id,
-      order_number,
-      customer_name,
-      customer_phone,
-      total,
-      status,
-      notes,
-      delivery_type,
-      delivery_address,
-      created_at
-    `)
-    .eq('store_id', store.id)
-    .order('created_at', { ascending: false });
-
-  if (ordersError) {
-    return NextResponse.json(
-      {
-        error: 'No se pudieron cargar los pedidos',
-        details: ordersError.message,
-      },
-      { status: 500 }
-    );
-  }
-
+  const bounds = getRangeWindow(range);
+  const { data: payload, error: exportError } = await supabase.rpc('analytics_export', {
+    p_api_key: apiKey,
+    p_start: bounds?.start.toISOString() ?? null,
+    p_end: bounds?.end.toISOString() ?? null,
+  });
+  if (exportError) return NextResponse.json({ error: 'No se pudo generar la exportación' }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
+  if (!payload?.store) return NextResponse.json({ error: 'API key inválida' }, { status: 401, headers: { 'Cache-Control': 'no-store' } });
+  const store = payload.store as { id: string; name: string; slug: string };
+  const ordersData = payload.orders;
   const allOrders = (ordersData ?? []) as Order[];
 
   const { rangeFilteredOrders } = filterOrders({
@@ -225,37 +200,7 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  const { data: itemsData, error: itemsError } = await supabase
-    .from('order_items')
-    .select(`
-      product_id,
-      product_name,
-      quantity,
-      line_total,
-      orders!inner (
-        id,
-        order_number,
-        customer_name,
-        customer_phone,
-        total,
-        status,
-        delivery_type,
-        delivery_address,
-        notes,
-        created_at
-      )
-    `)
-    .in('order_id', orderIds);
-
-  if (itemsError) {
-    return NextResponse.json(
-      {
-        error: 'No se pudieron cargar los ítems de los pedidos',
-        details: itemsError.message,
-      },
-      { status: 500 }
-    );
-  }
+  const itemsData = payload.items as ExportOrderItemRow[];
 
   const productIds = Array.from(
     new Set(
@@ -268,27 +213,7 @@ export async function GET(request: NextRequest) {
   let categoryByProductId = new Map<string, string>();
 
   if (productIds.length > 0) {
-    const { data: productsData, error: productsError } = await supabase
-      .from('products')
-      .select(`
-        id,
-        category_id,
-        categories (
-          name
-        )
-      `)
-      .in('id', productIds);
-
-    if (productsError) {
-      return NextResponse.json(
-        {
-          error: 'No se pudieron cargar las categorías de productos',
-          details: productsError.message,
-        },
-        { status: 500 }
-      );
-    }
-
+    const productsData = payload.products as ProductRow[];
     categoryByProductId = new Map(
       ((productsData ?? []) as ProductRow[]).map((product) => {
         const categoryName = Array.isArray(product.categories)

@@ -51,7 +51,7 @@ export default function FunnelComparison({ comparison }: Props) {
         <Row label="Checkout" metric={comparison.checkout} />
         <Row label="WhatsApp" metric={comparison.whatsapp} />
         <Row label="Contactos" metric={comparison.contactWhatsapp} />
-        <Row label="Ventas" metric={comparison.purchases} />
+        <Row label="Pedidos registrados" metric={comparison.purchases} />
       </div>
     </section>
   );

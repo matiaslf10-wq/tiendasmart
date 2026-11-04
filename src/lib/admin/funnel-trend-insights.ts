@@ -37,8 +37,8 @@ export function buildFunnelTrendInsights(
   }
 
   const half = Math.floor(points.length / 2);
-  const previous = points.slice(0, half);
-  const current = points.slice(half);
+  const previous = points.slice(points.length - 2 * half, points.length - half);
+  const current = points.slice(-half);
 
   const previousViews = sumRange(previous, 'views');
   const currentViews = sumRange(current, 'views');

@@ -81,14 +81,6 @@ export async function updateStoreSettings(formData: FormData) {
     const whatsappNumber = String(formData.get('whatsapp_number') || '').trim();
     const logoUrlInput = String(formData.get('logo_url') || '').trim();
     const coverUrlInput = String(formData.get('cover_url') || '').trim();
-    const googleAnalyticsIdInput = String(
-      formData.get('google_analytics_id') || ''
-    )
-      .trim()
-      .toUpperCase();
-    const googleAnalyticsPropertyIdInput = normalizeGa4PropertyId(
-      formData.get('google_analytics_property_id')
-    );
 
     if (!name) {
       throw new Error('El nombre es obligatorio');
@@ -124,15 +116,6 @@ export async function updateStoreSettings(formData: FormData) {
       throw new Error('Ese slug ya está en uso');
     }
 
-    if (
-      googleAnalyticsIdInput &&
-      !/^G-[A-Z0-9]+$/.test(googleAnalyticsIdInput)
-    ) {
-      throw new Error(
-        'El ID de Google Analytics no es válido. Debe tener formato G-XXXXXXXXXX.'
-      );
-    }
-
     let finalLogoUrl: string | null = logoUrlInput || null;
     let finalCoverUrl: string | null = coverUrlInput || null;
 
@@ -154,8 +137,6 @@ export async function updateStoreSettings(formData: FormData) {
         whatsapp_number: whatsappNumber || null,
         logo_url: finalLogoUrl,
         cover_url: finalCoverUrl,
-        google_analytics_id: googleAnalyticsIdInput || null,
-        google_analytics_property_id: googleAnalyticsPropertyIdInput,
       })
       .eq('id', store.id);
 

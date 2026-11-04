@@ -207,39 +207,6 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
             </label>
 
             <label className="block space-y-2">
-              <span className="text-sm font-medium">
-                Google Analytics ID (GA4)
-              </span>
-              <input
-                type="text"
-                name="google_analytics_id"
-                defaultValue={store.google_analytics_id ?? ''}
-                placeholder="G-XXXXXXXXXX"
-                className="w-full rounded-xl border px-4 py-3"
-              />
-              <p className="text-sm text-gray-600">
-                Es el Measurement ID. Se usa para enviar eventos desde la tienda
-                pública.
-              </p>
-            </label>
-
-            <label className="block space-y-2">
-              <span className="text-sm font-medium">GA4 Property ID</span>
-              <input
-                type="text"
-                name="google_analytics_property_id"
-                defaultValue={store.google_analytics_property_id ?? ''}
-                placeholder="123456789"
-                inputMode="numeric"
-                className="w-full rounded-xl border px-4 py-3"
-              />
-              <p className="text-sm text-gray-600">
-                Es el ID numérico de la propiedad GA4. Se usa para leer métricas
-                desde el panel admin.
-              </p>
-            </label>
-
-            <label className="block space-y-2">
               <span className="text-sm font-medium">Logo URL</span>
               <input
                 type="text"

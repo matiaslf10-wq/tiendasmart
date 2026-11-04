@@ -34,7 +34,8 @@ export function getAttributionFromBrowser(): AttributionData {
   const utmSource = url.searchParams.get('utm_source')?.trim();
   const utmMedium = url.searchParams.get('utm_medium')?.trim();
   const utmCampaign = url.searchParams.get('utm_campaign')?.trim();
-  const referrer = document.referrer?.trim();
+  let referrer = document.referrer?.trim();
+  try { if(referrer && new URL(referrer).origin === url.origin) referrer=''; } catch { referrer=''; }
   const tsLink = url.searchParams.get('ts_link')?.trim();
 
   if (utmSource) {
@@ -43,7 +44,7 @@ export function getAttributionFromBrowser(): AttributionData {
     medium: utmMedium ?? undefined,
     campaign: utmCampaign ?? undefined,
     referrer: referrer || undefined,
-    landingPath: `${url.pathname}${url.search}`,
+    landingPath: url.pathname,
     tsLink: tsLink ?? undefined,
   };
 }
@@ -53,7 +54,7 @@ export function getAttributionFromBrowser(): AttributionData {
     source: normalizeSourceFromReferrer(referrer),
     medium: 'referral',
     referrer,
-    landingPath: `${url.pathname}${url.search}`,
+    landingPath: url.pathname,
     tsLink: tsLink ?? undefined,
   };
 }
@@ -61,7 +62,7 @@ export function getAttributionFromBrowser(): AttributionData {
   return {
   source: 'direct',
   medium: 'none',
-  landingPath: `${url.pathname}${url.search}`,
+  landingPath: url.pathname,
   tsLink: tsLink ?? undefined,
 };
 }

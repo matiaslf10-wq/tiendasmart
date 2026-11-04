@@ -4,7 +4,6 @@ import { createClient } from '@/lib/supabase/server';
 import WhatsAppCart from '@/components/store/WhatsAppCart';
 import ProductCard from '@/components/ProductCard';
 import CartBadge from '@/components/store/CartBadge';
-import GoogleAnalytics from '@/components/store/GoogleAnalytics';
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -133,9 +132,7 @@ export default async function PublicStorePage({ params }: PageProps) {
   if (productsError || categoriesError) {
     return (
       <>
-        {store.google_analytics_id ? (
-          <GoogleAnalytics measurementId={store.google_analytics_id} />
-        ) : null}
+        
 
         <main className="min-h-screen bg-white">
           <section className="mx-auto max-w-6xl px-6 py-12">
@@ -175,9 +172,7 @@ export default async function PublicStorePage({ params }: PageProps) {
 
   return (
     <>
-      {store.google_analytics_id ? (
-        <GoogleAnalytics measurementId={store.google_analytics_id} />
-      ) : null}
+      
 
       <main className="min-h-screen bg-white">
         <section className="relative border-b bg-gray-50">

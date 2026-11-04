@@ -23,6 +23,9 @@ type CreateOrderInput = {
   trafficReferrer?: string;
   trafficTsLink?: string;
   landingPath?: string;
+  analyticsSessionId?: string;
+  analyticsVisitorId?: string;
+  analyticsOccurredAt?: string;
 };
 
 type CreateOrderResult =
@@ -101,6 +104,9 @@ export async function createOrder(
     traffic_referrer: input.trafficReferrer ?? null,
     traffic_ts_link: input.trafficTsLink ?? null,
     landing_path: input.landingPath ?? null,
+    analytics_session_id: input.analyticsSessionId ?? null,
+    visitor_id: input.analyticsVisitorId ?? null,
+    analytics_client_at: input.analyticsOccurredAt && Math.abs(Date.now()-Date.parse(input.analyticsOccurredAt))<5*60000 ? input.analyticsOccurredAt : new Date().toISOString(),
   },
 });
 

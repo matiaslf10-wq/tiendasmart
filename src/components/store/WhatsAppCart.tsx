@@ -28,6 +28,7 @@ import {
 } from '@/lib/ga';
 import { trackStoreEvent } from '@/lib/analytics-events';
 import StoreToast from '@/components/store/StoreToast';
+import { getAnalyticsIdentity } from '@/lib/analytics-identity';
 import { createOrder } from '@/app/actions/createOrder';
 import { getStoredAttribution } from '@/lib/analytics-source';
 
@@ -330,6 +331,9 @@ export default function WhatsAppCart({
 
     const result = await createOrder({
       storeSlug,
+      analyticsSessionId: getAnalyticsIdentity(storeSlug).sessionId,
+      analyticsVisitorId: getAnalyticsIdentity(storeSlug).visitorId,
+      analyticsOccurredAt: new Date().toISOString(),
       customerName: customerName.trim(),
       customerPhone: normalizedPhone,
       deliveryType,

@@ -1,4 +1,3 @@
-import { getStoredAttribution } from '@/lib/analytics-source';
 
 export type GAItem = {
   item_id: string;
@@ -24,38 +23,13 @@ declare global {
   }
 }
 
-function canTrack() {
-  return typeof window !== 'undefined' && typeof window.gtag === 'function';
-}
-
-function getAttributionParams(storeSlug?: string) {
-  if (!storeSlug || typeof window === 'undefined') {
-    return {};
-  }
-
-  const attribution = getStoredAttribution(storeSlug);
-
-  return {
-    traffic_source: attribution.source,
-    traffic_medium: attribution.medium,
-    traffic_campaign: attribution.campaign,
-    traffic_referrer: attribution.referrer,
-    landing_path: attribution.landingPath,
-    traffic_ts_link: attribution.tsLink,
-  };
-}
-
 export function trackEvent(
   eventName: GAEventName,
   params?: Record<string, unknown>,
   storeSlug?: string
 ) {
-  if (!canTrack()) return;
-
-  window.gtag?.('event', eventName, {
-    ...(params ?? {}),
-    ...getAttributionParams(storeSlug),
-  });
+  // Native events are emitted by storefront components; orders are recorded in DB.
+  void eventName; void params; void storeSlug;
 }
 
 export function trackViewItem(item: GAItem, storeSlug?: string) {

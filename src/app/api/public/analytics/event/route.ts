@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
 const ALLOWED_EVENTS = new Set([
+  'page_view',
   'view_item',
   'add_to_cart',
   'begin_checkout',
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const sessionId = getSessionId(request);
+    const sessionId = typeof body.sessionId === 'string' && /^[0-9a-f-]{36}$/i.test(body.sessionId) ? body.sessionId : getSessionId(request);
 
     const { error: insertError } = await supabase.rpc('record_analytics_event', {
       p_event_id: eventId,
@@ -68,7 +69,7 @@ export async function POST(request: NextRequest) {
       p_event_name: eventName,
       p_product_id: productId,
       p_session_id: sessionId,
-      p_metadata: metadata,
+      p_metadata: { ...metadata, client_at: typeof body.occurredAt === 'string' && Math.abs(Date.now()-Date.parse(body.occurredAt)) < 5*60000 ? body.occurredAt : new Date().toISOString() },
     });
 
     if (insertError) {

@@ -19,7 +19,7 @@ export default function Home() {
     <main className={styles.page}>
       <a className={styles.skip} href="#contenido">Ir al contenido</a>
       <header className={styles.header}>
-        <Link href="/" className={styles.brand} aria-label="TiendaSmart, inicio"><Image src="/logo-rendersmart.png" alt="RenderSmart" width={64} height={64} priority className={styles.mark} />Tienda<span>Smart</span></Link>
+        <Link href="/" className={styles.brand} aria-label="TiendaSmart, inicio"><Image src="/logo-rendersmart.png" alt="RenderSmart" width={64} height={64} priority className={styles.mark} /><span className={styles.brandCopy}><span className={styles.wordmark}>Tienda<span>Smart</span></span><span className={styles.tagline}>Tecnología para comercios</span></span></Link>
         <nav aria-label="Navegación principal" className={styles.nav}>
           <a href="#como-funciona">Cómo funciona</a><a href="#preguntas">Preguntas frecuentes</a>
           <Link href="/login" className={styles.login}>Ingresar <span aria-hidden="true">↗</span></Link>

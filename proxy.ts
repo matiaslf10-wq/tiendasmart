@@ -13,7 +13,7 @@ export function proxy(request: NextRequest) {
     pathname.includes('.') ||
     pathname.startsWith('/admin') ||
     pathname === '/login' ||
-    pathname === '/signup'
+    pathname.startsWith('/signup')
   ) {
     return NextResponse.next();
   }

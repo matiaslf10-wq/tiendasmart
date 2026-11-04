@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import type { Plan } from '@/lib/plans';
 
@@ -32,6 +33,9 @@ export async function getCurrentUserStore(): Promise<StoreMembership | null> {
   } = await supabase.auth.getUser();
 
   if (!user) return null;
+  const { data: registration, error: registrationError } = await supabase.from('store_registrations').select('access_state').eq('user_id', user.id).maybeSingle();
+  if (registrationError) throw new Error('No se pudo comprobar la activación de tu tienda');
+  if (registration?.access_state === 'pending_payment') redirect('/signup/cobro');
 
   const { data, error } = await supabase
     .from('store_users')

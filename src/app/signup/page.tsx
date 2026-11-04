@@ -1,89 +1,35 @@
 'use client';
-
-import { useState } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { useRef,useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-
-export default function SignupPage() {
-  const supabase = createClient();
-
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [message, setMessage] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  async function handleSignup(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setLoading(true);
-    setMessage('Creando cuenta...');
-
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-        },
-      },
-    });
-
-    console.log('SIGNUP DATA:', data);
-    console.log('SIGNUP ERROR:', error);
-
-    if (error) {
-      setMessage(`Error: ${error.message}`);
-      setLoading(false);
-      return;
-    }
-
-    if (data.user) {
-      setMessage(`Cuenta creada correctamente. User ID: ${data.user.id}`);
-    } else {
-      setMessage('No hubo error, pero no se devolvió usuario.');
-    }
-
-    setLoading(false);
-  }
-
-  return (
-    <main className="min-h-screen flex items-center justify-center p-6">
-      <form onSubmit={handleSignup} className="w-full max-w-md space-y-4 rounded-2xl border p-6">
-        <h1 className="text-2xl font-bold">Crear cuenta</h1>
-
-        <input
-          className="w-full rounded-xl border px-4 py-3"
-          type="text"
-          placeholder="Nombre completo"
-          value={fullName}
-          onChange={(e) => setFullName(e.target.value)}
-        />
-
-        <input
-          className="w-full rounded-xl border px-4 py-3"
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-
-        <input
-          className="w-full rounded-xl border px-4 py-3"
-          type="password"
-          placeholder="Contraseña"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-
-        <button
-          className="w-full rounded-xl bg-black text-white py-3 disabled:opacity-60"
-          type="submit"
-          disabled={loading}
-        >
-          {loading ? 'Creando...' : 'Registrarme'}
-        </button>
-
-        {message && <p className="text-sm text-gray-700">{message}</p>}
-      </form>
-    </main>
-  );
+const input='mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none focus:border-emerald-700 focus:ring-2 focus:ring-emerald-100';
+function Field({name,label,type='text',autoComplete,required=true,maxLength=120}:{name:string;label:string;type?:string;autoComplete?:string;required?:boolean;maxLength?:number}){return <label className="block text-sm font-medium text-slate-700">{label}<input name={name} type={type} autoComplete={autoComplete} required={required} minLength={type==='text'?2:undefined} maxLength={maxLength} className={input}/></label>;}
+export default function SignupPage(){
+ const router=useRouter(),busy=useRef(false);
+ const [useCode,setUseCode]=useState(false),[show,setShow]=useState(false),[loading,setLoading]=useState(false),[message,setMessage]=useState('');
+ async function submit(e:React.FormEvent<HTMLFormElement>){
+  e.preventDefault();if(busy.current)return;
+  const form=new FormData(e.currentTarget),value=(key:string)=>String(form.get(key)??'').trim();
+  const password=String(form.get('password')??'');
+  if(password!==String(form.get('confirm_password')??'')){setMessage('Las contraseñas no coinciden.');return;}
+  if(!/^[0-9]{8,15}$/.test(value('business_phone').replace(/\D/g,''))||!/^[0-9]{8,15}$/.test(value('holder_phone').replace(/\D/g,''))){setMessage('Ingresá teléfonos válidos, con código de área y país para el WhatsApp del negocio.');return;}
+  busy.current=true;setLoading(true);setMessage('Creando tu cuenta…');
+  try{
+   const client=createClient();
+   if(useCode){const {data,error}=await client.rpc('validate_pilot_code',{p_code:value('pilot_code')});if(error){setMessage('No pudimos validar el código. Intentá nuevamente.');return;}if(!data){setMessage('El código TiendaSmart no es válido. Revisalo para continuar.');return;}}
+   const {data,error}=await client.auth.signUp({email:value('email').toLowerCase(),password,options:{emailRedirectTo:window.location.origin+'/signup/completar',data:{business_name:value('business_name'),business_type:value('business_type'),business_phone:value('business_phone'),city:value('city'),first_name:value('first_name'),last_name:value('last_name'),full_name:value('first_name')+' '+value('last_name'),holder_phone:value('holder_phone'),use_pilot_code:useCode,pilot_code:useCode?value('pilot_code').toUpperCase():null}}});
+   if(error){setMessage(error.code==='user_already_exists'||/already registered/i.test(error.message)?'Este email ya tiene una cuenta. Ingresá desde el enlace de abajo.':/fetch|network/i.test(error.message)?'No pudimos conectar con el servicio. Intentá nuevamente.':error.code==='weak_password'?'Elegí una contraseña más segura.':'No se pudo crear la cuenta. Revisá los datos o intentá nuevamente en unos minutos.');return;}
+   if(!data.user||data.user.identities?.length===0){setMessage('Si este email ya está registrado, ingresá con tu cuenta.');return;}
+   if(!data.session){setMessage('Tu registro fue recibido. Revisá tu email para confirmar la cuenta y luego ingresá.');return;}
+   router.replace('/signup/completar');router.refresh();
+  }catch{setMessage('No pudimos completar el registro. Intentá nuevamente.');}
+  finally{busy.current=false;setLoading(false);}
+ }
+ return <main className="min-h-screen bg-[#faf9f5] px-5 py-10 text-slate-900"><div className="mx-auto max-w-3xl"><Link href="/" className="mb-7 flex items-center justify-center gap-3"><Image src="/logo-rendersmart.png" alt="RenderSmart" width={64} height={64} priority/><span className="text-2xl font-semibold">TiendaSmart</span></Link><form onSubmit={submit} className="space-y-7 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-9"><header><h1 className="text-3xl font-semibold">Creá tu cuenta</h1><p className="mt-2 text-sm text-slate-600">Completá los datos de tu negocio y del titular. Todo en una sola página.</p></header>
+ <fieldset className="space-y-4 border-t border-slate-200 pt-5"><legend className="pr-3 text-lg font-semibold">1. Datos del negocio</legend><Field name="business_name" label="Nombre del negocio" autoComplete="organization"/><Field name="business_type" label="Rubro o actividad" maxLength={100}/><div className="grid gap-4 sm:grid-cols-2"><Field name="business_phone" label="WhatsApp del negocio (país y área)" type="tel" autoComplete="work tel" maxLength={25}/><Field name="city" label="Localidad (opcional)" autoComplete="address-level2" required={false}/></div><p className="text-xs text-slate-500">El nombre y WhatsApp se usarán en tu tienda pública. Te asignaremos un enlace para tu negocio.</p></fieldset>
+ <fieldset className="space-y-4 border-t border-slate-200 pt-5"><legend className="pr-3 text-lg font-semibold">2. Datos personales del titular</legend><div className="grid gap-4 sm:grid-cols-2"><Field name="first_name" label="Nombre" autoComplete="given-name" maxLength={80}/><Field name="last_name" label="Apellido" autoComplete="family-name" maxLength={80}/><Field name="email" label="Email de acceso" type="email" autoComplete="email" maxLength={254}/><Field name="holder_phone" label="Teléfono del titular" type="tel" autoComplete="mobile tel" maxLength={25}/></div><div className="grid gap-4 sm:grid-cols-2">{[['password','Contraseña'],['confirm_password','Confirmar contraseña']].map(([name,label])=><label key={name} className="block text-sm font-medium text-slate-700">{label}<div className="relative"><input name={name} required minLength={8} maxLength={128} type={show?'text':'password'} autoComplete="new-password" className={input+' pr-14'}/><button type="button" className="absolute bottom-1 right-1 flex h-11 w-11 items-center justify-center rounded-lg hover:bg-slate-100" aria-label={show?'Ocultar contraseñas':'Mostrar contraseñas'} aria-pressed={show} onClick={()=>setShow(v=>!v)}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>{show&&<path d="m3 3 18 18"/>}</svg></button></div></label>)}</div><p className="text-xs text-slate-500">Usá al menos 8 caracteres. Los datos personales del titular no se muestran en el catálogo.</p></fieldset>
+ <fieldset className="space-y-4 border-t border-slate-200 pt-5"><legend className="pr-3 text-lg font-semibold">3. Código TiendaSmart (opcional)</legend><label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 p-4"><input type="checkbox" className="h-5 w-5 accent-emerald-800" checked={useCode} onChange={e=>{setUseCode(e.target.checked);setMessage('');}} aria-controls="pilot-code-field"/><span>Tengo un código TiendaSmart</span></label>{useCode?<div id="pilot-code-field"><Field name="pilot_code" label="Ingresá tu código" autoComplete="off" maxLength={80}/><p className="mt-2 text-sm text-emerald-800">Con un código piloto válido, tu cuenta Pro se habilita gratis y entrás directamente al panel.</p></div>:<p className="text-sm text-slate-600">Sin código, al crear tu cuenta irás a la página de cobro. Próximamente. Tu tienda quedará pendiente de activación y no se realizará ningún cargo.</p>}</fieldset>
+ {message&&<p role="status" aria-live="polite" className="rounded-xl bg-slate-50 p-4 text-sm">{message}</p>}<button type="submit" disabled={loading} className="w-full rounded-xl bg-emerald-800 px-5 py-4 font-semibold text-white hover:bg-emerald-900 disabled:opacity-60">{loading?'Creando cuenta…':'Crear cuenta'}</button><p className="text-center text-sm text-slate-600">¿Ya tenés cuenta? <Link href="/login" className="font-semibold text-emerald-800 underline">Ingresar</Link></p></form></div></main>;
 }

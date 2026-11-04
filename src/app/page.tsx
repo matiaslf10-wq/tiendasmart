@@ -23,6 +23,7 @@ export default function Home() {
         <nav aria-label="Navegación principal" className={styles.nav}>
           <a href="#como-funciona">Cómo funciona</a><a href="#preguntas">Preguntas frecuentes</a>
           <Link href="/login" className={styles.login}>Ingresar <span aria-hidden="true">↗</span></Link>
+          <Link href="/signup" className={styles.signup}>Crear cuenta</Link>
         </nav>
       </header>
       <section className={styles.hero} id="contenido" aria-labelledby="hero-title">

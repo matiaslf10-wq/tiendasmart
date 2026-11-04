@@ -1,5 +1,7 @@
 'use client';
 
+import Image from 'next/image';
+import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -47,6 +49,7 @@ export default function LoginPage() {
   return (
     <main className="min-h-screen flex items-center justify-center p-6">
       <form onSubmit={handleLogin} className="w-full max-w-md space-y-4 rounded-2xl border p-6">
+        <Link href="/" className="flex items-center gap-3"><Image src="/logo-rendersmart.png" alt="RenderSmart" width={64} height={64} priority/><span className="text-xl font-semibold">TiendaSmart</span></Link>
         <h1 className="text-2xl font-bold">Iniciar sesión</h1>
 
         <input
@@ -96,6 +99,7 @@ export default function LoginPage() {
           {loading ? 'Ingresando...' : 'Entrar'}
         </button>
 
+        <p className="text-sm text-gray-600">¿No tenés cuenta? <Link href="/signup" className="font-semibold text-emerald-800 underline">Crear cuenta</Link></p>
         {message && <p role="status" aria-live="polite" className="text-sm text-gray-700">{message}</p>}
       </form>
     </main>

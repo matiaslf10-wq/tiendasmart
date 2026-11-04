@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { addToCart } from '@/lib/cart';
+import { trackStoreEvent } from '@/lib/analytics-events';
 import {
   canPurchase,
   getMaxPurchasableQuantity,
@@ -106,6 +107,7 @@ export default function ProductDetailActions({
       quantity
     );
 
+    void trackStoreEvent({storeSlug,eventName:'add_to_cart',productId:product.id,metadata:{item_name:product.name,price:product.price,quantity}});
     setAdded(true);
     showToast(
       quantity === 1

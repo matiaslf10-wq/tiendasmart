@@ -24,8 +24,8 @@ export function buildNativeAnalytics(events: NativeEvent[], orders: NativeOrder[
   const sessionMap = new Map<string, NativeEvent[]>();
   for (const e of currentEvents) if (e.session_id) sessionMap.set(e.session_id, [...(sessionMap.get(e.session_id) ?? []), e]);
   const visitors = new Set(currentEvents.map(e => text(e.metadata?.visitor_id)).filter(Boolean));
-  const funnelNames = ['page_view','view_item','add_to_cart','begin_checkout','order_created'] as const;
-  const funnelCounts = [0,0,0,0,0];
+  const funnelNames = ['page_view','add_to_cart','begin_checkout','order_created'] as const;
+  const funnelCounts = [0,0,0,0];
   const sources = new Map<string, { source: string; sessions: number; orders: number; revenue: number }>();
   for (const entries of sessionMap.values()) {
     const time=(e:NativeEvent)=>text(e.metadata?.client_at,e.created_at);

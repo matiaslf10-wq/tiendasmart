@@ -10,7 +10,7 @@ const items=[{order_id:'order-a',product_id:'product-a',product_name:'Producto A
 const d=buildNativeAnalytics(events,orders,items,[{id:'product-a',name:'Producto A'}],'today',now);
 let passed=0;function test(name,fn){fn();passed++;console.log('PASS '+name);}
 test('Visits, sessions and estimated browsers differ',()=>{assert.equal(d.views,2);assert.equal(d.sessions,2);assert.equal(d.visitors,1)});
-test('Sequential session funnel does not count stray carts',()=>assert.deepEqual(d.funnel.map(s=>s.count),[2,1,1,1,1]));
+test('Sequential session funnel does not count stray carts',()=>assert.deepEqual(d.funnel.map(s=>s.count),[2,1,1,1]));
 test('Cancelled orders excluded from revenue and units',()=>{assert.equal(d.orders,2);assert.equal(d.revenue,100);assert.equal(d.units,2);assert.equal(d.averageTicket,100)});
 test('Delivery amount distinct from payment',()=>assert.equal(d.deliveredRevenue,100));
 test('Source attribution and campaign',()=>{assert.equal(d.sources.find(s=>s.source==='instagram').revenue,100);assert.equal(d.campaigns[0].campaign,'noviembre')});
@@ -19,7 +19,7 @@ test('Previous day comparison',()=>assert.equal(d.revenueDelta,100));
 test('Daily Argentina aggregation',()=>{const r=buildNativeAnalytics([{...events[0],created_at:'2026-11-04T01:00:00Z'}],[],[],[],'all',now);assert.equal(r.daily[0].date,'2026-11-03')});
 test('Empty dataset never invents conversions',()=>{const r=buildNativeAnalytics([],[],[],[],'all',now);assert.equal(r.visitors,0);assert.equal(r.averageTicket,0);assert.equal(r.funnel[1].rate,null)});
 test('All range includes history',()=>assert.equal(buildNativeAnalytics([],orders,items,[],'all',now).orders,3));
-test('Client timestamps tolerate network reordering',()=>{const es=events.slice(0,5).map((e,i)=>({...e,created_at:`2026-11-04T12:0${4-i}:00Z`,metadata:{client_at:`2026-11-04T12:0${i}:00Z`}}));assert.equal(buildNativeAnalytics(es,[],[],[],'today',now).funnel[4].count,1)});
+test('Client timestamps tolerate network reordering',()=>{const es=events.slice(0,5).map((e,i)=>({...e,created_at:`2026-11-04T12:0${4-i}:00Z`,metadata:{client_at:`2026-11-04T12:0${i}:00Z`}}));assert.equal(buildNativeAnalytics(es,[],[],[],'today',now).funnel[3].count,1)});
 const memory=new Map();global.localStorage={getItem:k=>memory.get(k)||null,setItem:(k,v)=>memory.set(k,v)};
 const identity=load('src/lib/analytics-identity.ts');const first=identity.getAnalyticsIdentity('store-a',1000);
 test('Session continuity',()=>assert.deepEqual(identity.getAnalyticsIdentity('store-a',2000),first));

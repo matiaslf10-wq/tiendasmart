@@ -84,11 +84,11 @@ export default function CampaignLinkHelp({ tsLink }: { tsLink?: string }) {
       <button
         type="button"
         aria-haspopup="dialog"
-        aria-label={tsLink ? `Cómo se hace: ${guide.title}` : 'Cómo se usa el generador de links'}
+        aria-label={tsLink ? `Cómo utilizarlo: ${guide.title}` : 'Cómo se usa el generador de links'}
         onClick={() => dialog.current?.showModal()}
         className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
       >
-        Cómo se hace
+        Cómo utilizarlo
       </button>
       <dialog
         ref={dialog}

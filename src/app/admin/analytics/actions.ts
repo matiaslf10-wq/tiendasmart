@@ -36,8 +36,6 @@ export async function ensureAnalyticsApiKey(): Promise<AnalyticsApiKeyResult> {
     throw new Error(`No se pudo generar la API key: ${error.message}`);
   }
 
-  revalidatePath('/admin/analytics');
-
   return { apiKey };
 }
 

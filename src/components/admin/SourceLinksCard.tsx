@@ -1,4 +1,5 @@
 import CopyToClipboardButton from '@/components/admin/CopyToClipboardButton';
+import CampaignLinkHelp from '@/components/admin/CampaignLinkHelp';
 
 type SourceLinkRow = {
   label: string;
@@ -31,7 +32,7 @@ export default function SourceLinksCard({ links }: Props) {
             key={link.tsLink}
             className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
           >
-            <div className="mb-2 flex items-center justify-between gap-2">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-slate-900">
                   {link.label}
@@ -41,7 +42,10 @@ export default function SourceLinksCard({ links }: Props) {
                 </p>
               </div>
 
-              <CopyToClipboardButton value={link.url} />
+              <div className="flex flex-wrap items-center gap-2">
+                <CampaignLinkHelp tsLink={link.tsLink} />
+                <CopyToClipboardButton value={link.url} />
+              </div>
             </div>
 
             <code className="block break-all text-xs text-slate-700">

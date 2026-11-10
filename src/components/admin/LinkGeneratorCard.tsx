@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import CampaignLinkHelp from '@/components/admin/CampaignLinkHelp';
 
 type Props = {
   baseUrl: string;
@@ -45,9 +46,12 @@ export default function LinkGeneratorCard({ baseUrl }: Props) {
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="mb-4">
-        <h3 className="text-lg font-semibold text-slate-900">
-          Generador de links de marketing
-        </h3>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-lg font-semibold text-slate-900">
+            Generador de links de marketing
+          </h3>
+          <CampaignLinkHelp />
+        </div>
         <p className="text-sm text-slate-600">
           Creá un link personalizado para medir campañas, historias, flyers o QR.
         </p>
@@ -55,7 +59,7 @@ export default function LinkGeneratorCard({ baseUrl }: Props) {
 
       <div className="grid gap-4 md:grid-cols-2">
         <label className="space-y-2">
-          <span className="text-sm font-medium text-slate-700">ts_link</span>
+          <span className="text-sm font-medium text-slate-700">Identificador del enlace (ts_link)</span>
           <input
             type="text"
             value={tsLink}
@@ -66,7 +70,7 @@ export default function LinkGeneratorCard({ baseUrl }: Props) {
         </label>
 
         <label className="space-y-2">
-          <span className="text-sm font-medium text-slate-700">utm_source</span>
+          <span className="text-sm font-medium text-slate-700">Origen (utm_source)</span>
           <input
             type="text"
             value={utmSource}
@@ -77,7 +81,7 @@ export default function LinkGeneratorCard({ baseUrl }: Props) {
         </label>
 
         <label className="space-y-2">
-          <span className="text-sm font-medium text-slate-700">utm_medium</span>
+          <span className="text-sm font-medium text-slate-700">Medio (utm_medium)</span>
           <input
             type="text"
             value={utmMedium}
@@ -88,7 +92,7 @@ export default function LinkGeneratorCard({ baseUrl }: Props) {
         </label>
 
         <label className="space-y-2">
-          <span className="text-sm font-medium text-slate-700">utm_campaign</span>
+          <span className="text-sm font-medium text-slate-700">Campaña (utm_campaign)</span>
           <input
             type="text"
             value={utmCampaign}
